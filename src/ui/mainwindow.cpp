@@ -47,6 +47,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QPointer>
 #include <QDebug>
 #include <QInputDialog>
 #include <QTimer>
@@ -298,8 +299,15 @@ void MainWindow::setupUi()
                 QTimer::singleShot(80, this, [this]() { m_engine->pause(); });
             });
         } else {
-            const QUrl url(QString::fromUtf8("%1/api/music/file/%2").arg(Theme::kApiBase).arg(lastMusic.id));
-            startRemotePlaybackWithBackgroundCache(lastMusic.id, restoreSeq, url, true);
+            const QUrl url(QString::fromUtf8("%1/api/music/file/%2")
+                               .arg(QString::fromUtf8(Theme::kApiBase))
+                               .arg(lastMusic.id));
+            // 略延迟远程起播：窗口 show 与 PipeWire/FFmpeg 设备就绪后再拉流，降低偶发 SIGSEGV 风险
+            QTimer::singleShot(120, this, [this, lastMusic, restoreSeq, url]() {
+                if (restoreSeq != m_enginePlaySeq)
+                    return;
+                startRemotePlaybackWithBackgroundCache(lastMusic.id, restoreSeq, url, true);
+            });
         }
     }
 
@@ -1416,23 +1424,28 @@ void MainWindow::loadFavoritesCache()
         qDebug() << "[收藏] 未登录，跳过加载";
         return;
     }
+    if (!m_apiClient) {
+        qWarning() << "[收藏] ApiClient 未初始化，跳过加载";
+        return;
+    }
 
-    m_apiClient->fetchFavorites([this](bool success, const QList<QVariantMap>& favorites) {
+    QPointer<MainWindow> self(this);
+    m_apiClient->fetchFavorites([self](bool success, const QList<QVariantMap> &favorites) {
+        if (!self)
+            return;
         qDebug() << "[收藏] 获取收藏列表: success =" << success << ", 数量 =" << favorites.size();
         if (success) {
             for (const auto &fav : favorites) {
-                int id = fav.value("id").toInt();
-                if (id > 0) {
-                    m_favoritesCache.append(id);
-                }
+                int id = fav.value(QStringLiteral("id")).toInt();
+                if (id > 0)
+                    self->m_favoritesCache.append(id);
             }
-            qDebug() << "[收藏] 缓存加载完成, 共" << m_favoritesCache.size() << "条";
+            qDebug() << "[收藏] 缓存加载完成, 共" << self->m_favoritesCache.size() << "条";
 
-            // 根据当前播放栏的实际音乐ID更新收藏状态
-            if (m_playerBar && m_playerBar->currentMusicId() > 0) {
-                int currentId = m_playerBar->currentMusicId();
-                bool isFavorited = m_favoritesCache.contains(currentId);
-                m_playerBar->setFavoriteStatus(isFavorited);
+            if (self->m_playerBar && self->m_playerBar->currentMusicId() > 0) {
+                const int currentId = self->m_playerBar->currentMusicId();
+                const bool isFavorited = self->m_favoritesCache.contains(currentId);
+                self->m_playerBar->setFavoriteStatus(isFavorited);
                 qDebug() << "[收藏] 缓存加载后更新收藏状态, id =" << currentId << ", favorited =" << isFavorited;
             }
         }

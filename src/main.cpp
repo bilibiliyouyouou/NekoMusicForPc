@@ -41,8 +41,9 @@ static QString firstLaunchAudioPath(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 #ifdef Q_OS_LINUX
-    // Linux: 使用 PulseAudio 后端避免 PipeWire 初始化阻塞
-    qputenv("QT_MULTIMEDIA_BACKEND", "pulse");
+    // Qt 6 多媒体默认 FFmpeg；旧版设置的 "pulse" 对 FFmpeg 无效，且可能干扰设备选择。
+    // 若遇播放崩溃，可在启动前尝试：QT_MEDIA_BACKEND=gstreamer（需系统安装 GStreamer Qt 插件）
+    // 或保持默认 FFmpeg。PipeWire 日志中的 spaVisitChoice 解析告警一般可忽略。
 #endif
 
     // 检查是否已有实例在运行

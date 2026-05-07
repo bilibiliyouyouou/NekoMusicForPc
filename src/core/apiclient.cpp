@@ -21,7 +21,9 @@ ApiClient::ApiClient(QObject *parent) : QObject(parent) {}
 
 // 现有函数
 void ApiClient::fetchRanking(MusicListCb cb) {
-    QUrl url(QString::fromUtf8("%1/api/music/ranking").arg(Theme::kApiBase).arg(QDateTime::currentMSecsSinceEpoch()));
+    QUrl url(QString::fromUtf8("%1/api/music/ranking?t=%2")
+                 .arg(QString::fromUtf8(Theme::kApiBase))
+                 .arg(QDateTime::currentMSecsSinceEpoch()));
     auto *reply = m_nam.get(QNetworkRequest(url));
     connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
         reply->deleteLater();
@@ -36,7 +38,10 @@ void ApiClient::fetchRanking(MusicListCb cb) {
 }
 
 void ApiClient::fetchLatest(int limit, MusicListCb cb) {
-    QUrl url(QString::fromUtf8("%1/api/music/latest?limit=%2&t=%3").arg(Theme::kApiBase).arg(limit).arg(QDateTime::currentMSecsSinceEpoch()));
+    QUrl url(QString::fromUtf8("%1/api/music/latest?limit=%2&t=%3")
+                 .arg(QString::fromUtf8(Theme::kApiBase))
+                 .arg(limit)
+                 .arg(QDateTime::currentMSecsSinceEpoch()));
     auto *reply = m_nam.get(QNetworkRequest(url));
     connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
         reply->deleteLater();
