@@ -44,6 +44,8 @@ void PlayerEngine::cancelFade()
 void PlayerEngine::play(const QUrl &url)
 {
     cancelFade();
+    if (m_audioOutput)
+        m_audioOutput->setVolume(m_targetVolume);
     m_player->setSource(url);
     m_player->play();
 }
@@ -51,6 +53,8 @@ void PlayerEngine::play(const QUrl &url)
 void PlayerEngine::playLocalResuming(const QString &localPath, qint64 resumeMs)
 {
     cancelFade();
+    if (m_audioOutput)
+        m_audioOutput->setVolume(m_targetVolume);
     const QUrl url = QUrl::fromLocalFile(localPath);
     m_player->setSource(url);
     m_player->play();
@@ -74,6 +78,8 @@ void PlayerEngine::playLocalResuming(const QString &localPath, qint64 resumeMs)
 void PlayerEngine::play()
 {
     cancelFade();
+    if (m_audioOutput)
+        m_audioOutput->setVolume(m_targetVolume);
     m_player->play();
 }
 
