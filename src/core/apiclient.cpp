@@ -12,7 +12,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QDateTime>
 #include <QHttpMultiPart>
 #include <QHttpPart>
 #include <QFile>
@@ -21,9 +20,8 @@ ApiClient::ApiClient(QObject *parent) : QObject(parent) {}
 
 // 现有函数
 void ApiClient::fetchRanking(MusicListCb cb) {
-    QUrl url(QString::fromUtf8("%1/api/music/ranking?t=%2")
-                 .arg(QString::fromUtf8(Theme::kApiBase))
-                 .arg(QDateTime::currentMSecsSinceEpoch()));
+    QUrl url(QString::fromUtf8("%1/api/music/ranking")
+                 .arg(QString::fromUtf8(Theme::kApiBase)));
     auto *reply = m_nam.get(QNetworkRequest(url));
     connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
         reply->deleteLater();
@@ -38,10 +36,9 @@ void ApiClient::fetchRanking(MusicListCb cb) {
 }
 
 void ApiClient::fetchLatest(int limit, MusicListCb cb) {
-    QUrl url(QString::fromUtf8("%1/api/music/latest?limit=%2&t=%3")
+    QUrl url(QString::fromUtf8("%1/api/music/latest?limit=%2")
                  .arg(QString::fromUtf8(Theme::kApiBase))
-                 .arg(limit)
-                 .arg(QDateTime::currentMSecsSinceEpoch()));
+                 .arg(limit));
     auto *reply = m_nam.get(QNetworkRequest(url));
     connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
         reply->deleteLater();
@@ -266,10 +263,9 @@ void ApiClient::fetchMusicInfo(int musicId, MusicInfoCb cb) {
 }
 
 void ApiClient::fetchLyrics(int musicId, LyricsCb cb) {
-    QUrl url(QString::fromUtf8("%1/api/music/lyrics/%2?t=%3")
+    QUrl url(QString::fromUtf8("%1/api/music/lyrics/%2")
                  .arg(QString::fromUtf8(Theme::kApiBase))
-                 .arg(musicId)
-                 .arg(QDateTime::currentMSecsSinceEpoch()));
+                 .arg(musicId));
     auto *reply = m_nam.get(QNetworkRequest(url));
     connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
         reply->deleteLater();

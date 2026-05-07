@@ -30,8 +30,6 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkReply>
-#include <QUrlQuery>
-#include <QDateTime>
 #include <QtConcurrent>
 
 // ─── 单曲封面标签（圆角 6px + 异步加载）─────────────────
@@ -309,10 +307,6 @@ void HomePage::fetchHotMusic()
 {
     // 与旧版 Home 一致：排行榜不带 limit，卡片上的「X 首」为接口返回的全量条数（仅前 4 条用于封面拼图）
     QUrl url(QString::fromUtf8("%1/api/music/ranking").arg(Theme::kApiBase));
-    QUrlQuery q;
-    q.addQueryItem(QStringLiteral("t"), QString::number(QDateTime::currentMSecsSinceEpoch()));
-    url.setQuery(q);
-
     QNetworkRequest req(url);
     req.setTransferTimeout(5000);
     QNetworkReply *reply = m_nam.get(req);
@@ -404,13 +398,8 @@ void HomePage::fetchPlaylists()
 
 void HomePage::fetchLatestMusic()
 {
-    QUrl url(QString::fromUtf8("%1/api/music/latest").arg(Theme::kApiBase));
-    QUrlQuery q;
     // 与旧版 HomeView 一致：拉一批用于统计条数；卡片仍只展示前 4 张封面
-    q.addQueryItem(QStringLiteral("limit"), QStringLiteral("300"));
-    q.addQueryItem(QStringLiteral("t"), QString::number(QDateTime::currentMSecsSinceEpoch()));
-    url.setQuery(q);
-
+    QUrl url(QString::fromUtf8("%1/api/music/latest?limit=300").arg(Theme::kApiBase));
     QNetworkRequest req(url);
     req.setTransferTimeout(5000);
     QNetworkReply *reply = m_nam.get(req);
