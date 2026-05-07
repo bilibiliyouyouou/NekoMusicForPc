@@ -47,6 +47,8 @@ QString CoverCache::resolveCoverUrl(const QString &rawUrl)
     if (u.isEmpty())
         return {};
 
+    if (u.startsWith(QLatin1String("file:"), Qt::CaseInsensitive))
+        return u;
     if (u.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
         || u.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)) {
         return u;
@@ -106,6 +108,15 @@ void CoverCache::fetchCover(const QString &musicId, const QString &coverUrl)
     const QString absolute = resolveCoverUrl(coverUrl);
     if (absolute.isEmpty())
         return;
+
+    if (absolute.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+        QPixmap pix;
+        if (pix.load(QUrl(absolute).toLocalFile())) {
+            set(musicId, pix);
+            emit coverLoaded(musicId, pix);
+        }
+        return;
+    }
 
     QPixmap cached = get(musicId);
     if (!cached.isNull()) {

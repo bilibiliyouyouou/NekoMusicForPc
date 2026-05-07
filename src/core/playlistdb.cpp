@@ -1,12 +1,37 @@
 #include "core/playlistdb.h"
 
 #include <QCoreApplication>
+#include <QSqlDatabase>
 #include <QDir>
 #include <QStandardPaths>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDateTime>
 #include <QDebug>
+
+namespace {
+
+void ensureColumn(QSqlDatabase &db, const QString &table, const QString &col, const QString &ddlSuffix)
+{
+    QSqlQuery q;
+    if (!q.exec(QStringLiteral("PRAGMA table_info(%1)").arg(table)))
+        return;
+    bool has = false;
+    while (q.next()) {
+        if (q.value(1).toString() == col) {
+            has = true;
+            break;
+        }
+    }
+    if (has)
+        return;
+    QSqlQuery alter;
+    const QString sql = QStringLiteral("ALTER TABLE %1 ADD COLUMN %2 %3").arg(table, col, ddlSuffix);
+    if (!alter.exec(sql))
+        qWarning() << "PlaylistDatabase: failed to add column" << col << "to" << table << alter.lastError().text();
+}
+
+} // namespace
 
 PlaylistDatabase& PlaylistDatabase::instance() {
     static PlaylistDatabase db;
@@ -129,6 +154,11 @@ bool PlaylistDatabase::createTables() {
         qWarning() << "Failed to create recent_play table:" << query.lastError().text();
         return false;
     }
+
+    ensureColumn(m_db, QStringLiteral("play_queue"), QStringLiteral("local_path"),
+                 QStringLiteral("TEXT NOT NULL DEFAULT ''"));
+    ensureColumn(m_db, QStringLiteral("recent_play"), QStringLiteral("local_path"),
+                 QStringLiteral("TEXT NOT NULL DEFAULT ''"));
 
     return true;
 }
@@ -341,15 +371,17 @@ void PlaylistDatabase::addToQueue(const MusicInfo& music) {
     QString artist = music.artist.isEmpty() ? "" : music.artist;
     QString album = music.album.isEmpty() ? "" : music.album;
     QString cover = music.coverUrl.isEmpty() ? "" : music.coverUrl;
+    QString localPath = music.localPath.isEmpty() ? "" : music.localPath;
 
     QSqlQuery insertQuery;
-    insertQuery.prepare("INSERT INTO play_queue (music_id, title, artist, album, duration, cover_url, queue_order) VALUES (:mid, :title, :artist, :album, :duration, :cover, :order)");
+    insertQuery.prepare("INSERT INTO play_queue (music_id, title, artist, album, duration, cover_url, local_path, queue_order) VALUES (:mid, :title, :artist, :album, :duration, :cover, :local, :order)");
     insertQuery.bindValue(":mid", music.id);
     insertQuery.bindValue(":title", title);
     insertQuery.bindValue(":artist", artist);
     insertQuery.bindValue(":album", album);
     insertQuery.bindValue(":duration", music.duration);
     insertQuery.bindValue(":cover", cover);
+    insertQuery.bindValue(":local", localPath);
     insertQuery.bindValue(":order", order);
 
     if (!insertQuery.exec()) {
@@ -383,15 +415,17 @@ void PlaylistDatabase::setQueueMusic(const QList<MusicInfo>& musicList, int curr
         QString artist = music.artist.isEmpty() ? "" : music.artist;
         QString album = music.album.isEmpty() ? "" : music.album;
         QString cover = music.coverUrl.isEmpty() ? "" : music.coverUrl;
+        QString localPath = music.localPath.isEmpty() ? "" : music.localPath;
 
         QSqlQuery insertQuery;
-        insertQuery.prepare("INSERT INTO play_queue (music_id, title, artist, album, duration, cover_url, queue_order) VALUES (:mid, :title, :artist, :album, :duration, :cover, :order)");
+        insertQuery.prepare("INSERT INTO play_queue (music_id, title, artist, album, duration, cover_url, local_path, queue_order) VALUES (:mid, :title, :artist, :album, :duration, :cover, :local, :order)");
         insertQuery.bindValue(":mid", music.id);
         insertQuery.bindValue(":title", title);
         insertQuery.bindValue(":artist", artist);
         insertQuery.bindValue(":album", album);
         insertQuery.bindValue(":duration", music.duration);
         insertQuery.bindValue(":cover", cover);
+        insertQuery.bindValue(":local", localPath);
         insertQuery.bindValue(":order", order++);
 
         if (!insertQuery.exec()) {
@@ -410,7 +444,7 @@ QList<MusicInfo> PlaylistDatabase::getQueue() {
     QMutexLocker locker(&m_mutex);
 
     QList<MusicInfo> musicList;
-    QSqlQuery query("SELECT queue_id, music_id, title, artist, album, duration, cover_url FROM play_queue ORDER BY queue_order ASC");
+    QSqlQuery query("SELECT queue_id, music_id, title, artist, album, duration, cover_url, local_path FROM play_queue ORDER BY queue_order ASC");
 
     if (query.exec()) {
         while (query.next()) {
@@ -421,6 +455,7 @@ QList<MusicInfo> PlaylistDatabase::getQueue() {
             info.album = query.value(4).toString();
             info.duration = query.value(5).toInt();
             info.coverUrl = query.value(6).toString();
+            info.localPath = query.value(7).toString();
             musicList.append(info);
         }
     } else {
@@ -485,15 +520,17 @@ void PlaylistDatabase::recordRecentPlay(const MusicInfo& music) {
     QString artist = music.artist.isEmpty() ? "" : music.artist;
     QString album = music.album.isEmpty() ? "" : music.album;
     QString cover = music.coverUrl.isEmpty() ? "" : music.coverUrl;
+    QString localPath = music.localPath.isEmpty() ? "" : music.localPath;
 
     QSqlQuery query;
-    query.prepare("INSERT OR REPLACE INTO recent_play (music_id, title, artist, album, duration, cover_url, played_at) VALUES (:mid, :title, :artist, :album, :duration, :cover, datetime('now'))");
+    query.prepare("INSERT OR REPLACE INTO recent_play (music_id, title, artist, album, duration, cover_url, local_path, played_at) VALUES (:mid, :title, :artist, :album, :duration, :cover, :local, datetime('now'))");
     query.bindValue(":mid", music.id);
     query.bindValue(":title", title);
     query.bindValue(":artist", artist);
     query.bindValue(":album", album);
     query.bindValue(":duration", music.duration);
     query.bindValue(":cover", cover);
+    query.bindValue(":local", localPath);
 
     if (!query.exec()) {
         qWarning() << "Failed to record recent play:" << query.lastError().text();
@@ -510,7 +547,7 @@ QList<MusicInfo> PlaylistDatabase::getRecentPlays(int limit) {
 
     QList<MusicInfo> musicList;
     QSqlQuery query;
-    query.prepare("SELECT music_id, title, artist, album, duration, cover_url FROM recent_play ORDER BY played_at DESC LIMIT :limit");
+    query.prepare("SELECT music_id, title, artist, album, duration, cover_url, local_path FROM recent_play ORDER BY played_at DESC LIMIT :limit");
     query.bindValue(":limit", limit);
 
     if (query.exec()) {
@@ -522,6 +559,7 @@ QList<MusicInfo> PlaylistDatabase::getRecentPlays(int limit) {
             info.album = query.value(3).toString();
             info.duration = query.value(4).toInt();
             info.coverUrl = query.value(5).toString();
+            info.localPath = query.value(6).toString();
             musicList.append(info);
         }
     } else {

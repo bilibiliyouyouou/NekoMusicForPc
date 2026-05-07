@@ -277,15 +277,9 @@ void RecentPage::loadRecentPlays()
 
     for (const auto &info : recentPlays) {
         auto *card = new RecentMusicCard(info, m_container);
-        card->onClicked = [this](int musicId) {
-            // Find the music info from the list
-            auto recentPlays = PlaylistDatabase::instance().getRecentPlays();
-            for (const auto &info : recentPlays) {
-                if (info.id == musicId) {
-                    emit playRequested(info.id, info.title, info.artist, info.coverUrl);
-                    break;
-                }
-            }
+        card->onClicked = [this, info](int musicId) {
+            Q_UNUSED(musicId);
+            emit playRequested(info);
         };
         card->onRemove = [this](int musicId) {
             // For now, we don't have a remove single item method, so just refresh

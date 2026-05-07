@@ -128,6 +128,7 @@ set(SOURCES
         src/core/usermanager.cpp
         src/core/musicdownloader.cpp
         src/core/playlistdb.cpp
+        src/core/localmusicmeta.cpp
         src/core/playlistmanager.cpp
         src/core/updatechecker.cpp
         src/ui/playlistlistitem.cpp
@@ -167,6 +168,7 @@ set(HEADERS
         src/theme/theme.h
         src/theme/thememanager.h
         src/core/musicinfo.h
+        src/core/localmusicmeta.h
         src/core/playlistdb.h
         src/core/playlistmanager.h
         src/core/updatechecker.h

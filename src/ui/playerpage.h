@@ -46,6 +46,7 @@ private:
     void applyPlayerPageStyle();
     void loadCover(const QString &url);
     void applyCoverPixmap(const QPixmap &sourcePixmap);
+    void applyCoverUnknownLarge();
     void parseLrc(const QString &lrc);
     void rebuildLyricLabels();
 

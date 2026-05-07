@@ -1,6 +1,7 @@
 #include "core/playlistmanager.h"
 #include "core/playlistdb.h"
 
+#include <QFileInfo>
 #include <QRandomGenerator>
 
 PlaylistManager& PlaylistManager::instance() {
@@ -22,10 +23,16 @@ void PlaylistManager::save() {
 }
 
 void PlaylistManager::addToPlaylist(const MusicInfo& music) {
-    // 去重：按音乐 ID 检查是否已存在
+    const QString canon = music.isLocalFile()
+        ? QFileInfo(music.localPath).canonicalFilePath()
+        : QString();
     for (const auto& item : m_playlist) {
-        if (item.id == music.id) {
-            return; // 已存在，不重复添加
+        if (!canon.isEmpty()) {
+            const QString ic = QFileInfo(item.localPath).canonicalFilePath();
+            if (!ic.isEmpty() && ic == canon)
+                return;
+        } else if (music.id > 0 && item.id == music.id) {
+            return;
         }
     }
     m_playlist.append(music);
@@ -39,8 +46,17 @@ void PlaylistManager::addToPlaylist(const MusicInfo& music) {
 void PlaylistManager::addAllToPlaylist(const QList<MusicInfo>& musicList) {
     for (const auto& music : musicList) {
         bool exists = false;
+        const QString canon = music.isLocalFile()
+            ? QFileInfo(music.localPath).canonicalFilePath()
+            : QString();
         for (const auto& item : m_playlist) {
-            if (item.id == music.id) {
+            if (!canon.isEmpty()) {
+                const QString ic = QFileInfo(item.localPath).canonicalFilePath();
+                if (!ic.isEmpty() && ic == canon) {
+                    exists = true;
+                    break;
+                }
+            } else if (music.id > 0 && item.id == music.id) {
                 exists = true;
                 break;
             }

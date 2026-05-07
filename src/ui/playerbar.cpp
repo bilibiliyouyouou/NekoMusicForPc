@@ -41,8 +41,29 @@
 #include <QMouseEvent>
 #include <QEnterEvent>
 #include <QSettings>
+#include <QUrl>
 
 namespace {
+
+QPixmap makeUnknownCover48(bool dark)
+{
+    QPixmap pm(48, 48);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    QPainterPath path;
+    path.addRoundedRect(0, 0, 48, 48, 8, 8);
+    p.fillPath(path, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
+    p.setPen(dark ? QColor(196, 167, 231, 200) : QColor(111, 66, 193, 180));
+    QFont f = p.font();
+    f.setPixelSize(13);
+    f.setWeight(QFont::DemiBold);
+    p.setFont(f);
+    p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
+    p.end();
+    return pm;
+}
+
 
 // 与 old PlayerBar.vue 的 .control-btn / .play-btn 观感对齐：更大、更亮
 const QColor kPbIconAccent = QColor(212, 196, 255, 255);
@@ -774,6 +795,21 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
         fetchUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(m_currentMusicId);
     }
 
+    if (m_currentMusicId < 0) {
+        disconnect(m_coverConn);
+        m_coverConn = {};
+        if (fetchUrl.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+            QPixmap px;
+            if (px.load(QUrl(fetchUrl).toLocalFile()))
+                setCoverPixmap(px);
+            else
+                setCoverUnknownPlaceholder();
+        } else {
+            setCoverUnknownPlaceholder();
+        }
+        return;
+    }
+
     if (fetchUrl.isEmpty()) {
         disconnect(m_coverConn);
         m_coverConn = {};
@@ -806,7 +842,7 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
                           [this, cacheKey, boundId](const QString &id, const QPixmap &pix) {
                               if (id != cacheKey)
                                   return;
-                              if (boundId > 0 && m_currentMusicId != boundId)
+                              if (m_currentMusicId != boundId)
                                   return;
                               if (pix.isNull())
                                   return;
@@ -880,6 +916,12 @@ void PlayerBar::setLoading(bool loading)
         }
         updateState();
     }
+}
+
+void PlayerBar::setCoverUnknownPlaceholder()
+{
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    setCoverPixmap(makeUnknownCover48(dark));
 }
 
 void PlayerBar::setCoverPixmap(const QPixmap &pm)

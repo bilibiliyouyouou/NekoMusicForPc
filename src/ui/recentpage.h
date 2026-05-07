@@ -19,7 +19,7 @@ public:
     void refresh();
 
 signals:
-    void playRequested(int musicId, const QString& title, const QString& artist, const QString& coverUrl);
+    void playRequested(const MusicInfo &info);
 
 protected:
     void paintEvent(QPaintEvent *) override;

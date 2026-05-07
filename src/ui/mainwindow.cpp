@@ -40,6 +40,7 @@
 #include "ui/glasspaint.h"
 #include "version.h"
 #include "core/systemmediacontroller.h"
+#include "core/localmusicmeta.h"
 
 #include <QApplication>
 #include <QDebug>
@@ -52,10 +53,12 @@
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QFile>
+#include <QFileInfo>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
 #include <QGraphicsOpacityEffect>
 #include <QCloseEvent>
+#include <QFileOpenEvent>
 #include <QAction>
 #include <QUrl>
 #include <QSystemTrayIcon>
@@ -228,20 +231,32 @@ void MainWindow::setupUi()
         auto lastMusic = PlaylistManager::instance().lastPlayedMusic();
         m_playerBar->setCurrentMusicId(lastMusic.id);
         m_playerBar->setSongInfo(lastMusic.title, lastMusic.artist, lastMusic.coverUrl);
-        m_playerPage->setMusicInfo(lastMusic.id, lastMusic.title, lastMusic.artist, QString(), lastMusic.coverUrl);
-        m_playerPage->loadLyrics(lastMusic.id);
+        m_playerPage->setMusicInfo(lastMusic.id, lastMusic.title, lastMusic.artist, lastMusic.album, lastMusic.coverUrl);
+        m_playerPage->loadLyrics(lastMusic.isLocalFile() ? 0 : lastMusic.id);
         m_engine->setCurrentMusic(lastMusic);
 
         // 检查收藏状态（loadFavoritesCache 会在之后异步更新，但这里先设置初始状态）
         bool isFavorited = checkIsFavorited(lastMusic.id);
         m_playerBar->setFavoriteStatus(isFavorited);
 
-        // 与点歌一致：远程起播 + 并行写缓存；起播后暂停等待用户操作
+        // 与点歌一致：远程起播 + 并行写缓存；外部文件则直接本地起播；起播后暂停等待用户操作
         disconnectDownloader();
         const quint64 restoreSeq = m_enginePlaySeq;
-        const QUrl url(QString::fromUtf8("%1/api/music/file/%2").arg(Theme::kApiBase).arg(lastMusic.id));
         m_playerBar->setLoading(true);
-        startRemotePlaybackWithBackgroundCache(lastMusic.id, restoreSeq, url, true);
+        if (lastMusic.isLocalFile()) {
+            QTimer::singleShot(0, this, [this, lastMusic, restoreSeq]() {
+                if (restoreSeq != m_enginePlaySeq)
+                    return;
+                cancelStreamWatch();
+                m_streamRetryActive = false;
+                m_playerBar->setLoading(false);
+                m_engine->play(QUrl::fromLocalFile(lastMusic.localPath));
+                QTimer::singleShot(80, this, [this]() { m_engine->pause(); });
+            });
+        } else {
+            const QUrl url(QString::fromUtf8("%1/api/music/file/%2").arg(Theme::kApiBase).arg(lastMusic.id));
+            startRemotePlaybackWithBackgroundCache(lastMusic.id, restoreSeq, url, true);
+        }
     }
 
     // 连接导航
@@ -269,7 +284,7 @@ void MainWindow::setupUi()
         loadFavoritesCache();
         m_sidebar->loadPlaylists();
     }
-    connect(m_recentPage, &RecentPage::playRequested, this, &MainWindow::playMusicById);
+    connect(m_recentPage, &RecentPage::playRequested, this, &MainWindow::playMusicFromInfo);
     connect(m_sidebar, &Sidebar::playlistClicked, this, &MainWindow::showPlaylistDetailPage);
     connect(m_sidebar, &Sidebar::playlistCreateRequested, this, &MainWindow::createPlaylist);
     connect(m_titleBar, &TitleBar::settingsClicked, this, [this]() {
@@ -673,7 +688,75 @@ void MainWindow::showPlaylistDetailPage(int localId)
 
 void MainWindow::playMusicFromInfo(const MusicInfo &info)
 {
+    if (info.isLocalFile()) {
+        playLocalMusicInfo(info);
+        return;
+    }
     playMusicById(info.id, info.title, info.artist, info.coverUrl);
+}
+
+void MainWindow::openAudioFileFromPath(const QString &path)
+{
+    const QString local = LocalMusic::normalizeOpenPathArgument(path);
+    if (local.isEmpty() || !LocalMusic::isSupportedLocalAudioFile(local))
+        return;
+    QFileInfo fi(local);
+    if (!fi.exists() || !fi.isFile())
+        return;
+
+    show();
+    raise();
+    activateWindow();
+
+    MusicInfo info = LocalMusic::probeAndBuildInfo(local);
+    if (!info.isLocalFile())
+        return;
+    playLocalMusicInfo(info);
+}
+
+void MainWindow::playLocalMusicInfo(const MusicInfo &info)
+{
+    if (!info.isLocalFile())
+        return;
+
+    m_isDownloading = false;
+    disconnectDownloader();
+    m_downloader->cancel();
+    m_engine->stop();
+
+    ++m_enginePlaySeq;
+    const quint64 playSeq = m_enginePlaySeq;
+
+    PlaylistManager::instance().addToPlaylist(info);
+
+    const auto &pl = PlaylistManager::instance().playlist();
+    for (int i = 0; i < pl.size(); ++i) {
+        if (pl[i].id == info.id && pl[i].localPath == info.localPath) {
+            PlaylistManager::instance().setCurrentIndex(i);
+            break;
+        }
+    }
+
+    if (m_playlistPanel && m_playlistPanel->isVisible())
+        m_playlistPanel->refresh();
+
+    m_playerBar->setCurrentMusicId(info.id);
+    m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
+    m_playerBar->setFavoriteStatus(false);
+    m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
+    m_playerPage->loadLyrics(0);
+    m_engine->setCurrentMusic(info);
+
+    m_playerBar->setLoading(true);
+    QTimer::singleShot(0, this, [this, info, playSeq]() {
+        if (playSeq != m_enginePlaySeq)
+            return;
+        cancelStreamWatch();
+        m_streamRetryActive = false;
+        m_playerBar->setLoading(false);
+        m_engine->play(QUrl::fromLocalFile(info.localPath));
+    });
+    refreshSystemMediaIntegration();
 }
 
 void MainWindow::createPlaylist()
@@ -725,8 +808,7 @@ void MainWindow::playMusicFromPlaylist(int musicId)
     for (int i = 0; i < playlist.size(); ++i) {
         if (playlist[i].id == musicId) {
             manager.setCurrentIndex(i);
-            const auto& info = playlist[i];
-            playMusicById(info.id, info.title, info.artist, info.coverUrl);
+            playMusicFromInfo(playlist[i]);
             break;
         }
     }
@@ -927,14 +1009,21 @@ void MainWindow::playNext()
     m_playerBar->setCurrentMusicId(info.id);
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
     m_playerBar->setFavoriteStatus(checkIsFavorited(info.id));
-    m_playerPage->setMusicInfo(info.id, info.title, info.artist, QString(), info.coverUrl);
-    m_playerPage->loadLyrics(info.id);
+    m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
+    m_playerPage->loadLyrics(info.isLocalFile() ? 0 : info.id);
     m_engine->setCurrentMusic(info);
 
-    // 延后仅用于引擎停播后再起播，避免与 QMediaPlayer 释放竞态
     QTimer::singleShot(50, this, [this, info, playSeq]() {
         if (playSeq != m_enginePlaySeq)
             return;
+
+        if (info.isLocalFile()) {
+            cancelStreamWatch();
+            m_streamRetryActive = false;
+            m_playerBar->setLoading(false);
+            m_engine->play(QUrl::fromLocalFile(info.localPath));
+            return;
+        }
 
         m_playerBar->setLoading(true);
         const QUrl url(QStringLiteral("%1/api/music/file/%2").arg(Theme::kApiBase).arg(info.id));
@@ -970,13 +1059,21 @@ void MainWindow::playPrevious()
     m_playerBar->setCurrentMusicId(info.id);
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
     m_playerBar->setFavoriteStatus(checkIsFavorited(info.id));
-    m_playerPage->setMusicInfo(info.id, info.title, info.artist, QString(), info.coverUrl);
-    m_playerPage->loadLyrics(info.id);
+    m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
+    m_playerPage->loadLyrics(info.isLocalFile() ? 0 : info.id);
     m_engine->setCurrentMusic(info);
 
     QTimer::singleShot(0, this, [this, info, playSeq]() {
         if (playSeq != m_enginePlaySeq)
             return;
+
+        if (info.isLocalFile()) {
+            cancelStreamWatch();
+            m_streamRetryActive = false;
+            m_playerBar->setLoading(false);
+            m_engine->play(QUrl::fromLocalFile(info.localPath));
+            return;
+        }
 
         const QUrl url(QString::fromUtf8("%1/api/music/file/%2").arg(Theme::kApiBase).arg(info.id));
         qDebug() << "[音乐加载] 远程起播并并行缓存:" << url.toString();
@@ -1057,6 +1154,19 @@ void MainWindow::closeEvent(QCloseEvent *event)
     // 最小化到托盘而不是直接退出
     hide();
     event->ignore();
+}
+
+bool MainWindow::event(QEvent *event)
+{
+    if (event->type() == QEvent::FileOpen) {
+        auto *e = static_cast<QFileOpenEvent *>(event);
+        const QString p = e->file();
+        if (!p.isEmpty()) {
+            QTimer::singleShot(0, this, [this, p]() { openAudioFileFromPath(p); });
+        }
+        return true;
+    }
+    return QMainWindow::event(event);
 }
 
 void MainWindow::createTrayIcon()

@@ -53,6 +53,7 @@ private:
     void setupUi();
     void updateState();
     void setCoverPixmap(const QPixmap &pm);
+    void setCoverUnknownPlaceholder();
     void updateVolumeIcon(int value);
     void showVolumePanelAnimated();
     void hideVolumePanelAnimated();

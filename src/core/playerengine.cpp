@@ -220,7 +220,7 @@ void PlayerEngine::onMediaStateChanged(QMediaPlayer::PlaybackState state)
         switch (state) {
         case QMediaPlayer::PlayingState:
             m_state = Playing;
-            if (m_currentMusic.id > 0) {
+            if (m_currentMusic.id > 0 || m_currentMusic.isLocalFile()) {
                 emit musicStarted(m_currentMusic);
             }
             break;

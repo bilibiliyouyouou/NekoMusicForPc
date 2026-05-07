@@ -9,6 +9,7 @@
  */
 
 #include <QMainWindow>
+#include <QEvent>
 #include <QUrl>
 #include <QStackedWidget>
 #include <QSystemTrayIcon>
@@ -49,10 +50,14 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
+    /** 资源管理器「打开方式」或命令行传入的本地音频路径（mp3/flac/wav 等） */
+    void openAudioFileFromPath(const QString &path);
+
 protected:
     void paintEvent(QPaintEvent *) override;
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    bool event(QEvent *event) override;
 
 private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);
@@ -71,6 +76,7 @@ private:
     void showPlaylistDetailPage(int localId);
     void playMusicById(int musicId, const QString &title, const QString &artist, const QString &coverUrl = QString());
     void playMusicFromInfo(const MusicInfo &info);
+    void playLocalMusicInfo(const MusicInfo &info);
     void createTrayIcon();
     void createPlaylist();
     void showAddToPlaylistDialog(const MusicInfo &music);

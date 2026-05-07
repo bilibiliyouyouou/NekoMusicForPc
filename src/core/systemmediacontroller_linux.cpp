@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <QWidget>
+#include <QUrl>
 
 class MprisRootAdaptor : public QDBusAbstractAdaptor
 {
@@ -338,6 +339,22 @@ void SystemMediaController::updateMetadata(const MusicInfo &music, qint64 durati
             meta.insert(QStringLiteral("xesam:album"), music.album);
         if (!music.coverUrl.isEmpty())
             meta.insert(QStringLiteral("mpris:artUrl"), music.coverUrl);
+        const qint64 lenMs = qMax(durationMs, static_cast<qint64>(music.duration) * 1000);
+        if (lenMs > 0)
+            meta.insert(QStringLiteral("mpris:length"), lenMs * 1000);
+    } else if (music.isLocalFile()) {
+        const QString trackPath = QStringLiteral("/org/mpris/MediaPlayer2/track/local%1")
+            .arg(qHash(music.localPath));
+        m_currentTrackId = QDBusObjectPath(trackPath);
+        meta.insert(QStringLiteral("mpris:trackid"), QVariant::fromValue(m_currentTrackId));
+        meta.insert(QStringLiteral("xesam:title"), music.title);
+        if (!music.artist.isEmpty())
+            meta.insert(QStringLiteral("xesam:artist"), QStringList{music.artist});
+        if (!music.album.isEmpty())
+            meta.insert(QStringLiteral("xesam:album"), music.album);
+        if (!music.coverUrl.isEmpty())
+            meta.insert(QStringLiteral("mpris:artUrl"), music.coverUrl);
+        meta.insert(QStringLiteral("xesam:url"), QUrl::fromLocalFile(music.localPath).toString());
         const qint64 lenMs = qMax(durationMs, static_cast<qint64>(music.duration) * 1000);
         if (lenMs > 0)
             meta.insert(QStringLiteral("mpris:length"), lenMs * 1000);

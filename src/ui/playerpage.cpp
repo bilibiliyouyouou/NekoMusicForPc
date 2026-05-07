@@ -23,6 +23,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 #include <QDebug>
+#include <QUrl>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, QWidget *parent)
     : QWidget(parent), m_engine(engine)
@@ -299,6 +300,24 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     m_artistLabel->setText(a);
     m_albumLabel->setText(album);
 
+    disconnect(m_coverConn);
+    m_coverConn = {};
+
+    if (m_musicId < 0) {
+        m_coverUrl = coverUrl;
+        const QString fu = CoverCache::resolveCoverUrl(coverUrl);
+        if (fu.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+            QPixmap px;
+            if (px.load(QUrl(fu).toLocalFile()))
+                applyCoverPixmap(px);
+            else
+                applyCoverUnknownLarge();
+        } else {
+            applyCoverUnknownLarge();
+        }
+        return;
+    }
+
     if (m_musicId <= 0) {
         m_coverLabel->clear();
         return;
@@ -307,8 +326,6 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     if (prevId == id && coverUrl == prevCoverUrl)
         return;
 
-    disconnect(m_coverConn);
-    m_coverConn = {};
     m_coverUrl = coverUrl;
     loadCover(coverUrl);
 }
@@ -370,6 +387,26 @@ void PlayerPage::applyCoverPixmap(const QPixmap &sourcePixmap)
     p.setClipPath(path);
     p.drawPixmap(0, 0, sourcePixmap.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_coverLabel->setPixmap(rounded);
+}
+
+void PlayerPage::applyCoverUnknownLarge()
+{
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    QPixmap pm(320, 320);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    QPainterPath path;
+    path.addRoundedRect(0, 0, 320, 320, 32, 32);
+    p.fillPath(path, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
+    p.setPen(dark ? QColor(196, 167, 231, 220) : QColor(111, 66, 193, 200));
+    QFont f = p.font();
+    f.setPixelSize(56);
+    f.setWeight(QFont::DemiBold);
+    p.setFont(f);
+    p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
+    p.end();
+    m_coverLabel->setPixmap(pm);
 }
 
 void PlayerPage::loadCover(const QString &url)

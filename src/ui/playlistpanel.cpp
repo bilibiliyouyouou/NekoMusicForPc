@@ -20,12 +20,13 @@
 #include <QScrollBar>
 #include <QFrame>
 #include <QLinearGradient>
+#include <QUrl>
 
 // ─── 播放队列项卡片 ──────────────────────────────────────
 class PlaylistItemCard : public QWidget {
 public:
     explicit PlaylistItemCard(const MusicInfo &info, int index, bool isCurrent, QWidget *parent = nullptr)
-        : QWidget(parent), m_musicId(info.id), m_index(index), m_isCurrent(isCurrent)
+        : QWidget(parent), m_info(info), m_musicId(info.id), m_index(index), m_isCurrent(isCurrent)
     {
         setObjectName(QStringLiteral("PlaylistItemCard"));
         setFixedHeight(64);
@@ -207,6 +208,18 @@ private:
 
     void loadCover()
     {
+        if (m_info.isLocalFile()) {
+            const QString fu = CoverCache::resolveCoverUrl(m_info.coverUrl);
+            if (fu.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+                QPixmap p;
+                if (p.load(QUrl(fu).toLocalFile())) {
+                    applyPixmap(p);
+                    return;
+                }
+            }
+            applyUnknownCover();
+            return;
+        }
         const QString musicId = QString::number(m_musicId);
         CoverCache *cc = CoverCache::instance();
         if (QPixmap cached = cc->get(musicId); !cached.isNull()) {
@@ -219,6 +232,26 @@ private:
                 applyPixmap(pix);
         });
         cc->fetchCover(musicId, url);
+    }
+
+    void applyUnknownCover()
+    {
+        const bool dark = Theme::ThemeManager::instance().isDarkMode();
+        QPixmap pm(48, 48);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        QPainterPath cp;
+        cp.addRoundedRect(0, 0, 48, 48, 10, 10);
+        p.fillPath(cp, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
+        p.setPen(dark ? QColor(196, 167, 231, 200) : QColor(111, 66, 193, 180));
+        QFont f = p.font();
+        f.setPixelSize(11);
+        f.setWeight(QFont::DemiBold);
+        p.setFont(f);
+        p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
+        p.end();
+        m_coverLbl->setPixmap(pm);
     }
 
     void applyPixmap(const QPixmap &pix)
@@ -239,6 +272,7 @@ private:
         m_coverLbl->setPixmap(rounded);
     }
 
+    MusicInfo m_info;
     int m_musicId;
     int m_index;
     bool m_isCurrent = false;
