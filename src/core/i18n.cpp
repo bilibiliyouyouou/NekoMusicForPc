@@ -308,9 +308,23 @@ static QMap<QString, QString> zhCN()
     m["addToFavorites"] = QStringLiteral("添加到收藏");
     m["removeFromFavorites"] = QStringLiteral("取消收藏");
     m["shareTrack"] = QStringLiteral("分享");
-    m["shareOnlineCopied"] = QStringLiteral("歌曲链接已复制到剪贴板");
-    m["shareLocalCopied"] = QStringLiteral("本地文件链接已复制到剪贴板");
+    m["shareOnlineCopied"] = QStringLiteral("分享文案已复制到剪贴板");
+    m["shareLocalCopied"] = QStringLiteral("分享文案已复制到剪贴板");
     m["shareNothingPlaying"] = QStringLiteral("当前没有可分享的曲目");
+    m["shareClipboardHeaderOnline"] = QStringLiteral(
+        "【Neko云音乐】梦幻网络出品 · 免费高品质流媒体与无损音乐平台");
+    m["shareClipboardHeaderLocal"] = QStringLiteral("【Neko云音乐客户端】正在播放本地音乐");
+    m["shareClipboardTrack"] = QStringLiteral("🎵 曲目：%1");
+    m["shareClipboardArtist"] = QStringLiteral("🎤 歌手：%1");
+    m["shareClipboardAlbum"] = QStringLiteral("💿 专辑：%1");
+    m["shareClipboardPromo"] = QStringLiteral(
+        "海量曲库、歌单与排行榜，支持桌面歌词与云歌单。完全免费，打开官网即可收听；下载 Windows / macOS / Linux / "
+        "移动端客户端，体验更完整的播放与个性化功能。欢迎把 Neko云音乐 推荐给朋友一起使用。");
+    m["shareClipboardPromoLocal"] = QStringLiteral(
+        "本首为本地音频文件。Neko云音乐 同样提供丰富的在线曲库与歌单发现，完全免费，欢迎打开官网收听更多内容，或继续使用客户端管理本地与在线音乐。");
+    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 在线收听 / 歌曲详情页：");
+    m["shareClipboardLinkLocal"] = QStringLiteral("🔗 本地文件（可粘贴到支持 file:// 的环境）：");
+    m["shareClipboardFooter"] = QStringLiteral("🌐 官方网站：%1");
     m["cancelFavoriteSuccess"] = QStringLiteral("已取消收藏");
     m["cancelFavoriteFailed"] = QStringLiteral("取消收藏失败");
     m["deleteConfirmWithPlaylistName"] = QStringLiteral("确定要删除歌单\"{name}\"吗？此操作不可恢复。");
@@ -413,9 +427,21 @@ static QMap<QString, QString> nyaCN()
     m["previous"] = QStringLiteral("上一首喵~");
     m["next"] = QStringLiteral("下一首喵~");
     m["shareTrack"] = QStringLiteral("分享喵~");
-    m["shareOnlineCopied"] = QStringLiteral("链接已经复制到剪贴板喵~");
-    m["shareLocalCopied"] = QStringLiteral("本地文件链接已经复制喵~");
+    m["shareOnlineCopied"] = QStringLiteral("整段分享文案已经复制到剪贴板喵~");
+    m["shareLocalCopied"] = QStringLiteral("整段分享文案已经复制到剪贴板喵~");
     m["shareNothingPlaying"] = QStringLiteral("现在没有可以分享的曲子喵~");
+    m["shareClipboardHeaderOnline"] = QStringLiteral("【Neko云音乐】梦幻网络出品 · 免费高品质音乐平台喵~");
+    m["shareClipboardHeaderLocal"] = QStringLiteral("【Neko云音乐客户端】在播本地文件喵~");
+    m["shareClipboardTrack"] = QStringLiteral("🎵 曲目：%1");
+    m["shareClipboardArtist"] = QStringLiteral("🎤 歌手：%1");
+    m["shareClipboardAlbum"] = QStringLiteral("💿 专辑：%1");
+    m["shareClipboardPromo"] = QStringLiteral(
+        "曲库很大还有歌单排行榜喵~ 有桌面歌词和多端客户端，完全免费的说！把官网发给朋友一起听也可以喵~");
+    m["shareClipboardPromoLocal"] = QStringLiteral(
+        "这首是本地文件喵~ 在线库也免费，去官网还能发现更多好歌，继续用客户端也很棒喵~");
+    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 在线听 / 详情页：");
+    m["shareClipboardLinkLocal"] = QStringLiteral("🔗 本地文件链接：");
+    m["shareClipboardFooter"] = QStringLiteral("🌐 官网：%1");
     m["favorite"] = QStringLiteral("收藏喵~");
     m["unfavorite"] = QStringLiteral("取消收藏喵~");
     m["playAll"] = QStringLiteral("播放全部喵~");
@@ -858,9 +884,25 @@ static QMap<QString, QString> enUS()
     m["addToFavorites"] = "Add to favorites";
     m["removeFromFavorites"] = "Remove from favorites";
     m["shareTrack"] = "Share";
-    m["shareOnlineCopied"] = "Track link copied to clipboard";
-    m["shareLocalCopied"] = "Local file link copied to clipboard";
+    m["shareOnlineCopied"] = "Share text copied to clipboard";
+    m["shareLocalCopied"] = "Share text copied to clipboard";
     m["shareNothingPlaying"] = "Nothing to share right now";
+    m["shareClipboardHeaderOnline"] =
+        "[Neko Music] Fantasy Network — free high-quality streaming & lossless music";
+    m["shareClipboardHeaderLocal"] = "[Neko Music app] Playing a local audio file";
+    m["shareClipboardTrack"] = "Track: %1";
+    m["shareClipboardArtist"] = "Artist: %1";
+    m["shareClipboardAlbum"] = "Album: %1";
+    m["shareClipboardPromo"] =
+        "Large catalog, playlists & charts, desktop lyrics, and cloud playlists. Completely free — open the "
+        "website to listen in the browser, or grab the Windows / macOS / Linux / mobile clients for the full "
+        "experience. Tell a friend about Neko Music!";
+    m["shareClipboardPromoLocal"] =
+        "This track is a local file. Neko Music also offers a rich online library for free — visit the website "
+        "to discover more, or keep using the desktop app for local + online playback.";
+    m["shareClipboardLinkOnline"] = "Listen / track page:";
+    m["shareClipboardLinkLocal"] = "Local file (file URL):";
+    m["shareClipboardFooter"] = "Website: %1";
     m["cancelFavoriteSuccess"] = "Favorite removed";
     m["cancelFavoriteFailed"] = "Failed to remove favorite";
     m["deleteConfirmWithPlaylistName"] = "Are you sure you want to delete playlist \"{name}\"? This cannot be undone.";

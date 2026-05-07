@@ -77,7 +77,45 @@ namespace {
 /** 单次远程起播：超过此时长仍未进入 Playing 则计一次失败并重试（最多 3 次）。 */
 constexpr int kStreamReadyTimeoutMs = 12000;
 constexpr int kStreamRetryDelayMs = 350;
+
+QString buildShareClipboardText(const MusicInfo &m)
+{
+    I18n &i18n = I18n::instance();
+    const QString title = m.title.isEmpty() ? i18n.tr(QStringLiteral("unknown")) : m.title;
+    const QString artist = m.artist.isEmpty() ? i18n.tr(QStringLiteral("unknown")) : m.artist;
+    const QString link = m.isLocalFile()
+        ? QUrl::fromLocalFile(m.localPath).toString()
+        : QStringLiteral("%1/detail/%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
+
+    QString t;
+    if (m.isLocalFile())
+        t += i18n.tr(QStringLiteral("shareClipboardHeaderLocal"));
+    else
+        t += i18n.tr(QStringLiteral("shareClipboardHeaderOnline"));
+    t += QStringLiteral("\n\n");
+    t += i18n.tr(QStringLiteral("shareClipboardTrack")).arg(title);
+    t += QStringLiteral("\n");
+    t += i18n.tr(QStringLiteral("shareClipboardArtist")).arg(artist);
+    t += QStringLiteral("\n");
+    if (!m.album.isEmpty()) {
+        t += i18n.tr(QStringLiteral("shareClipboardAlbum")).arg(m.album);
+        t += QStringLiteral("\n");
+    }
+    t += QStringLiteral("\n");
+    if (m.isLocalFile())
+        t += i18n.tr(QStringLiteral("shareClipboardPromoLocal"));
+    else
+        t += i18n.tr(QStringLiteral("shareClipboardPromo"));
+    t += QStringLiteral("\n\n");
+    t += (m.isLocalFile() ? i18n.tr(QStringLiteral("shareClipboardLinkLocal"))
+                          : i18n.tr(QStringLiteral("shareClipboardLinkOnline")));
+    t += QStringLiteral("\n");
+    t += link;
+    t += QStringLiteral("\n\n");
+    t += i18n.tr(QStringLiteral("shareClipboardFooter")).arg(QString::fromUtf8(Theme::kApiBase));
+    return t;
 }
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -1352,7 +1390,7 @@ void MainWindow::copyCurrentTrackShare()
             Toast::show(this, I18n::instance().tr(QStringLiteral("shareNothingPlaying")), Toast::Error);
             return;
         }
-        clip->setText(QUrl::fromLocalFile(m.localPath).toString());
+        clip->setText(buildShareClipboardText(m));
         Toast::show(this, I18n::instance().tr(QStringLiteral("shareLocalCopied")), Toast::Success);
         return;
     }
@@ -1360,8 +1398,7 @@ void MainWindow::copyCurrentTrackShare()
         Toast::show(this, I18n::instance().tr(QStringLiteral("shareNothingPlaying")), Toast::Error);
         return;
     }
-    const QString link = QStringLiteral("%1/detail/%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
-    clip->setText(link);
+    clip->setText(buildShareClipboardText(m));
     Toast::show(this, I18n::instance().tr(QStringLiteral("shareOnlineCopied")), Toast::Success);
 }
 
