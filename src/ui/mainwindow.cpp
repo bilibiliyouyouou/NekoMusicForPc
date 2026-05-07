@@ -1360,7 +1360,7 @@ void MainWindow::copyCurrentTrackShare()
         Toast::show(this, I18n::instance().tr(QStringLiteral("shareNothingPlaying")), Toast::Error);
         return;
     }
-    const QString link = QStringLiteral("%1/#/player?id=%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
+    const QString link = QStringLiteral("%1/detail/%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
     clip->setText(link);
     Toast::show(this, I18n::instance().tr(QStringLiteral("shareOnlineCopied")), Toast::Success);
 }
