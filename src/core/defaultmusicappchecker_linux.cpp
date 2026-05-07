@@ -2,11 +2,30 @@
 
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 
 namespace {
 
 /** 与 packaging/nekomusic.desktop 安装名一致 */
 const char kDesktopId[] = "nekomusic.desktop";
+
+/** 与 nekomusic.desktop 中 MimeType 一致（含常见流媒体/容器别名） */
+const char *kAudioMimes[] = {
+    "audio/mpeg",
+    "audio/flac",
+    "audio/x-wav",
+    "audio/ogg",
+    "audio/aac",
+    "audio/mp4",
+    "audio/mpegurl",
+    "audio/vnd.rn-realaudio",
+    "audio/x-mpegurl",
+    "audio/x-ms-wma",
+    "audio/x-musepack",
+    "audio/x-pn-realaudio",
+    "audio/x-scpls",
+    "audio/x-speex",
+};
 
 bool queryMimeDefault(const char *mime, QString *out)
 {
@@ -34,16 +53,9 @@ namespace DefaultMusicAppChecker {
 
 bool isDefaultMusicPlayer()
 {
-    // 与 nekomusic.desktop 中 MimeType 一致的主要类型
-    const char *mimes[] = {
-        "audio/mpeg",
-        "audio/flac",
-        "audio/x-wav",
-        "audio/ogg",
-    };
     int hits = 0;
     int defined = 0;
-    for (const char *mime : mimes) {
+    for (const char *mime : kAudioMimes) {
         QString def;
         if (!queryMimeDefault(mime, &def) || def.isEmpty())
             continue;
@@ -53,19 +65,15 @@ bool isDefaultMusicPlayer()
     }
     if (defined == 0)
         return true;
-    // 已声明的关联里只要有一种常见音频仍不是本应用，则认为尚未完全设为默认
     return hits == defined;
 }
 
 void trySetAsDefaultMusicPlayer()
 {
-    QProcess::execute(QStringLiteral("xdg-mime"),
-                      {QStringLiteral("default"),
-                       QString::fromUtf8(kDesktopId),
-                       QStringLiteral("audio/mpeg"),
-                       QStringLiteral("audio/flac"),
-                       QStringLiteral("audio/x-wav"),
-                       QStringLiteral("audio/ogg")});
+    QStringList args{QStringLiteral("default"), QString::fromUtf8(kDesktopId)};
+    for (const char *mime : kAudioMimes)
+        args.append(QString::fromUtf8(mime));
+    QProcess::execute(QStringLiteral("xdg-mime"), args);
 }
 
 } // namespace DefaultMusicAppChecker

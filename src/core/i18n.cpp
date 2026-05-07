@@ -43,14 +43,15 @@ static QMap<QString, QString> zhCN()
     m["unknown"] = QStringLiteral("未知");
     m["defaultMusicPlayerTitle"] = QStringLiteral("默认音乐播放器");
     m["defaultMusicPlayerMessage"] = QStringLiteral(
-        "当前可能尚未将 Neko 云音乐设为系统默认的音乐打开方式（如 MP3、FLAC、WAV 等）。\n"
+        "当前可能尚未将 Neko 云音乐设为系统默认的音乐打开方式（如 MP3、FLAC、AAC/M4A、WAV、OGG、WMA、"
+        "M3U/PLS 等）。\n"
         "是否尝试将其设为默认？");
     m["defaultMusicPlayerYes"] = QStringLiteral("设为默认");
     m["defaultMusicPlayerNo"] = QStringLiteral("暂不");
     m["defaultMusicPlayerDontAskAgain"] = QStringLiteral("不再询问");
     m["defaultMusicPlayerWinFollowUp"] = QStringLiteral(
         "已打开 Windows「默认应用」设置。\n"
-        "请在列表中为「音乐播放器」或为 .mp3、.flac、.wav 等格式指定本程序。");
+        "请在列表中为「音乐播放器」或为 .mp3、.m4a、.aac、.flac、.wav、.wma、.m3u 等格式指定本程序。");
     m["inputRequired"] = QStringLiteral("请输入");
     m["inputValid"] = QStringLiteral("请输入有效的内容");
     m["justNow"] = QStringLiteral("刚刚");
@@ -478,14 +479,14 @@ static QMap<QString, QString> nyaCN()
     m["unknown"] = QStringLiteral("未知喵~");
     m["defaultMusicPlayerTitle"] = QStringLiteral("默认音乐播放器喵~");
     m["defaultMusicPlayerMessage"] = QStringLiteral(
-        "好像还没把 Neko 云音乐设成默认打开 MP3、FLAC、WAV 的程序喵~\n"
+        "好像还没把 Neko 云音乐设成默认打开 MP3、FLAC、AAC/M4A、WAV、OGG、WMA、M3U/PLS 的程序喵~\n"
         "要不要试一下设为默认喵？");
     m["defaultMusicPlayerYes"] = QStringLiteral("设为默认喵~");
     m["defaultMusicPlayerNo"] = QStringLiteral("先不用喵~");
     m["defaultMusicPlayerDontAskAgain"] = QStringLiteral("不要再问喵~");
     m["defaultMusicPlayerWinFollowUp"] = QStringLiteral(
         "已经打开 Windows 的默认应用设置喵~\n"
-        "去里面给音乐或各格式选 Neko 云音乐就好啦~");
+        "去里面给音乐或 .mp3、.m4a、.aac、.wma、.m3u 等格式选 Neko 云音乐就好啦~");
     m["playModeList"] = QStringLiteral("列表循环喵~");
     m["playModeSingle"] = QStringLiteral("单曲循环喵~");
     m["playModeRandom"] = QStringLiteral("随机播放喵~");
@@ -586,14 +587,15 @@ static QMap<QString, QString> enUS()
     m["unknown"] = "Unknown";
     m["defaultMusicPlayerTitle"] = "Default music player";
     m["defaultMusicPlayerMessage"] =
-        "Neko Music may not be the system default for common audio files (MP3, FLAC, WAV, etc.).\n"
+        "Neko Music may not be the system default for common audio (MP3, FLAC, AAC/M4A, WAV, OGG, WMA, "
+        "M3U/PLS, etc.).\n"
         "Set it as the default now?";
     m["defaultMusicPlayerYes"] = "Set as default";
     m["defaultMusicPlayerNo"] = "Not now";
     m["defaultMusicPlayerDontAskAgain"] = "Don't ask again";
     m["defaultMusicPlayerWinFollowUp"] =
         "The Windows Default apps page has been opened.\n"
-        "Choose Neko Music as the default music player or for .mp3, .flac, .wav, etc.";
+        "Choose Neko Music as the default music player or for .mp3, .m4a, .aac, .flac, .wav, .wma, .m3u, etc.";
     m["inputRequired"] = "Please input";
     m["inputValid"] = "Please enter valid content";
     m["justNow"] = "Just now";

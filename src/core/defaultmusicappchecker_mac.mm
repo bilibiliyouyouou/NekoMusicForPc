@@ -39,12 +39,18 @@ namespace DefaultMusicAppChecker {
 
 bool isDefaultMusicPlayer()
 {
-    // 与桌面 MimeType / 常见后缀对应的 UTI
+    // 与桌面 MimeType / 常见后缀对应的 UTI（部分冷门格式系统可能无登记，query 为空则跳过）
     NSArray *utis = @[
         @"public.mp3",
         @"org.xiph.flac",
         @"com.microsoft.waveform-audio",
         @"public.ogg-audio",
+        @"public.aac-audio",
+        @"public.mpeg-4-audio",
+        @"com.microsoft.windows-media-wma",
+        @"org.xiph.speex",
+        @"com.real.realmedia",
+        @"public.playlist",
     ];
     NSInteger total = 0;
     NSInteger ok = 0;
@@ -71,6 +77,12 @@ void trySetAsDefaultMusicPlayer()
         @"org.xiph.flac",
         @"com.microsoft.waveform-audio",
         @"public.ogg-audio",
+        @"public.aac-audio",
+        @"public.mpeg-4-audio",
+        @"com.microsoft.windows-media-wma",
+        @"org.xiph.speex",
+        @"com.real.realmedia",
+        @"public.playlist",
     ];
     for (NSString *uti in utis) {
         LSSetDefaultRoleHandlerForContentType((__bridge CFStringRef)uti, kLSRolesViewer, (__bridge CFStringRef)bid);

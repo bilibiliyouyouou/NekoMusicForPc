@@ -708,11 +708,15 @@ void MainWindow::openAudioFileFromPath(const QString &path)
     if (!fi.exists() || !fi.isFile())
         return;
 
+    const QString playbackPath = LocalMusic::resolveToPlayableLocalPath(local);
+    if (playbackPath.isEmpty())
+        return;
+
     show();
     raise();
     activateWindow();
 
-    MusicInfo info = LocalMusic::probeAndBuildInfo(local);
+    MusicInfo info = LocalMusic::probeAndBuildInfo(playbackPath);
     if (!info.isLocalFile())
         return;
     playLocalMusicInfo(info);

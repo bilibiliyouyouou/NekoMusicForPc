@@ -49,8 +49,10 @@ namespace DefaultMusicAppChecker {
 
 bool isDefaultMusicPlayer()
 {
-    // 常见后缀与 nekomusic.desktop 中类型对应
-    const wchar_t *exts[] = {L".mp3", L".flac", L".wav", L".ogg"};
+    // 常见后缀与 nekomusic.desktop / 常见 audio/* MIME 对应
+    const wchar_t *exts[] = {L".mp3",  L".flac", L".wav",  L".ogg",  L".oga",  L".opus", L".aac",
+                             L".m4a",  L".mp4",  L".wma",  L".mpc",  L".spx",  L".ra",   L".ram",
+                             L".m3u",  L".m3u8", L".pls"};
     int ok = 0;
     int total = 0;
     for (const wchar_t *e : exts) {

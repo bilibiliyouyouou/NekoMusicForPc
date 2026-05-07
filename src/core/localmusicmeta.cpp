@@ -12,8 +12,141 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
+#include <QStringConverter>
 
 namespace LocalMusic {
+
+namespace {
+
+bool isPlaylistSuffix(const QString &suf)
+{
+    return suf == QLatin1String("m3u") || suf == QLatin1String("m3u8") || suf == QLatin1String("pls");
+}
+
+/** 可嵌入 M3U/PLS 的音频条目扩展名（不含列表本身） */
+bool isEmbeddedAudioSuffix(const QString &suf)
+{
+    static const QStringList kExt = {
+        QStringLiteral("mp3"),
+        QStringLiteral("flac"),
+        QStringLiteral("wav"),
+        QStringLiteral("m4a"),
+        QStringLiteral("aac"),
+        QStringLiteral("ogg"),
+        QStringLiteral("oga"),
+        QStringLiteral("opus"),
+        QStringLiteral("mp4"),
+        QStringLiteral("wma"),
+        QStringLiteral("mpc"),
+        QStringLiteral("spx"),
+        QStringLiteral("ra"),
+        QStringLiteral("ram"),
+    };
+    return kExt.contains(suf);
+}
+
+QString firstLocalAudioFromM3u(const QString &m3uPath)
+{
+    QFile f(m3uPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    QTextStream in(&f);
+    in.setEncoding(QStringConverter::Utf8);
+    const QDir baseDir = QFileInfo(m3uPath).absoluteDir();
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith(QLatin1Char('#')))
+            continue;
+
+        QString candidate;
+        if (line.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+            QUrl u(line, QUrl::StrictMode);
+            if (!u.isValid() || !u.isLocalFile())
+                u = QUrl::fromUserInput(line);
+            if (u.isLocalFile())
+                candidate = QDir::cleanPath(u.toLocalFile());
+        } else {
+            QFileInfo item(line);
+            if (item.isAbsolute())
+                candidate = QDir::cleanPath(item.absoluteFilePath());
+            else
+                candidate = QDir::cleanPath(baseDir.filePath(line));
+        }
+
+        if (candidate.isEmpty())
+            continue;
+        QFileInfo fiCand(candidate);
+        if (!fiCand.exists() || !fiCand.isFile())
+            continue;
+        const QString csuf = fiCand.suffix().toLower();
+        if (isPlaylistSuffix(csuf))
+            continue;
+        if (isEmbeddedAudioSuffix(csuf))
+            return candidate;
+    }
+    return {};
+}
+
+QString firstLocalAudioFromPls(const QString &plsPath)
+{
+    QFile f(plsPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    QTextStream in(&f);
+    in.setEncoding(QStringConverter::Utf8);
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line.size() < 6)
+            continue;
+        if (!line.startsWith(QLatin1String("File"), Qt::CaseInsensitive))
+            continue;
+        const int eq = line.indexOf(QLatin1Char('='));
+        if (eq < 0)
+            continue;
+        const QString key = line.left(eq).trimmed();
+        if (key.size() < 5)
+            continue;
+        // File1= ...
+        QString val = line.mid(eq + 1).trimmed();
+        if (val.isEmpty())
+            continue;
+
+        QString candidate;
+        if (val.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+            QUrl u(val, QUrl::StrictMode);
+            if (!u.isValid() || !u.isLocalFile())
+                u = QUrl::fromUserInput(val);
+            if (u.isLocalFile())
+                candidate = QDir::cleanPath(u.toLocalFile());
+        } else if (val.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
+                   || val.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)) {
+            continue;
+        } else {
+            QFileInfo item(val);
+            if (item.isAbsolute())
+                candidate = QDir::cleanPath(item.absoluteFilePath());
+            else
+                candidate = QDir::cleanPath(QFileInfo(plsPath).absoluteDir().filePath(val));
+        }
+
+        if (candidate.isEmpty())
+            continue;
+        QFileInfo fiCand(candidate);
+        if (!fiCand.exists() || !fiCand.isFile())
+            continue;
+        const QString csuf = fiCand.suffix().toLower();
+        if (isPlaylistSuffix(csuf))
+            continue;
+        if (isEmbeddedAudioSuffix(csuf))
+            return candidate;
+    }
+    return {};
+}
+
+} // namespace
+
 
 QString normalizeOpenPathArgument(QString raw)
 {
@@ -48,10 +181,35 @@ bool isSupportedLocalAudioFile(const QString &filePath)
         QStringLiteral("m4a"),
         QStringLiteral("aac"),
         QStringLiteral("ogg"),
+        QStringLiteral("oga"),
         QStringLiteral("opus"),
+        QStringLiteral("mp4"),
+        QStringLiteral("wma"),
+        QStringLiteral("mpc"),
+        QStringLiteral("spx"),
+        QStringLiteral("ra"),
+        QStringLiteral("ram"),
+        QStringLiteral("m3u"),
+        QStringLiteral("m3u8"),
+        QStringLiteral("pls"),
     };
     const QString suf = QFileInfo(filePath).suffix().toLower();
     return kExt.contains(suf);
+}
+
+QString resolveToPlayableLocalPath(const QString &normalizedLocalPath)
+{
+    QFileInfo fi(normalizedLocalPath);
+    if (!fi.exists() || !fi.isFile())
+        return {};
+    const QString suf = fi.suffix().toLower();
+    if (suf == QLatin1String("m3u") || suf == QLatin1String("m3u8"))
+        return firstLocalAudioFromM3u(normalizedLocalPath);
+    if (suf == QLatin1String("pls"))
+        return firstLocalAudioFromPls(normalizedLocalPath);
+    if (isSupportedLocalAudioFile(normalizedLocalPath))
+        return normalizedLocalPath;
+    return {};
 }
 
 int stableLocalTrackId(const QString &canonicalOrAbsolutePath)
