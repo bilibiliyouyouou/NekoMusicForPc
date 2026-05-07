@@ -89,6 +89,17 @@ void PlayerEngine::fadeIn()
     m_audioOutput->setVolume(0.0f);
     m_player->play();
 
+    // 若在 fadeOut 过程中 m_state 已提前为 Paused，而 QMediaPlayer 仍在 Playing，
+    // 此时再 play() 可能不会再次触发 playbackStateChanged，导致系统媒体与引擎状态脱节。
+    auto syncPlaying = [this]() {
+        if (m_player->playbackState() == QMediaPlayer::PlayingState && m_state != Playing) {
+            m_state = Playing;
+            emit stateChanged(m_state);
+        }
+    };
+    syncPlaying();
+    QTimer::singleShot(0, this, syncPlaying);
+
     m_fadeTimer = new QTimer(this);
     connect(m_fadeTimer, &QTimer::timeout, this, &PlayerEngine::onFadeTick);
     m_fadeTimer->start(20); // ~50 ticks for 1s fade
@@ -174,6 +185,10 @@ void PlayerEngine::setPosition(qint64 position)
 
 void PlayerEngine::onMediaStateChanged(QMediaPlayer::PlaybackState state)
 {
+    // fadeOut 期间 QMediaPlayer 仍为 Playing，避免把已对外声明的 Paused 又改回 Playing
+    if (m_fadingOut && state == QMediaPlayer::PlayingState)
+        return;
+
     switch (state) {
     case QMediaPlayer::PlayingState:
         m_state = Playing;
