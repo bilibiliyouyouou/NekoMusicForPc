@@ -20,7 +20,8 @@ public:
     void removeFromPlaylist(int localId);
     void clearPlaylist();
 
-    QList<MusicInfo> playlist() const { return m_playlist; }
+    /** 返回内部队列的 const 引用，避免按值返回时与 playlist()[i] 组合产生悬空引用。 */
+    const QList<MusicInfo> &playlist() const { return m_playlist; }
     int count() const { return m_playlist.size(); }
 
     // 恢复上次播放
