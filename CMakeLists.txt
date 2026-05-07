@@ -11,6 +11,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia Network SvgWidgets Sql Concurrent)
+if(UNIX AND NOT APPLE)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 17)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+endif()
 
 # For cross-compilation, disable AUTOMOC/AUTOUIC/AUTORCC and handle manually
 # because Qt6 CMake hardcodes Windows .exe paths for moc/uic/rcc
@@ -168,7 +176,18 @@ set(HEADERS
         src/ui/playlistpanel.h
         src/ui/updatedialog.h
         src/ui/searchpage.h
+        src/core/systemmediacontroller.h
 )
+
+if(UNIX AND NOT APPLE)
+    list(APPEND SOURCES src/core/systemmediacontroller_linux.cpp)
+elseif(APPLE)
+    list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
+elseif(WIN32)
+    list(APPEND SOURCES src/core/systemmediacontroller_win.cpp)
+else()
+    list(APPEND SOURCES src/core/systemmediacontroller_stub.cpp)
+endif()
 
 # Resources
 set(RESOURCES
@@ -201,6 +220,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Sql
         Qt6::Concurrent
 )
+if(UNIX AND NOT APPLE)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::DBus)
+endif()
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+            "-framework Foundation"
+            "-framework MediaPlayer"
+    )
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_SOURCE_DIR}/src
@@ -267,7 +295,7 @@ if(LINUX)
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "FantasyNetwork <support@cnmsb.xin>")
     set(CPACK_DEBIAN_PACKAGE_SECTION "multimedia")
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6, libqt6multimedia6, libqt6network6, libqt6sql6")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6, libqt6multimedia6, libqt6network6, libqt6sql6, libqt6dbus6")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
     set(CPACK_DEBIAN_PACKAGE_POSTINST "${CMAKE_SOURCE_DIR}/packaging/debian/postinst")
     set(CPACK_DEBIAN_PACKAGE_POSTRM "${CMAKE_SOURCE_DIR}/packaging/debian/postrm")

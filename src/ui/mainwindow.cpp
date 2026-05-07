@@ -39,6 +39,7 @@
 #include "theme/thememanager.h"
 #include "ui/glasspaint.h"
 #include "version.h"
+#include "core/systemmediacontroller.h"
 
 #include <QApplication>
 #include <QDebug>
@@ -81,7 +82,54 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     setupUi();
     loadStyleSheet();
     createTrayIcon();
-    
+
+    m_systemMedia = new SystemMediaController(this);
+    m_systemMedia->setHostWindow(this);
+    m_systemMedia->setPlayerEngine(m_engine);
+    connect(m_systemMedia, &SystemMediaController::raiseRequested, this, &MainWindow::onTrayShow);
+    connect(m_systemMedia, &SystemMediaController::quitRequested, qApp, &QApplication::quit);
+    connect(m_systemMedia, &SystemMediaController::nextRequested, this, &MainWindow::playNext);
+    connect(m_systemMedia, &SystemMediaController::previousRequested, this, &MainWindow::playPrevious);
+    connect(m_systemMedia, &SystemMediaController::playPauseRequested, this, &MainWindow::togglePlaybackForSystemUi);
+    connect(m_systemMedia, &SystemMediaController::playRequested, this, &MainWindow::resumePlaybackForSystemUi);
+    connect(m_systemMedia, &SystemMediaController::pauseRequested, this, &MainWindow::pausePlaybackForSystemUi);
+    connect(m_systemMedia, &SystemMediaController::stopRequested, this, [this]() {
+        if (m_engine)
+            m_engine->stop();
+    });
+    connect(m_systemMedia, &SystemMediaController::seekRelativeUs, this, [this](qint64 us) {
+        if (!m_engine)
+            return;
+        qint64 ms = m_engine->position() + us / 1000;
+        if (ms < 0)
+            ms = 0;
+        m_engine->setPosition(ms);
+    });
+    connect(m_systemMedia, &SystemMediaController::seekAbsoluteUs, this, [this](qint64 us) {
+        if (!m_engine)
+            return;
+        qint64 ms = us / 1000;
+        if (ms < 0)
+            ms = 0;
+        m_engine->setPosition(ms);
+    });
+    connect(m_systemMedia, &SystemMediaController::volumeSetByOs, this, [this](double v) {
+        if (m_engine)
+            m_engine->setVolume(static_cast<float>(v));
+        if (m_playerBar)
+            m_playerBar->setVolumePercentSynced(qBound(0, static_cast<int>(qRound(v * 100.0)), 100));
+    });
+    connect(m_engine, &PlayerEngine::stateChanged, this, &MainWindow::refreshSystemMediaIntegration);
+    connect(m_engine, &PlayerEngine::durationChanged, this, &MainWindow::refreshSystemMediaIntegration);
+    connect(m_engine, &PlayerEngine::positionChanged, m_systemMedia, &SystemMediaController::onPositionMsChanged);
+    connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this, &MainWindow::refreshSystemMediaIntegration);
+    connect(&PlaylistManager::instance(), &PlaylistManager::playModeChanged, this, &MainWindow::refreshSystemMediaIntegration);
+    connect(m_playerBar, &PlayerBar::volumePercentChanged, this, [this](int p) {
+        if (m_systemMedia)
+            m_systemMedia->syncVolumeFromEngine(p / 100.0);
+    });
+    refreshSystemMediaIntegration();
+
     // 连接主题变化信号
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged,
             this, &MainWindow::applyTheme);
@@ -1064,20 +1112,17 @@ void MainWindow::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason)
 
 void MainWindow::onTrayPrevious()
 {
-    // TODO: 实现上一首功能
-    // 暂时留空，后续可以连接到播放器
+    playPrevious();
 }
 
 void MainWindow::onTrayPlayPause()
 {
-    // TODO: 实现播放/暂停功能
-    // 暂时留空，后续可以连接到播放器
+    togglePlaybackForSystemUi();
 }
 
 void MainWindow::onTrayNext()
 {
-    // TODO: 实现下一首功能
-    // 暂时留空，后续可以连接到播放器
+    playNext();
 }
 
 void MainWindow::onTrayShow()
@@ -1242,4 +1287,50 @@ void MainWindow::checkForUpdates(bool showNoUpdateToast)
     });
 
     m_updateChecker->checkForUpdates();
+}
+
+void MainWindow::refreshSystemMediaIntegration()
+{
+    if (!m_systemMedia || !m_engine)
+        return;
+    auto &mgr = PlaylistManager::instance();
+    const bool hasQueue = mgr.count() > 0;
+    const bool canSeek = m_engine->duration() > 0;
+    m_systemMedia->updateCapabilities(hasQueue, hasQueue, canSeek);
+    m_systemMedia->updateLoopShuffle(mgr.playMode());
+    m_systemMedia->syncVolumeFromEngine(m_engine->volume());
+    m_systemMedia->updateFromEngineState(m_engine->playbackState());
+    if (hasQueue && mgr.currentIndex() >= 0 && mgr.currentIndex() < mgr.playlist().size()) {
+        const MusicInfo &info = mgr.playlist()[mgr.currentIndex()];
+        m_systemMedia->updateMetadata(info, m_engine->duration());
+    } else {
+        MusicInfo empty;
+        m_systemMedia->updateMetadata(empty, 0);
+    }
+}
+
+void MainWindow::togglePlaybackForSystemUi()
+{
+    if (!m_engine)
+        return;
+    if (m_engine->playbackState() == PlayerEngine::Playing)
+        m_engine->fadeOut();
+    else
+        m_engine->fadeIn();
+}
+
+void MainWindow::resumePlaybackForSystemUi()
+{
+    if (!m_engine)
+        return;
+    if (m_engine->playbackState() != PlayerEngine::Playing)
+        m_engine->fadeIn();
+}
+
+void MainWindow::pausePlaybackForSystemUi()
+{
+    if (!m_engine)
+        return;
+    if (m_engine->playbackState() == PlayerEngine::Playing)
+        m_engine->fadeOut();
 }

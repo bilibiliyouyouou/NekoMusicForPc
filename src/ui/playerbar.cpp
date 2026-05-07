@@ -28,6 +28,7 @@
 #include <QStylePainter>
 #include <QStyleOptionButton>
 #include <QFont>
+#include <QSignalBlocker>
 #include <QDebug>
 #include <QTimer>
 #include <QEvent>
@@ -528,6 +529,7 @@ void PlayerBar::setupUi()
             m_engine->setVolume(v / 100.0f);
             m_volumeLabel->setText(QString("%1%").arg(v));
             updateVolumeIcon(v);
+            emit volumePercentChanged(v);
         });
         connect(m_volumeSlider, &QSlider::sliderReleased, this, [this]() {
             if (!m_volumeSlider)
@@ -568,6 +570,19 @@ void PlayerBar::setupUi()
 PlayerBar::~PlayerBar()
 {
     removeVolumePanelAppFilter();
+}
+
+void PlayerBar::setVolumePercentSynced(int percent)
+{
+    if (!m_volumeSlider || !m_engine)
+        return;
+    percent = qBound(0, percent, 100);
+    QSignalBlocker blocker(m_volumeSlider);
+    m_volumeSlider->setValue(percent);
+    m_engine->setVolume(percent / 100.0f);
+    if (m_volumeLabel)
+        m_volumeLabel->setText(QStringLiteral("%1%").arg(percent));
+    updateVolumeIcon(percent);
 }
 
 QRect PlayerBar::volumePanelHotRectGlobal() const

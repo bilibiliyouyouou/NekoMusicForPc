@@ -39,6 +39,7 @@ class UpdateChecker;
 class UpdateDialog;
 class SearchPage;
 class DesktopLrc;
+class SystemMediaController;
 
 class MainWindow : public QMainWindow
 {
@@ -80,6 +81,10 @@ private:
     void toggleFavorite(int musicId);
     /** @param showNoUpdateToast 为 true 时表示用户从设置页手动检查，已是最新版本时弹出 Toast */
     void checkForUpdates(bool showNoUpdateToast = false);
+    void refreshSystemMediaIntegration();
+    void togglePlaybackForSystemUi();
+    void resumePlaybackForSystemUi();
+    void pausePlaybackForSystemUi();
 
 private:
     bool checkIsFavorited(int musicId);
@@ -119,7 +124,8 @@ private:
     UpdateChecker *m_updateChecker = nullptr;
     UpdateDialog *m_updateDialog = nullptr;
     DesktopLrc *m_desktopLrc = nullptr;
-    
+    SystemMediaController *m_systemMedia = nullptr;
+
     // Download state
     bool m_isDownloading = false;
     /** 每次切歌递增；延后回调里若与当前不一致则丢弃，避免叠多个 singleShot 播错文件。 */

@@ -30,11 +30,13 @@ signals:
     void nextClicked();
     void favoriteClicked(int musicId);
     void playModeClicked();
+    void volumePercentChanged(int percent);
 
 public:
     explicit PlayerBar(PlayerEngine *engine, QWidget *parent = nullptr);
     ~PlayerBar() override;
     void retranslate();
+    void setVolumePercentSynced(int percent);
     void setSongInfo(const QString &title, const QString &artist, const QString &coverUrl = QString());
     void setCoverVisible(bool visible);
     void setCurrentMusicId(int musicId);
