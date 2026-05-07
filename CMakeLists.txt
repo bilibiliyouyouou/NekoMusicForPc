@@ -134,6 +134,7 @@ set(SOURCES
         src/ui/playlistlistitem.cpp
         src/ui/playlistdetailpage.cpp
         src/ui/addtoplaylistdialog.cpp
+        src/ui/lineinputdialog.cpp
         src/ui/playlistpanel.cpp
         src/ui/updatedialog.cpp
         src/ui/defaultmusicplayerdialog.cpp
@@ -176,6 +177,7 @@ set(HEADERS
         src/ui/playlistlistitem.h
         src/ui/playlistdetailpage.h
         src/ui/addtoplaylistdialog.h
+        src/ui/lineinputdialog.h
         src/ui/playlistpanel.h
         src/ui/updatedialog.h
         src/ui/defaultmusicplayerdialog.h

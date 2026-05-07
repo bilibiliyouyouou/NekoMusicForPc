@@ -1,4 +1,5 @@
 #include "addtoplaylistdialog.h"
+#include "lineinputdialog.h"
 #include "core/playlistdb.h"
 #include "core/i18n.h"
 #include "theme/theme.h"
@@ -8,7 +9,6 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QLabel>
-#include <QInputDialog>
 #include <QMessageBox>
 
 AddToPlaylistDialog::AddToPlaylistDialog(const MusicInfo& music, QWidget *parent)
@@ -90,20 +90,21 @@ void AddToPlaylistDialog::loadPlaylists()
 
 void AddToPlaylistDialog::createNewPlaylist()
 {
-    bool ok = false;
-    QString name = QInputDialog::getText(this,
-        I18n::instance().tr("createPlaylist"),
-        I18n::instance().tr("playlistName"),
-        QLineEdit::Normal,
-        I18n::instance().tr("newPlaylist"),
-        &ok);
-
-    if (ok && !name.isEmpty()) {
-        int playlistId = PlaylistDatabase::instance().createPlaylist(name);
-        if (playlistId > 0) {
-            addMusicToPlaylist(playlistId);
-        }
-    }
+    LineInputDialog dlg(this,
+                        I18n::instance().tr(QStringLiteral("createPlaylist")),
+                        I18n::instance().tr(QStringLiteral("playlistName")),
+                        I18n::instance().tr(QStringLiteral("newPlaylist")),
+                        QString(),
+                        I18n::instance().tr(QStringLiteral("create")),
+                        false);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    const QString name = dlg.value();
+    if (name.isEmpty())
+        return;
+    const int playlistId = PlaylistDatabase::instance().createPlaylist(name);
+    if (playlistId > 0)
+        addMusicToPlaylist(playlistId);
 }
 
 void AddToPlaylistDialog::addMusicToPlaylist(int playlistId)

@@ -11,6 +11,7 @@
 #include "theme/thememanager.h"
 #include "glasspaint.h"
 #include "ui/svgicon.h"
+#include "ui/lineinputdialog.h"
 
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -26,9 +27,8 @@
 #include <QFrame>
 #include <QStyle>
 #include <QDebug>
-#include <QInputDialog>
-#include <QLineEdit>
 #include <QColor>
+#include <QDialog>
 
 // ─── 播放列表音乐项卡片 ──────────────────────────────────────
 class PlaylistMusicCard : public QWidget
@@ -709,16 +709,17 @@ bool PlaylistDetailPage::eventFilter(QObject *watched, QEvent *event)
     if (watched == m_descLbl && event->type() == QEvent::MouseButtonDblClick) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
-            // 弹出输入对话框修改描述
-            bool ok;
-            QString newDesc = QInputDialog::getText(this, 
-                I18n::instance().tr("editDescription"),
-                I18n::instance().tr("enterNewDescription"),
-                QLineEdit::Normal, 
-                m_playlistDesc.isEmpty() ? "" : m_playlistDesc, 
-                &ok);
-            
-            if (ok && !newDesc.isEmpty() && newDesc != m_playlistDesc) {
+            LineInputDialog dlg(this,
+                                I18n::instance().tr(QStringLiteral("modifyPlaylistDesc")),
+                                I18n::instance().tr(QStringLiteral("inputPlaylistDesc")),
+                                QString(),
+                                m_playlistDesc.isEmpty() ? QString() : m_playlistDesc,
+                                I18n::instance().tr(QStringLiteral("save")),
+                                false);
+            if (dlg.exec() != QDialog::Accepted)
+                return true;
+            const QString newDesc = dlg.value();
+            if (!newDesc.isEmpty() && newDesc != m_playlistDesc) {
                 // 调用API更新歌单（名称不变，只更新描述）
                 m_apiClient->updatePlaylist(m_playlistId, m_playlistName, newDesc, [this, newDesc](bool success, const QString &message, const QVariantMap &data) {
                     if (success) {

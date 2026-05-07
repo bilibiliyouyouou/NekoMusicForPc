@@ -49,7 +49,7 @@
 #include <QGuiApplication>
 #include <QPointer>
 #include <QDebug>
-#include <QInputDialog>
+#include "ui/lineinputdialog.h"
 #include <QTimer>
 #include <memory>
 
@@ -829,21 +829,24 @@ void MainWindow::createPlaylist()
         return;
     }
 
-    bool ok = false;
-    QString name = QInputDialog::getText(this,
-        I18n::instance().tr("createPlaylist"),
-        I18n::instance().tr("playlistName"),
-        QLineEdit::Normal,
-        I18n::instance().tr("newPlaylist"),
-        &ok);
+    LineInputDialog dlg(this,
+                        I18n::instance().tr(QStringLiteral("createPlaylist")),
+                        I18n::instance().tr(QStringLiteral("playlistName")),
+                        I18n::instance().tr(QStringLiteral("newPlaylist")),
+                        QString(),
+                        I18n::instance().tr(QStringLiteral("create")),
+                        false);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    const QString name = dlg.value();
+    if (name.isEmpty())
+        return;
 
-    if (ok && !name.isEmpty()) {
-        m_apiClient->createPlaylist(name, QString(), [this](bool success, const QString &message, const QVariantMap &) {
-            if (success) {
-                m_sidebar->loadPlaylists();
-            }
-        });
-    }
+    m_apiClient->createPlaylist(name, QString(), [this](bool success, const QString &message, const QVariantMap &) {
+        if (success) {
+            m_sidebar->loadPlaylists();
+        }
+    });
 }
 
 void MainWindow::showAddToPlaylistDialog(const MusicInfo &music)

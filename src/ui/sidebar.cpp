@@ -14,9 +14,7 @@
 #include "core/i18n.h"
 #include "core/usermanager.h"
 #include "core/apiclient.h"
-
-#include <QInputDialog>
-#include <QLineEdit>
+#include "ui/lineinputdialog.h"
 
 #include <QVBoxLayout>
 #include <QScrollArea>
@@ -228,15 +226,17 @@ void Sidebar::refreshPlaylistList()
                 // 找到当前歌单信息
                 for (const auto &pl : m_apiPlaylists) {
                     if (pl.id == playlistId) {
-                        // 弹出重命名对话框
-                        bool ok;
-                        QString newName = QInputDialog::getText(this,
-                            I18n::instance().tr("renamePlaylist"),
-                            I18n::instance().tr("inputNewPlaylistName"),
-                            QLineEdit::Normal,
-                            pl.name,
-                            &ok);
-                        if (ok && !newName.isEmpty() && newName != pl.name) {
+                        LineInputDialog dlg(this,
+                                            I18n::instance().tr(QStringLiteral("renamePlaylist")),
+                                            I18n::instance().tr(QStringLiteral("inputNewPlaylistName")),
+                                            QString(),
+                                            pl.name,
+                                            I18n::instance().tr(QStringLiteral("save")),
+                                            false);
+                        if (dlg.exec() != QDialog::Accepted)
+                            break;
+                        const QString newName = dlg.value();
+                        if (!newName.isEmpty() && newName != pl.name) {
                             // 调用API更新歌单名称
                             m_apiClient->updatePlaylist(playlistId, newName, pl.description, [this, playlistId, newName](bool success, const QString &, const QVariantMap &) {
                                 if (success) {
@@ -260,15 +260,17 @@ void Sidebar::refreshPlaylistList()
                 // 找到当前歌单信息
                 for (const auto &pl : m_apiPlaylists) {
                     if (pl.id == playlistId) {
-                        // 弹出修改描述对话框
-                        bool ok;
-                        QString newDesc = QInputDialog::getText(this,
-                            I18n::instance().tr("modifyPlaylistDesc"),
-                            I18n::instance().tr("inputPlaylistDesc"),
-                            QLineEdit::Normal,
-                            pl.description,
-                            &ok);
-                        if (ok && newDesc != pl.description) {
+                        LineInputDialog dlg(this,
+                                            I18n::instance().tr(QStringLiteral("modifyPlaylistDesc")),
+                                            I18n::instance().tr(QStringLiteral("inputPlaylistDesc")),
+                                            QString(),
+                                            pl.description,
+                                            I18n::instance().tr(QStringLiteral("save")),
+                                            true);
+                        if (dlg.exec() != QDialog::Accepted)
+                            break;
+                        const QString newDesc = dlg.value();
+                        if (newDesc != pl.description) {
                             // 调用API更新歌单描述
                             m_apiClient->updatePlaylist(playlistId, pl.name, newDesc, [this, playlistId, newDesc](bool success, const QString &, const QVariantMap &) {
                                 if (success) {
