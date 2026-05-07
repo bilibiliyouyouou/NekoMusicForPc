@@ -10,6 +10,8 @@
 #include <QPainterPath>
 #include <QColor>
 #include <QFrame>
+#include <QFontMetrics>
+#include <QResizeEvent>
 #include <QShowEvent>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -218,16 +220,24 @@ void PlayerPage::setupUi()
     m_titleLabel = new QLabel(I18n::instance().tr("unknown"), m_leftGlass);
     m_titleLabel->setObjectName("playerSongTitleLabel");
     m_titleLabel->setAlignment(Qt::AlignCenter);
-    m_titleLabel->setWordWrap(true);
-    m_titleLabel->setMaximumWidth(340);
+    m_titleLabel->setWordWrap(false);
+    m_titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
     m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), m_leftGlass);
     m_artistLabel->setObjectName("playerArtistLabel");
     m_artistLabel->setAlignment(Qt::AlignCenter);
+    m_artistLabel->setWordWrap(false);
+    m_artistLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
     m_albumLabel = new QLabel(m_leftGlass);
     m_albumLabel->setObjectName("playerAlbumLabel");
     m_albumLabel->setAlignment(Qt::AlignCenter);
+    m_albumLabel->setWordWrap(false);
+    m_albumLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+
+    m_fullMetaTitle = m_titleLabel->text();
+    m_fullMetaArtist = m_artistLabel->text();
+    m_fullMetaAlbum.clear();
 
     coverCol->addSpacing(16);
     coverCol->addWidget(m_coverLabel);
@@ -295,9 +305,12 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     const int prevId = m_musicId;
     const QString prevCoverUrl = m_coverUrl;
     m_musicId = id;
-    m_titleLabel->setText(t);
-    m_artistLabel->setText(a);
-    m_albumLabel->setText(album);
+    m_fullMetaTitle = t;
+    m_fullMetaArtist = a;
+    m_fullMetaAlbum = album;
+    m_titleIsPlaceholder = title.isEmpty();
+    m_artistIsPlaceholder = artist.isEmpty();
+    applyMetaTextElide();
 
     disconnect(m_coverConn);
     m_coverConn = {};
@@ -331,13 +344,11 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
 
 void PlayerPage::retranslate()
 {
-    // Update labels only if they show default values
-    if (m_titleLabel->text() == I18n::instance().tr("unknown") || m_titleLabel->text().isEmpty()) {
-        m_titleLabel->setText(I18n::instance().tr("unknown"));
-    }
-    if (m_artistLabel->text() == I18n::instance().tr("unknownArtist") || m_artistLabel->text().isEmpty()) {
-        m_artistLabel->setText(I18n::instance().tr("unknownArtist"));
-    }
+    if (m_titleIsPlaceholder)
+        m_fullMetaTitle = I18n::instance().tr("unknown");
+    if (m_artistIsPlaceholder)
+        m_fullMetaArtist = I18n::instance().tr("unknownArtist");
+    applyMetaTextElide();
 
     // Update lyrics title - find it by object name
     auto *lyricsTitle = findChild<QLabel *>("lyricsTitleLabel");
@@ -352,9 +363,47 @@ void PlayerPage::retranslate()
     }
 }
 
+void PlayerPage::applyMetaTextElide()
+{
+    if (!m_leftGlass || !m_titleLabel || !m_artistLabel || !m_albumLabel)
+        return;
+
+    constexpr int kCoverColSideMargin = 24 * 2;
+    const int w = m_leftGlass->width() - kCoverColSideMargin;
+    if (w <= 1)
+        return;
+
+    m_titleLabel->setMaximumWidth(w);
+    m_artistLabel->setMaximumWidth(w);
+    m_albumLabel->setMaximumWidth(w);
+
+    const QFontMetrics fmTitle(m_titleLabel->font());
+    const QFontMetrics fmArtist(m_artistLabel->font());
+    const QFontMetrics fmAlbum(m_albumLabel->font());
+
+    const QString elidedTitle = fmTitle.elidedText(m_fullMetaTitle, Qt::ElideRight, w);
+    const QString elidedArtist = fmArtist.elidedText(m_fullMetaArtist, Qt::ElideRight, w);
+    const QString elidedAlbum = fmAlbum.elidedText(m_fullMetaAlbum, Qt::ElideRight, w);
+
+    m_titleLabel->setText(elidedTitle);
+    m_artistLabel->setText(elidedArtist);
+    m_albumLabel->setText(elidedAlbum);
+
+    m_titleLabel->setToolTip(m_fullMetaTitle != elidedTitle ? m_fullMetaTitle : QString());
+    m_artistLabel->setToolTip(m_fullMetaArtist != elidedArtist ? m_fullMetaArtist : QString());
+    m_albumLabel->setToolTip(m_fullMetaAlbum != elidedAlbum ? m_fullMetaAlbum : QString());
+}
+
+void PlayerPage::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    applyMetaTextElide();
+}
+
 void PlayerPage::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    applyMetaTextElide();
 
     // 入场动画：淡入 + 内容上移
     auto *opacity = new QGraphicsOpacityEffect(this);

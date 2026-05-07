@@ -3,6 +3,7 @@
 #include "glasswidget.h"
 
 #include <QWidget>
+#include <QResizeEvent>
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
@@ -36,6 +37,7 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
 
 signals:
@@ -44,6 +46,8 @@ signals:
 private:
     void setupUi();
     void applyPlayerPageStyle();
+    /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
+    void applyMetaTextElide();
     void loadCover(const QString &url);
     void applyCoverPixmap(const QPixmap &sourcePixmap);
     void applyCoverUnknownLarge();
@@ -68,6 +72,11 @@ private:
     QLabel *m_titleLabel;
     QLabel *m_artistLabel;
     QLabel *m_albumLabel;
+    QString m_fullMetaTitle;
+    QString m_fullMetaArtist;
+    QString m_fullMetaAlbum;
+    bool m_titleIsPlaceholder = true;
+    bool m_artistIsPlaceholder = true;
     QScrollArea *m_lyricsScroll;
     QWidget *m_lyricsContainer;
     QVBoxLayout *m_lyricsLayout;
