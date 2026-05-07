@@ -702,6 +702,18 @@ void MainWindow::cancelStreamWatch()
 void MainWindow::startRemotePlaybackWithBackgroundCache(int musicId, quint64 playSeq, const QUrl &remoteUrl,
                                                         bool pauseWhenReady)
 {
+    const QString cachedPath = MusicDownloader::cachedAudioFilePath(musicId);
+    if (QFile::exists(cachedPath)) {
+        // 已有整文件：本地播，避免单曲循环/切回已缓存曲时反复开 HTTP 流导致卡顿
+        cancelStreamWatch();
+        m_streamRetryActive = false;
+        m_playerBar->setLoading(false);
+        m_engine->play(QUrl::fromLocalFile(cachedPath));
+        if (pauseWhenReady)
+            QTimer::singleShot(50, this, [this]() { m_engine->pause(); });
+        return;
+    }
+
     cancelStreamWatch();
     m_streamRetryActive = true;
     m_streamRemoteUrl = remoteUrl;
