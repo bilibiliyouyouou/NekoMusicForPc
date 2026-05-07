@@ -24,6 +24,7 @@
 #include "ui/playlistpanel.h"
 #include "ui/toast.h"
 #include "ui/updatedialog.h"
+#include "ui/defaultmusicplayerdialog.h"
 #include "ui/searchpage.h"
 #include "ui/desktoplrc.h"
 #include <QSettings>
@@ -41,10 +42,10 @@
 #include "version.h"
 #include "core/systemmediacontroller.h"
 #include "core/localmusicmeta.h"
+#include "core/defaultmusicappchecker.h"
 
 #include <QApplication>
 #include <QDebug>
-#include <QMessageBox>
 #include <QInputDialog>
 #include <QTimer>
 #include <memory>
@@ -67,6 +68,8 @@
 #include <QNetworkReply>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QCheckBox>
+#include <QAbstractButton>
 
 namespace {
 /** 单次远程起播：超过此时长仍未进入 Playing 则计一次失败并重试（最多 3 次）。 */
@@ -145,6 +148,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
     // 延迟检查版本更新
     QTimer::singleShot(2000, this, [this]() { checkForUpdates(false); });
+    QTimer::singleShot(3500, this, [this]() { maybePromptDefaultMusicPlayer(); });
 }
 
 MainWindow::~MainWindow()
@@ -1362,6 +1366,27 @@ void MainWindow::loadFavoritesCache()
             }
         }
     });
+}
+
+void MainWindow::maybePromptDefaultMusicPlayer()
+{
+    QSettings settings;
+    if (settings.value(QStringLiteral("defaultMusicPlayer/skipPrompt"), false).toBool())
+        return;
+    if (DefaultMusicAppChecker::isDefaultMusicPlayer())
+        return;
+
+    DefaultMusicPlayerDialog dlg(this);
+    const int r = dlg.exec();
+    if (dlg.dontAskAgain())
+        settings.setValue(QStringLiteral("defaultMusicPlayer/skipPrompt"), true);
+    if (r != QDialog::Accepted)
+        return;
+
+    DefaultMusicAppChecker::trySetAsDefaultMusicPlayer();
+#if defined(Q_OS_WIN)
+    DefaultMusicPlayerDialog::showWindowsDefaultAppsFollowUp(this);
+#endif
 }
 
 void MainWindow::checkForUpdates(bool showNoUpdateToast)

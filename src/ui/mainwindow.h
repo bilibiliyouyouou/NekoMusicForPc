@@ -93,6 +93,8 @@ private:
     void pausePlaybackForSystemUi();
 
 private:
+    void maybePromptDefaultMusicPlayer();
+
     bool checkIsFavorited(int musicId);
     void loadFavoritesCache();
     void disconnectDownloader();

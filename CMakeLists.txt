@@ -136,6 +136,7 @@ set(SOURCES
         src/ui/addtoplaylistdialog.cpp
         src/ui/playlistpanel.cpp
         src/ui/updatedialog.cpp
+        src/ui/defaultmusicplayerdialog.cpp
         src/ui/searchpage.cpp
         src/theme/thememanager.cpp
 )
@@ -177,18 +178,24 @@ set(HEADERS
         src/ui/addtoplaylistdialog.h
         src/ui/playlistpanel.h
         src/ui/updatedialog.h
+        src/ui/defaultmusicplayerdialog.h
         src/ui/searchpage.h
         src/core/systemmediacontroller.h
+        src/core/defaultmusicappchecker.h
 )
 
 if(UNIX AND NOT APPLE)
     list(APPEND SOURCES src/core/systemmediacontroller_linux.cpp)
+    list(APPEND SOURCES src/core/defaultmusicappchecker_linux.cpp)
 elseif(APPLE)
     list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
+    list(APPEND SOURCES src/core/defaultmusicappchecker_mac.mm)
 elseif(WIN32)
     list(APPEND SOURCES src/core/systemmediacontroller_win.cpp)
+    list(APPEND SOURCES src/core/defaultmusicappchecker_win.cpp)
 else()
     list(APPEND SOURCES src/core/systemmediacontroller_stub.cpp)
+    list(APPEND SOURCES src/core/defaultmusicappchecker_stub.cpp)
 endif()
 
 # Resources
@@ -229,7 +236,11 @@ if(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE
             "-framework Foundation"
             "-framework MediaPlayer"
+            "-framework CoreServices"
     )
+endif()
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Shlwapi)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
