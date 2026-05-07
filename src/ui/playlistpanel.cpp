@@ -22,6 +22,16 @@
 #include <QLinearGradient>
 #include <QUrl>
 
+namespace {
+
+/** 队列里识别本地曲：有路径，或历史数据仅有负数占位 id */
+bool playlistPanelEntryIsLocal(const MusicInfo &info)
+{
+    return info.isLocalFile() || info.id < 0;
+}
+
+} // namespace
+
 // ─── 播放队列项卡片 ──────────────────────────────────────
 class PlaylistItemCard : public QWidget {
 public:
@@ -50,6 +60,12 @@ public:
         m_coverLbl->setFixedSize(48, 48);
         m_coverLbl->setScaledContents(false);
         loadCover();
+        if (playlistPanelEntryIsLocal(info)) {
+            m_localBadge = new QLabel(I18n::instance().tr(QStringLiteral("localMusicBadge")), m_coverLbl);
+            m_localBadge->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            applyLocalBadgeStyle();
+            repositionCoverBadge();
+        }
         lay->addWidget(m_coverLbl);
 
         auto *infoV = new QWidget(this);
@@ -91,6 +107,8 @@ public:
         updateIndexDisplay();
         applyTitleStyle(dark);
         applyArtistStyle(dark);
+        if (m_localBadge)
+            applyLocalBadgeStyle();
         update();
     }
 
@@ -180,6 +198,34 @@ private:
         m_artistLbl->setStyleSheet(QStringLiteral("QLabel { font-size: 11px; color: %1; }").arg(col));
     }
 
+    void applyLocalBadgeStyle()
+    {
+        if (!m_localBadge)
+            return;
+        // 叠在封面上，需高对比底，与深浅主题无关
+        m_localBadge->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 9px; font-weight: 700; color: #F5F0FF; padding: 1px 5px; border-radius: 4px; "
+            "background: rgba(26,22,37,0.88); border: 1px solid rgba(196,167,231,0.72); }"));
+    }
+
+    void repositionCoverBadge()
+    {
+        if (!m_localBadge || !m_coverLbl)
+            return;
+        m_localBadge->adjustSize();
+        constexpr int pad = 3;
+        m_localBadge->move(m_coverLbl->width() - m_localBadge->width() - pad,
+                           m_coverLbl->height() - m_localBadge->height() - pad);
+    }
+
+    void raiseCoverBadge()
+    {
+        if (!m_localBadge)
+            return;
+        m_localBadge->raise();
+        repositionCoverBadge();
+    }
+
     void applyRemoveBtnStyle(bool dark)
     {
         const QString fg = dark ? QString::fromUtf8(Theme::kTextMuted) : QStringLiteral("rgba(33,37,41,0.45)");
@@ -208,13 +254,15 @@ private:
 
     void loadCover()
     {
-        if (m_info.isLocalFile()) {
-            const QString fu = CoverCache::resolveCoverUrl(m_info.coverUrl);
-            if (fu.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
-                QPixmap p;
-                if (p.load(QUrl(fu).toLocalFile())) {
-                    applyPixmap(p);
-                    return;
+        if (playlistPanelEntryIsLocal(m_info)) {
+            if (m_info.isLocalFile()) {
+                const QString fu = CoverCache::resolveCoverUrl(m_info.coverUrl);
+                if (fu.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+                    QPixmap p;
+                    if (p.load(QUrl(fu).toLocalFile())) {
+                        applyPixmap(p);
+                        return;
+                    }
                 }
             }
             applyUnknownCover();
@@ -228,8 +276,10 @@ private:
         }
         const QString url = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(m_musicId);
         connect(cc, &CoverCache::coverLoaded, this, [this, musicId](const QString &id, const QPixmap &pix) {
-            if (id == musicId)
+            if (id == musicId) {
                 applyPixmap(pix);
+                raiseCoverBadge();
+            }
         });
         cc->fetchCover(musicId, url);
     }
@@ -252,6 +302,7 @@ private:
         p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
         p.end();
         m_coverLbl->setPixmap(pm);
+        raiseCoverBadge();
     }
 
     void applyPixmap(const QPixmap &pix)
@@ -270,6 +321,7 @@ private:
         p.setClipPath(cp);
         p.drawPixmap(0, 0, scaled);
         m_coverLbl->setPixmap(rounded);
+        raiseCoverBadge();
     }
 
     MusicInfo m_info;
@@ -280,6 +332,7 @@ private:
     QLabel *m_indexLbl = nullptr;
     QLabel *m_coverLbl = nullptr;
     QLabel *m_titleLbl = nullptr;
+    QLabel *m_localBadge = nullptr;
     QLabel *m_artistLbl = nullptr;
     QPushButton *m_removeBtn = nullptr;
 };

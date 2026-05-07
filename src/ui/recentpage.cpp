@@ -9,8 +9,10 @@
 #include "core/covercache.h"
 #include "core/musicinfo.h"
 #include "theme/theme.h"
+#include "theme/thememanager.h"
 #include "ui/svgicon.h"
 
+#include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QScrollArea>
@@ -116,9 +118,31 @@ public:
         infoLay->setContentsMargins(0, 0, 0, 0);
         infoLay->setSpacing(4);
 
-        auto *titleLbl = new QLabel(info.title, infoV);
+        auto *titleRow = new QWidget(infoV);
+        titleRow->setAttribute(Qt::WA_TranslucentBackground);
+        auto *titleRowLay = new QHBoxLayout(titleRow);
+        titleRowLay->setContentsMargins(0, 0, 0, 0);
+        titleRowLay->setSpacing(8);
+
+        auto *titleLbl = new QLabel(info.title, titleRow);
         titleLbl->setStyleSheet("QLabel { font-size: 14px; font-weight: 600; color: " + QString(Theme::kTextMain) + "; }");
-        infoLay->addWidget(titleLbl);
+        titleLbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        titleRowLay->addWidget(titleLbl, 1);
+
+        if (info.isLocalFile()) {
+            auto *localBadge = new QLabel(I18n::instance().tr(QStringLiteral("localMusicBadge")), titleRow);
+            localBadge->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+            const bool dark = Theme::ThemeManager::instance().isDarkMode();
+            const QString fg = dark ? QString::fromUtf8(Theme::kLavenderLt) : QStringLiteral("#6F42C1");
+            const QString bg = dark ? QStringLiteral("rgba(196,167,231,0.18)") : QStringLiteral("rgba(111,66,193,0.12)");
+            const QString bd = dark ? QStringLiteral("rgba(196,167,231,0.45)") : QStringLiteral("rgba(111,66,193,0.35)");
+            localBadge->setStyleSheet(QStringLiteral(
+                "QLabel { font-size: 10px; font-weight: 700; color: %1; padding: 2px 8px; border-radius: 6px; "
+                "background: %2; border: 1px solid %3; }")
+                                          .arg(fg, bg, bd));
+            titleRowLay->addWidget(localBadge, 0, Qt::AlignRight | Qt::AlignVCenter);
+        }
+        infoLay->addWidget(titleRow);
 
         auto *artistLbl = new QLabel(info.artist, infoV);
         artistLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextSub) + "; }");
