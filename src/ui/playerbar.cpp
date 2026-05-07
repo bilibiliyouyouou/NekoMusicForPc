@@ -265,6 +265,8 @@ PlayerBar::PlayerBar(PlayerEngine *engine, QWidget *parent)
             this, [this](Theme::ThemeMode) {
                 for (auto *b : findChildren<QPushButton *>())
                     b->update();
+                if (m_localBadge && m_localBadge->isVisible())
+                    applyLocalBadgeChrome();
                 update();
             });
 }
@@ -307,9 +309,24 @@ void PlayerBar::setupUi()
 
     auto *infoL = new QVBoxLayout();
     infoL->setSpacing(2);
-    m_songName = new QLabel(I18n::instance().tr("notPlaying"), this);
+
+    auto *titleRow = new QWidget(left);
+    titleRow->setAttribute(Qt::WA_TranslucentBackground);
+    auto *titleRowLay = new QHBoxLayout(titleRow);
+    titleRowLay->setContentsMargins(0, 0, 0, 0);
+    titleRowLay->setSpacing(6);
+
+    m_localBadge = new QLabel(titleRow);
+    m_localBadge->setObjectName(QStringLiteral("pbLocalBadge"));
+    m_localBadge->setVisible(false);
+    applyLocalBadgeChrome();
+    titleRowLay->addWidget(m_localBadge, 0, Qt::AlignVCenter);
+
+    m_songName = new QLabel(I18n::instance().tr("notPlaying"), titleRow);
     m_songName->setObjectName("pbSong");
-    infoL->addWidget(m_songName);
+    titleRowLay->addWidget(m_songName, 1, Qt::AlignVCenter);
+    infoL->addWidget(titleRow);
+
     m_artist = new QLabel(I18n::instance().tr("unknown"), this);
     m_artist->setObjectName("pbArtist");
     infoL->addWidget(m_artist);
@@ -782,12 +799,15 @@ void PlayerBar::retranslate()
         m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     if (m_shareBtn)
         m_shareBtn->setToolTip(I18n::instance().tr(QStringLiteral("shareTrack")));
+
+    refreshLocalBadge();
 }
 
 void PlayerBar::setSongInfo(const QString &title, const QString &artist, const QString &coverUrl)
 {
     if (m_songName) m_songName->setText(title.isEmpty() ? I18n::instance().tr("unknown") : title);
     if (m_artist) m_artist->setText(artist.isEmpty() ? I18n::instance().tr("unknown") : artist);
+    refreshLocalBadge();
 
     if (!m_cover)
         return;
@@ -866,6 +886,49 @@ void PlayerBar::setCurrentMusicId(int musicId)
     qDebug() << "[播放栏] 设置当前音乐ID:" << musicId;
     m_currentMusicId = musicId;
     // 不重置状态，由调用方自行检查收藏状态后设置
+    refreshLocalBadge();
+}
+
+void PlayerBar::applyLocalBadgeChrome()
+{
+    if (!m_localBadge)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (dark) {
+        m_localBadge->setStyleSheet(QStringLiteral(
+            "QLabel#pbLocalBadge {"
+            "  font-size: 11px;"
+            "  font-weight: 800;"
+            "  color: #100818;"
+            "  padding: 2px 10px;"
+            "  border-radius: 8px;"
+            "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #7EE8C8, stop:0.42 #C8FFD8, stop:1 #ECC8FF);"
+            "  border: 1px solid rgba(255,255,255,0.78);"
+            "}"));
+    } else {
+        m_localBadge->setStyleSheet(QStringLiteral(
+            "QLabel#pbLocalBadge {"
+            "  font-size: 11px;"
+            "  font-weight: 800;"
+            "  color: #160f22;"
+            "  padding: 2px 10px;"
+            "  border-radius: 8px;"
+            "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #42C4C4, stop:0.45 #A8F0D8, stop:1 #D0B0FF);"
+            "  border: 1px solid rgba(70,40,120,0.45);"
+            "}"));
+    }
+}
+
+void PlayerBar::refreshLocalBadge()
+{
+    if (!m_localBadge)
+        return;
+    const bool show = m_currentMusicId < 0;
+    m_localBadge->setVisible(show);
+    if (show) {
+        m_localBadge->setText(I18n::instance().tr(QStringLiteral("localMusicBadge")));
+        applyLocalBadgeChrome();
+    }
 }
 
 void PlayerBar::setFavoriteStatus(bool isFavorited)

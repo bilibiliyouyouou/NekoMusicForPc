@@ -61,6 +61,8 @@ private:
     QRect volumePanelHotRectGlobal() const;
     void installVolumePanelAppFilter();
     void removeVolumePanelAppFilter();
+    void applyLocalBadgeChrome();
+    void refreshLocalBadge();
 
     PlayerEngine *m_engine = nullptr;
     QPushButton *m_playBtn = nullptr;
@@ -81,6 +83,7 @@ private:
     QTimer *m_volumeLeaveTimer = nullptr;
     bool m_volumeAppFilterInstalled = false;
 
+    QLabel *m_localBadge = nullptr;
     QLabel *m_songName = nullptr;
     QLabel *m_artist = nullptr;
     QLabel *m_curTime = nullptr;

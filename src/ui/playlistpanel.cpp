@@ -7,6 +7,7 @@
 #include "glasspaint.h"
 #include "ui/svgicon.h"
 
+#include <QSizePolicy>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -60,12 +61,6 @@ public:
         m_coverLbl->setFixedSize(48, 48);
         m_coverLbl->setScaledContents(false);
         loadCover();
-        if (playlistPanelEntryIsLocal(info)) {
-            m_localBadge = new QLabel(I18n::instance().tr(QStringLiteral("localMusicBadge")), m_coverLbl);
-            m_localBadge->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-            applyLocalBadgeStyle();
-            repositionCoverBadge();
-        }
         lay->addWidget(m_coverLbl);
 
         auto *infoV = new QWidget(this);
@@ -74,9 +69,25 @@ public:
         infoLay->setContentsMargins(0, 0, 0, 0);
         infoLay->setSpacing(3);
 
-        m_titleLbl = new QLabel(info.title, infoV);
+        auto *titleRow = new QWidget(infoV);
+        titleRow->setAttribute(Qt::WA_TranslucentBackground);
+        auto *titleRowLay = new QHBoxLayout(titleRow);
+        titleRowLay->setContentsMargins(0, 0, 0, 0);
+        titleRowLay->setSpacing(6);
+
+        if (playlistPanelEntryIsLocal(info)) {
+            m_localBadge = new QLabel(I18n::instance().tr(QStringLiteral("localMusicBadge")), titleRow);
+            m_localBadge->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            applyLocalBadgeStyle(dark);
+            titleRowLay->addWidget(m_localBadge, 0, Qt::AlignVCenter);
+        }
+
+        m_titleLbl = new QLabel(info.title, titleRow);
         applyTitleStyle(dark);
-        infoLay->addWidget(m_titleLbl);
+        m_titleLbl->setMinimumWidth(0);
+        m_titleLbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        titleRowLay->addWidget(m_titleLbl, 1, Qt::AlignVCenter);
+        infoLay->addWidget(titleRow);
 
         m_artistLbl = new QLabel(info.artist, infoV);
         applyArtistStyle(dark);
@@ -108,7 +119,7 @@ public:
         applyTitleStyle(dark);
         applyArtistStyle(dark);
         if (m_localBadge)
-            applyLocalBadgeStyle();
+            applyLocalBadgeStyle(dark);
         update();
     }
 
@@ -198,32 +209,21 @@ private:
         m_artistLbl->setStyleSheet(QStringLiteral("QLabel { font-size: 11px; color: %1; }").arg(col));
     }
 
-    void applyLocalBadgeStyle()
+    void applyLocalBadgeStyle(bool dark)
     {
         if (!m_localBadge)
             return;
-        // 叠在封面上，需高对比底，与深浅主题无关
-        m_localBadge->setStyleSheet(QStringLiteral(
-            "QLabel { font-size: 9px; font-weight: 700; color: #F5F0FF; padding: 1px 5px; border-radius: 4px; "
-            "background: rgba(26,22,37,0.88); border: 1px solid rgba(196,167,231,0.72); }"));
-    }
-
-    void repositionCoverBadge()
-    {
-        if (!m_localBadge || !m_coverLbl)
-            return;
-        m_localBadge->adjustSize();
-        constexpr int pad = 3;
-        m_localBadge->move(m_coverLbl->width() - m_localBadge->width() - pad,
-                           m_coverLbl->height() - m_localBadge->height() - pad);
-    }
-
-    void raiseCoverBadge()
-    {
-        if (!m_localBadge)
-            return;
-        m_localBadge->raise();
-        repositionCoverBadge();
+        if (dark) {
+            m_localBadge->setStyleSheet(QStringLiteral(
+                "QLabel { font-size: 10px; font-weight: 800; color: #100818; padding: 2px 8px; border-radius: 7px; "
+                "background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #7EE8C8, stop:0.42 #C8FFD8, stop:1 #ECC8FF); "
+                "border: 1px solid rgba(255,255,255,0.78); }"));
+        } else {
+            m_localBadge->setStyleSheet(QStringLiteral(
+                "QLabel { font-size: 10px; font-weight: 800; color: #160f22; padding: 2px 8px; border-radius: 7px; "
+                "background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #42C4C4, stop:0.45 #A8F0D8, stop:1 #D0B0FF); "
+                "border: 1px solid rgba(70,40,120,0.45); }"));
+        }
     }
 
     void applyRemoveBtnStyle(bool dark)
@@ -276,10 +276,8 @@ private:
         }
         const QString url = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(m_musicId);
         connect(cc, &CoverCache::coverLoaded, this, [this, musicId](const QString &id, const QPixmap &pix) {
-            if (id == musicId) {
+            if (id == musicId)
                 applyPixmap(pix);
-                raiseCoverBadge();
-            }
         });
         cc->fetchCover(musicId, url);
     }
@@ -302,7 +300,6 @@ private:
         p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
         p.end();
         m_coverLbl->setPixmap(pm);
-        raiseCoverBadge();
     }
 
     void applyPixmap(const QPixmap &pix)
@@ -321,7 +318,6 @@ private:
         p.setClipPath(cp);
         p.drawPixmap(0, 0, scaled);
         m_coverLbl->setPixmap(rounded);
-        raiseCoverBadge();
     }
 
     MusicInfo m_info;
