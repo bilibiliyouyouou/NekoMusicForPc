@@ -240,7 +240,12 @@ if(APPLE)
     )
 endif()
 if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Shlwapi)
+    # MSVC 使用 Shlwapi.lib；MinGW 交叉编译使用 libshlwapi.a（小写 -lshlwapi）
+    if(MINGW)
+        target_link_libraries(${PROJECT_NAME} PRIVATE shlwapi)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE Shlwapi)
+    endif()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
