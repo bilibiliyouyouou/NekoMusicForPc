@@ -38,11 +38,15 @@ public:
     void setCurrentMusic(const MusicInfo& music);
 
     PlaybackState playbackState() const;
+    /** 对齐 QMediaPlayer，供 MPRIS / 系统媒体用；淡出过程中底层仍在播时仍视为 Paused。 */
+    PlaybackState transportStateForOs() const;
     qint64 duration() const;
     qint64 position() const;
 
 signals:
     void stateChanged(PlaybackState state);
+    /** QMediaPlayer::playbackState 每次变化时发出（与 m_state 是否被淡出逻辑屏蔽无关）。 */
+    void mediaPlaybackStateChanged();
     void positionChanged(qint64 position);
     void durationChanged(qint64 duration);
     void fadeComplete();

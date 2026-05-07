@@ -173,6 +173,22 @@ PlayerEngine::PlaybackState PlayerEngine::playbackState() const
     return m_state;
 }
 
+PlayerEngine::PlaybackState PlayerEngine::transportStateForOs() const
+{
+    const auto ps = m_player->playbackState();
+    if (m_fadingOut && ps == QMediaPlayer::PlayingState)
+        return Paused;
+    switch (ps) {
+    case QMediaPlayer::PlayingState:
+        return Playing;
+    case QMediaPlayer::PausedState:
+        return Paused;
+    case QMediaPlayer::StoppedState:
+    default:
+        return Stopped;
+    }
+}
+
 qint64 PlayerEngine::duration() const
 {
     return m_player->duration();
@@ -199,28 +215,28 @@ void PlayerEngine::setPosition(qint64 position)
 
 void PlayerEngine::onMediaStateChanged(QMediaPlayer::PlaybackState state)
 {
-    // fadeOut 期间 QMediaPlayer 仍为 Playing，避免把已对外声明的 Paused 又改回 Playing
-    if (m_fadingOut && state == QMediaPlayer::PlayingState)
-        return;
-
-    switch (state) {
-    case QMediaPlayer::PlayingState:
-        m_state = Playing;
-        if (m_currentMusic.id > 0) {
-            emit musicStarted(m_currentMusic);
+    // fadeOut 期间 QMediaPlayer 仍为 Playing，避免把已对外声明的 Paused 又改回 m_state
+    if (!(m_fadingOut && state == QMediaPlayer::PlayingState)) {
+        switch (state) {
+        case QMediaPlayer::PlayingState:
+            m_state = Playing;
+            if (m_currentMusic.id > 0) {
+                emit musicStarted(m_currentMusic);
+            }
+            break;
+        case QMediaPlayer::PausedState:
+            m_state = Paused;
+            break;
+        case QMediaPlayer::StoppedState:
+            m_state = Stopped;
+            // 勿在此处 emit playbackFinished：用户 stop() 切歌也会进入 Stopped，
+            // 会与「自然播完」竞态，误触发自动下一首。自然结束由 MediaStatus::EndOfMedia 发出。
+            emit stateChanged(m_state);
+            break;
         }
-        break;
-    case QMediaPlayer::PausedState:
-        m_state = Paused;
-        break;
-    case QMediaPlayer::StoppedState:
-        m_state = Stopped;
-        // 勿在此处 emit playbackFinished：用户 stop() 切歌也会进入 Stopped，
-        // 会与「自然播完」竞态，误触发自动下一首。自然结束由 MediaStatus::EndOfMedia 发出。
         emit stateChanged(m_state);
-        break;
     }
-    emit stateChanged(m_state);
+    emit mediaPlaybackStateChanged();
 }
 
 void PlayerEngine::setCurrentMusic(const MusicInfo& music)

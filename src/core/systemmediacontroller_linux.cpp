@@ -308,6 +308,9 @@ void SystemMediaController::updateFromEngineState(PlayerEngine::PlaybackState st
             startPositionTimer();
         else
             stopPositionTimer();
+        // PlaybackStatus 未变但底层 QMediaPlayer 与 m_state 曾脱节时，CanPlay/CanPause 仍需刷新（KDE 等会读）
+        m_playerAdaptor->tellCanPlayChanged();
+        m_playerAdaptor->tellCanPauseChanged();
         return;
     }
     m_playbackStatus = next;
@@ -454,14 +457,14 @@ bool SystemMediaController::mprisCanPlay() const
 {
     if (!m_engine)
         return false;
-    return m_engine->playbackState() != PlayerEngine::Playing;
+    return m_engine->transportStateForOs() != PlayerEngine::Playing;
 }
 
 bool SystemMediaController::mprisCanPause() const
 {
     if (!m_engine)
         return false;
-    return m_engine->playbackState() == PlayerEngine::Playing;
+    return m_engine->transportStateForOs() == PlayerEngine::Playing;
 }
 
 #include "systemmediacontroller_linux.moc"

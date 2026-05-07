@@ -120,6 +120,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_playerBar->setVolumePercentSynced(qBound(0, static_cast<int>(qRound(v * 100.0)), 100));
     });
     connect(m_engine, &PlayerEngine::stateChanged, this, &MainWindow::refreshSystemMediaIntegration);
+    connect(m_engine, &PlayerEngine::mediaPlaybackStateChanged, this, &MainWindow::refreshSystemMediaIntegration);
     connect(m_engine, &PlayerEngine::fadeComplete, this, &MainWindow::refreshSystemMediaIntegration);
     connect(m_engine, &PlayerEngine::durationChanged, this, &MainWindow::refreshSystemMediaIntegration);
     connect(m_engine, &PlayerEngine::positionChanged, m_systemMedia, &SystemMediaController::onPositionMsChanged);
@@ -1300,7 +1301,7 @@ void MainWindow::refreshSystemMediaIntegration()
     m_systemMedia->updateCapabilities(hasQueue, hasQueue, canSeek);
     m_systemMedia->updateLoopShuffle(mgr.playMode());
     m_systemMedia->syncVolumeFromEngine(m_engine->volume());
-    m_systemMedia->updateFromEngineState(m_engine->playbackState());
+    m_systemMedia->updateFromEngineState(m_engine->transportStateForOs());
     if (hasQueue && mgr.currentIndex() >= 0 && mgr.currentIndex() < mgr.playlist().size()) {
         const MusicInfo &info = mgr.playlist()[mgr.currentIndex()];
         m_systemMedia->updateMetadata(info, m_engine->duration());
@@ -1314,7 +1315,7 @@ void MainWindow::togglePlaybackForSystemUi()
 {
     if (!m_engine)
         return;
-    if (m_engine->playbackState() == PlayerEngine::Playing)
+    if (m_engine->transportStateForOs() == PlayerEngine::Playing)
         m_engine->fadeOut();
     else
         m_engine->fadeIn();
@@ -1324,7 +1325,7 @@ void MainWindow::resumePlaybackForSystemUi()
 {
     if (!m_engine)
         return;
-    if (m_engine->playbackState() != PlayerEngine::Playing)
+    if (m_engine->transportStateForOs() != PlayerEngine::Playing)
         m_engine->fadeIn();
 }
 
@@ -1332,6 +1333,6 @@ void MainWindow::pausePlaybackForSystemUi()
 {
     if (!m_engine)
         return;
-    if (m_engine->playbackState() == PlayerEngine::Playing)
+    if (m_engine->transportStateForOs() == PlayerEngine::Playing)
         m_engine->fadeOut();
 }
