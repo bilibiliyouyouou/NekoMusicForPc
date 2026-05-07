@@ -493,6 +493,8 @@ void PlayerPage::loadCover(const QString &url)
 
 void PlayerPage::loadLyrics(int musicId)
 {
+    ++m_lyricsFetchGeneration;
+    const int lyricsGen = m_lyricsFetchGeneration;
     m_currentLyricLine = -1;
 
     if (musicId <= 0) {
@@ -515,7 +517,15 @@ void PlayerPage::loadLyrics(int musicId)
         .arg(QString::fromUtf8(Theme::kApiBase))
         .arg(musicId);
     QNetworkReply *reply = nam->get(QNetworkRequest(QUrl(url)));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, nam, musicId]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, nam, musicId, lyricsGen]() {
+        const auto cleanup = [&]() {
+            reply->deleteLater();
+            nam->deleteLater();
+        };
+        if (lyricsGen != m_lyricsFetchGeneration) {
+            cleanup();
+            return;
+        }
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray response = reply->readAll();
             QJsonDocument doc = QJsonDocument::fromJson(response);
@@ -541,43 +551,63 @@ void PlayerPage::loadLyrics(int musicId)
         } else {
             qDebug() << "歌词API请求失败，musicId:" << musicId << "error:" << reply->errorString();
         }
-        reply->deleteLater();
-        nam->deleteLater();
+        cleanup();
     });
 }
 
 void PlayerPage::parseLrc(const QString &lrc)
 {
     m_lyrics.clear();
+    // 支持 [m:s]、小数 1～5 位（与后端一致）、一行多时间轴；小数按 F/10^L 秒四舍五入为毫秒
+    static const QRegularExpression timeRe(R"(\[(\d+):(\d{1,2})(?:\.(\d{1,5}))?\])");
+    static const QRegularExpression transRe(R"(^\{["'](.+)["']\}$)");
+
+    auto subsecondToMs = [](const QString &frac) -> int {
+        if (frac.isEmpty())
+            return 0;
+        bool ok = false;
+        const int F = frac.toInt(&ok);
+        if (!ok || F < 0)
+            return 0;
+        const int L = frac.length();
+        if (L < 1 || L > 5)
+            return 0;
+        static const qint64 kPow10[] = {1, 10, 100, 1000, 10000, 100000};
+        const qint64 denom = kPow10[L];
+        return static_cast<int>((qint64{F} * 1000 + denom / 2) / denom);
+    };
+
     const QStringList lines = lrc.split('\n');
-
     for (int i = 0; i < lines.size(); ++i) {
-        QString line = lines[i].trimmed();
-        if (line.isEmpty()) continue;
+        const QString line = lines[i].trimmed();
+        if (line.isEmpty())
+            continue;
 
-        static const QRegularExpression timeRe(R"(\[(\d{1,2}):(\d{1,2})\.(\d{2,3})\])");
-        auto match = timeRe.match(line);
-        if (!match.hasMatch()) continue;
+        QRegularExpressionMatchIterator tagIt = timeRe.globalMatch(line);
+        if (!tagIt.hasNext())
+            continue;
 
-        int min = match.captured(1).toInt();
-        int sec = match.captured(2).toInt();
-        int ms = match.captured(3).toInt();
-        if (match.captured(3).length() == 2) ms *= 10;
-        qint64 timeMs = (min * 60 + sec) * 1000 + ms;
-
-        QString text = line.replace(match.captured(0), "").trimmed();
+        QString plain = line;
+        plain.remove(timeRe);
+        plain = plain.trimmed();
 
         QString translation;
         if (i + 1 < lines.size()) {
-            QString next = lines[i + 1].trimmed();
-            static const QRegularExpression transRe(R"(^\{["'](.+)["']\}$)");
-            auto tMatch = transRe.match(next);
-            if (tMatch.hasMatch()) {
+            const QString next = lines[i + 1].trimmed();
+            const auto tMatch = transRe.match(next);
+            if (tMatch.hasMatch())
                 translation = tMatch.captured(1);
-            }
         }
 
-        m_lyrics.append({timeMs, text, translation});
+        tagIt = timeRe.globalMatch(line);
+        while (tagIt.hasNext()) {
+            const QRegularExpressionMatch match = tagIt.next();
+            const int min = match.captured(1).toInt();
+            const int sec = match.captured(2).toInt();
+            const int ms = subsecondToMs(match.captured(3));
+            const qint64 timeMs = (static_cast<qint64>(min) * 60 + sec) * 1000 + ms;
+            m_lyrics.append({timeMs, plain, translation});
+        }
     }
 
     std::sort(m_lyrics.begin(), m_lyrics.end(),

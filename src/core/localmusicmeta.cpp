@@ -221,6 +221,22 @@ int stableLocalTrackId(const QString &canonicalOrAbsolutePath)
     return id;
 }
 
+int onlineCatalogIdFromFilename(const QString &absoluteOrCanonicalPath)
+{
+    const QString base = QFileInfo(absoluteOrCanonicalPath).completeBaseName();
+    if (base.isEmpty())
+        return 0;
+    for (QChar c : base) {
+        if (c.unicode() < QLatin1Char('0').unicode() || c.unicode() > QLatin1Char('9').unicode())
+            return 0;
+    }
+    bool ok = false;
+    const int n = base.toInt(&ok);
+    if (!ok || n <= 0)
+        return 0;
+    return n;
+}
+
 static QString resolvePath(const QString &filePath)
 {
     QFileInfo fi(filePath);

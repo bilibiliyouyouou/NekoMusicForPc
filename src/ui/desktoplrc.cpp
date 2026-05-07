@@ -72,38 +72,51 @@ void DesktopLrc::loadLyricsFile(const QString &filePath)
 void DesktopLrc::parseLyrics(const QString &lyricsText)
 {
     m_lyricsMap.clear();
-    
+
     QStringList lines = lyricsText.split('\n');
-    QRegularExpression timeRegex("\\[(\\d+):(\\d+)\\.(\\d+)\\]");
-    
+    static const QRegularExpression timeRegex(R"(\[(\d+):(\d{1,2})(?:\.(\d{1,5}))?\])");
+
+    auto subsecondToMs = [](const QString &frac) -> int {
+        if (frac.isEmpty())
+            return 0;
+        bool ok = false;
+        const int F = frac.toInt(&ok);
+        if (!ok || F < 0)
+            return 0;
+        const int L = frac.length();
+        if (L < 1 || L > 5)
+            return 0;
+        static const qint64 kPow10[] = {1, 10, 100, 1000, 10000, 100000};
+        const qint64 denom = kPow10[L];
+        return static_cast<int>((qint64{F} * 1000 + denom / 2) / denom);
+    };
+
     for (const QString &line : lines) {
-        if (line.trimmed().isEmpty()) continue;
-        
-        // 匹配时间标签
-        QRegularExpressionMatchIterator matches = timeRegex.globalMatch(line);
-        QString lyricText = line;
-        
-        while (matches.hasNext()) {
-            QRegularExpressionMatch match = matches.next();
-            lyricText = lyricText.remove(match.captured(0));
-        }
-        
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty())
+            continue;
+
+        QRegularExpressionMatchIterator matches = timeRegex.globalMatch(trimmed);
+        if (!matches.hasNext())
+            continue;
+
+        QString lyricText = trimmed;
+        lyricText.remove(timeRegex);
         lyricText = lyricText.trimmed();
-        if (lyricText.isEmpty()) continue;
-        
-        // 为每个时间标签添加歌词
-        matches = timeRegex.globalMatch(line);
+        if (lyricText.isEmpty())
+            continue;
+
+        matches = timeRegex.globalMatch(trimmed);
         while (matches.hasNext()) {
-            QRegularExpressionMatch match = matches.next();
-            int minutes = match.captured(1).toInt();
-            int seconds = match.captured(2).toInt();
-            int milliseconds = match.captured(3).toInt();
-            
-            qint64 timeMs = minutes * 60000 + seconds * 1000 + milliseconds;
+            const QRegularExpressionMatch match = matches.next();
+            const int minutes = match.captured(1).toInt();
+            const int seconds = match.captured(2).toInt();
+            const int ms = subsecondToMs(match.captured(3));
+            const qint64 timeMs = static_cast<qint64>(minutes) * 60000 + seconds * 1000 + ms;
             m_lyricsMap[timeMs] = lyricText;
         }
     }
-    
+
     if (m_lyricsMap.isEmpty()) {
         m_currentLyrics = tr("无可用歌词");
     }

@@ -14,6 +14,12 @@ QString normalizeOpenPathArgument(QString raw);
 /** 与路径绑定的稳定负数 id，用于播放列表与队列 */
 int stableLocalTrackId(const QString &canonicalOrAbsolutePath);
 
+/**
+ * 若文件主文件名为纯十进制数字（如 852.flac → 852），视为与线上一致的音乐 id，可用于拉取歌词等；
+ * 否则返回 0。
+ */
+int onlineCatalogIdFromFilename(const QString &absoluteOrCanonicalPath);
+
 /** 是否为本客户端支持的本地音频扩展名（mp3 / flac / wav / 播放列表等） */
 bool isSupportedLocalAudioFile(const QString &filePath);
 

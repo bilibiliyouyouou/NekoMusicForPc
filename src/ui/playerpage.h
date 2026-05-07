@@ -89,4 +89,6 @@ private:
     QMetaObject::Connection m_coverConn;
     int m_currentLyricLine = -1;
     QPropertyAnimation *m_scrollAnim = nullptr;
+    /** 每次发起/清空歌词请求自增，用于丢弃过期的异步回调（本地曲歌词 id 可与 m_musicId 不一致） */
+    int m_lyricsFetchGeneration = 0;
 };
