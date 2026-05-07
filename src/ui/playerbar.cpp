@@ -267,22 +267,6 @@ PlayerBar::PlayerBar(PlayerEngine *engine, QWidget *parent)
                     b->update();
                 update();
             });
-    
-    if (m_engine) {
-        connect(m_engine, &PlayerEngine::positionChanged, this, [this](qint64 position) {
-            if (m_progress && m_engine) {
-                qint64 duration = m_engine->duration();
-                if (duration > 0) {
-                    int value = static_cast<int>((position * 1000) / duration);
-                    m_progress->setValue(value);
-                }
-            }
-        });
-        
-        connect(m_engine, &PlayerEngine::durationChanged, this, [this](qint64 duration) {
-            // 可以更新总时长显示
-        });
-    }
 }
 
 void PlayerBar::setupUi()
@@ -579,12 +563,14 @@ void PlayerBar::setupUi()
             else m_engine->fadeIn();
         });
         connect(m_engine, &PlayerEngine::stateChanged, this, [this]() { updateState(); });
-        // 进度条跟随播放位置
+        // 进度条跟随播放位置（拖动/按下时不要 setValue，否则会抢鼠标导致无法拖动）
         connect(m_engine, &PlayerEngine::positionChanged, this, [this](qint64 pos) {
             if (m_curTime) m_curTime->setText(formatTime(pos));
-            if (m_engine->duration() > 0) {
-                m_progress->setValue(static_cast<int>(pos * 1000 / m_engine->duration()));
-            }
+            if (!m_progress || m_progress->isSliderDown())
+                return;
+            const qint64 dur = m_engine->duration();
+            if (dur > 0)
+                m_progress->setValue(static_cast<int>(pos * 1000 / dur));
         });
         connect(m_engine, &PlayerEngine::durationChanged, this, [this](qint64 dur) {
             if (m_durTime) m_durTime->setText(formatTime(dur));
