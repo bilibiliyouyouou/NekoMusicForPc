@@ -86,7 +86,7 @@ QString buildShareClipboardText(const MusicInfo &m)
     const QString artist = m.artist.isEmpty() ? i18n.tr(QStringLiteral("unknown")) : m.artist;
     const QString link = m.isLocalFile()
         ? QUrl::fromLocalFile(m.localPath).toString()
-        : QStringLiteral("%1/api/music/file/%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
+        : QStringLiteral("%1/detail/%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
 
     QString t;
     if (m.isLocalFile())

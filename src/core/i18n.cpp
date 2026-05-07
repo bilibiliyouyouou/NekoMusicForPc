@@ -322,7 +322,7 @@ static QMap<QString, QString> zhCN()
         "移动端客户端，体验更完整的播放与个性化功能。欢迎把 Neko云音乐 推荐给朋友一起使用。");
     m["shareClipboardPromoLocal"] = QStringLiteral(
         "本首为本地音频文件。Neko云音乐 同样提供丰富的在线曲库与歌单发现，完全免费；可继续使用客户端管理本地与在线音乐。");
-    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 在线音频直链（可用支持网络地址的播放器打开）：");
+    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 歌曲详情页链接（在浏览器中打开）：");
     m["shareClipboardLinkLocal"] = QStringLiteral("🔗 本地文件（可粘贴到支持 file:// 的环境）：");
     m["cancelFavoriteSuccess"] = QStringLiteral("已取消收藏");
     m["cancelFavoriteFailed"] = QStringLiteral("取消收藏失败");
@@ -438,7 +438,7 @@ static QMap<QString, QString> nyaCN()
         "曲库很大还有歌单排行榜喵~ 有桌面歌词和多端客户端，完全免费的说！推荐给朋友一起用也可以喵~");
     m["shareClipboardPromoLocal"] = QStringLiteral(
         "这首是本地文件喵~ 在线库也免费，继续用客户端听在线和本地都很棒喵~");
-    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 在线音频直链：");
+    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 歌曲详情页链接喵~（用浏览器打开就好喵~）：");
     m["shareClipboardLinkLocal"] = QStringLiteral("🔗 本地文件链接：");
     m["favorite"] = QStringLiteral("收藏喵~");
     m["unfavorite"] = QStringLiteral("取消收藏喵~");
@@ -897,7 +897,7 @@ static QMap<QString, QString> enUS()
     m["shareClipboardPromoLocal"] =
         "This track is a local file. Neko Music also offers a rich online library for free — keep using the app "
         "for local + online playback.";
-    m["shareClipboardLinkOnline"] = "Stream URL (open in a player that accepts HTTP URLs):";
+    m["shareClipboardLinkOnline"] = "Song page (open in your browser):";
     m["shareClipboardLinkLocal"] = "Local file (file URL):";
     m["cancelFavoriteSuccess"] = "Favorite removed";
     m["cancelFavoriteFailed"] = "Failed to remove favorite";
