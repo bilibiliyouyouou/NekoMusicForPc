@@ -463,8 +463,10 @@ void PlayerPage::loadLyrics(int musicId)
     rebuildLyricLabels();
 
     QNetworkAccessManager *nam = new QNetworkAccessManager(this);
-    QString url = QString::fromUtf8("%1/api/music/lyrics/%2")
-        .arg(Theme::kApiBase).arg(musicId).arg(QDateTime::currentMSecsSinceEpoch());
+    QString url = QString::fromUtf8("%1/api/music/lyrics/%2?t=%3")
+        .arg(QString::fromUtf8(Theme::kApiBase))
+        .arg(musicId)
+        .arg(QDateTime::currentMSecsSinceEpoch());
     QNetworkReply *reply = nam->get(QNetworkRequest(QUrl(url)));
     connect(reply, &QNetworkReply::finished, this, [this, reply, nam, musicId]() {
         if (reply->error() == QNetworkReply::NoError) {
