@@ -151,15 +151,22 @@ public:
         infoLay->addStretch();
         lay->addWidget(infoV, 1);
 
-        // 时长
+        // 时长：始终占位一列，避免部分有条目有、部分无导致不齐（duration 为 0 时多为写入最近播放时尚未带上时长）
+        QString timeText;
         if (info.duration > 0) {
-            int mins = info.duration / 60;
-            int secs = info.duration % 60;
-            auto *timeLbl = new QLabel(
-                QString("%1:%2").arg(mins, 2, 10, QChar('0')).arg(secs, 2, 10, QChar('0')), this);
-            timeLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextMuted) + "; }");
-            lay->addWidget(timeLbl);
+            const int totalMins = info.duration / 60;
+            const int secs = info.duration % 60;
+            timeText = QStringLiteral("%1:%2")
+                           .arg(totalMins, 2, 10, QChar('0'))
+                           .arg(secs, 2, 10, QChar('0'));
+        } else {
+            timeText = QStringLiteral("--:--");
         }
+        auto *timeLbl = new QLabel(timeText, this);
+        timeLbl->setMinimumWidth(52);
+        timeLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        timeLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextMuted) + "; }");
+        lay->addWidget(timeLbl);
     }
 
     int musicId() const { return m_musicId; }
