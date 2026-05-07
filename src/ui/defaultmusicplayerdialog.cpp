@@ -11,6 +11,19 @@
 
 namespace {
 
+/** 外层 layout 左右留白（与阴影留白一致） */
+constexpr int kOuterPad = 20;
+/** 内层卡片左右内边距 */
+constexpr int kCardPadH = 28;
+constexpr int kWinCardPadH = 26;
+constexpr int kMainDialogWidth = 540;
+constexpr int kWinFollowUpWidth = 500;
+
+int textColumnWidth(int dialogWidth, int cardPadH)
+{
+    return dialogWidth - 2 * kOuterPad - 2 * cardPadH;
+}
+
 void polishFramelessDialog(QDialog *dlg)
 {
     dlg->setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint | Qt::WindowSystemMenuHint);
@@ -30,10 +43,12 @@ DefaultMusicPlayerDialog::DefaultMusicPlayerDialog(QWidget *parent)
     : QDialog(parent)
 {
     polishFramelessDialog(this);
-    setFixedWidth(432);
+    setFixedWidth(kMainDialogWidth);
+
+    const int textW = textColumnWidth(kMainDialogWidth, kCardPadH);
 
     auto *outer = new QVBoxLayout(this);
-    outer->setContentsMargins(20, 20, 20, 20);
+    outer->setContentsMargins(kOuterPad, kOuterPad, kOuterPad, kOuterPad);
     outer->setSpacing(0);
 
     auto *container = new QWidget(this);
@@ -49,11 +64,12 @@ DefaultMusicPlayerDialog::DefaultMusicPlayerDialog(QWidget *parent)
             .arg(Theme::kRMd));
 
     auto *lay = new QVBoxLayout(container);
-    lay->setContentsMargins(28, 24, 28, 22);
+    lay->setContentsMargins(kCardPadH, 24, kCardPadH, 22);
     lay->setSpacing(16);
 
     auto *titleLbl = new QLabel(I18n::instance().tr(QStringLiteral("defaultMusicPlayerTitle")), container);
     titleLbl->setWordWrap(true);
+    titleLbl->setFixedWidth(textW);
     titleLbl->setStyleSheet(
         QStringLiteral("QLabel { font-size: 18px; font-weight: 700; color: %1; }")
             .arg(QString::fromUtf8(Theme::kTextMain)));
@@ -61,6 +77,7 @@ DefaultMusicPlayerDialog::DefaultMusicPlayerDialog(QWidget *parent)
 
     auto *msgLbl = new QLabel(I18n::instance().tr(QStringLiteral("defaultMusicPlayerMessage")), container);
     msgLbl->setWordWrap(true);
+    msgLbl->setFixedWidth(textW);
     msgLbl->setStyleSheet(
         QStringLiteral("QLabel { font-size: 14px; color: %1; line-height: 1.45; }")
             .arg(QString::fromUtf8(Theme::kTextSub)));
@@ -134,10 +151,12 @@ void DefaultMusicPlayerDialog::showWindowsDefaultAppsFollowUp(QWidget *parent)
 {
     QDialog dlg(parent);
     polishFramelessDialog(&dlg);
-    dlg.setFixedWidth(400);
+    dlg.setFixedWidth(kWinFollowUpWidth);
+
+    const int textW = textColumnWidth(kWinFollowUpWidth, kWinCardPadH);
 
     auto *outer = new QVBoxLayout(&dlg);
-    outer->setContentsMargins(20, 20, 20, 20);
+    outer->setContentsMargins(kOuterPad, kOuterPad, kOuterPad, kOuterPad);
 
     auto *container = new QWidget(&dlg);
     container->setObjectName(QStringLiteral("defaultMusicPlayerWinBox"));
@@ -157,6 +176,7 @@ void DefaultMusicPlayerDialog::showWindowsDefaultAppsFollowUp(QWidget *parent)
 
     auto *titleLbl = new QLabel(I18n::instance().tr(QStringLiteral("defaultMusicPlayerTitle")), container);
     titleLbl->setWordWrap(true);
+    titleLbl->setFixedWidth(textW);
     titleLbl->setStyleSheet(
         QStringLiteral("QLabel { font-size: 17px; font-weight: 700; color: %1; }")
             .arg(QString::fromUtf8(Theme::kTextMain)));
@@ -164,6 +184,7 @@ void DefaultMusicPlayerDialog::showWindowsDefaultAppsFollowUp(QWidget *parent)
 
     auto *msgLbl = new QLabel(I18n::instance().tr(QStringLiteral("defaultMusicPlayerWinFollowUp")), container);
     msgLbl->setWordWrap(true);
+    msgLbl->setFixedWidth(textW);
     msgLbl->setStyleSheet(
         QStringLiteral("QLabel { font-size: 14px; color: %1; }").arg(QString::fromUtf8(Theme::kTextSub)));
     lay->addWidget(msgLbl);
