@@ -30,14 +30,27 @@ PlayerEngine::PlayerEngine(QObject *parent)
 
 PlayerEngine::~PlayerEngine() = default;
 
+void PlayerEngine::cancelFade()
+{
+    if (m_fadeTimer) {
+        m_fadeTimer->stop();
+        delete m_fadeTimer;
+        m_fadeTimer = nullptr;
+    }
+    m_fadingIn = false;
+    m_fadingOut = false;
+}
+
 void PlayerEngine::play(const QUrl &url)
 {
+    cancelFade();
     m_player->setSource(url);
     m_player->play();
 }
 
 void PlayerEngine::playLocalResuming(const QString &localPath, qint64 resumeMs)
 {
+    cancelFade();
     const QUrl url = QUrl::fromLocalFile(localPath);
     m_player->setSource(url);
     m_player->play();
@@ -60,16 +73,19 @@ void PlayerEngine::playLocalResuming(const QString &localPath, qint64 resumeMs)
 
 void PlayerEngine::play()
 {
+    cancelFade();
     m_player->play();
 }
 
 void PlayerEngine::pause()
 {
+    cancelFade();
     m_player->pause();
 }
 
 void PlayerEngine::stop()
 {
+    cancelFade();
     m_player->stop();
 }
 
@@ -83,9 +99,8 @@ void PlayerEngine::setVolume(float volume)
 
 void PlayerEngine::fadeIn()
 {
-    if (m_fadeTimer) { m_fadeTimer->stop(); delete m_fadeTimer; m_fadeTimer = nullptr; }
+    cancelFade();
     m_fadingIn = true;
-    m_fadingOut = false;
     m_audioOutput->setVolume(0.0f);
     m_player->play();
 
@@ -107,9 +122,8 @@ void PlayerEngine::fadeIn()
 
 void PlayerEngine::fadeOut()
 {
-    if (m_fadeTimer) { m_fadeTimer->stop(); delete m_fadeTimer; m_fadeTimer = nullptr; }
+    cancelFade();
     m_fadingOut = true;
-    m_fadingIn = false;
 
     // Immediately update state so UI shows paused
     m_state = Paused;

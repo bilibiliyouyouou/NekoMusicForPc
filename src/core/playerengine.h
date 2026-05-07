@@ -51,6 +51,7 @@ signals:
     void playbackFinished();
 
 private:
+    void cancelFade();
     void onMediaStateChanged(QMediaPlayer::PlaybackState state);
     void onFadeTick();
 
