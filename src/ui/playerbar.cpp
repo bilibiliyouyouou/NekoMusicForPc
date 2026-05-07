@@ -112,6 +112,7 @@ enum class PbInk : int {
     Next,
     PlayMain,
     Heart,
+    Share,
     Playlist,
     Volume,
     PlayModePng,
@@ -206,6 +207,9 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
         pm = Icons::render(Icons::kHeart, px, on ? kPbHeartOn : (hi ? cA : cN));
         break;
     }
+    case PbInk::Share:
+        pm = Icons::render(Icons::kShare, px, hi ? cA : cN);
+        break;
     case PbInk::Playlist:
         pm = Icons::render(Icons::kPlaylist, px, hi ? cA : cN);
         break;
@@ -412,9 +416,9 @@ void PlayerBar::setupUi()
     cl->addLayout(progL);
     lay->addWidget(center, 1);
 
-    // ─── 右侧：收藏+音量 ─────────────────────────────────
+    // ─── 右侧：收藏+分享+音量等 ─────────────────────────────
     auto *right = new QWidget(this);
-    right->setFixedWidth(184);
+    right->setFixedWidth(230);
     auto *rl = new QHBoxLayout(right);
     rl->setContentsMargins(0, 0, 0, 0);
     rl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -434,6 +438,16 @@ void PlayerBar::setupUi()
         emit favoriteClicked(m_currentMusicId);
     });
     rl->addWidget(m_heartBtn);
+
+    m_shareBtn = new PlayerBarInkButton(this);
+    m_shareBtn->setObjectName(QStringLiteral("pbShareBtn"));
+    m_shareBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
+    m_shareBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
+    m_shareBtn->setProperty("pbInk", int(PbInk::Share));
+    m_shareBtn->setCursor(Qt::PointingHandCursor);
+    m_shareBtn->setToolTip(I18n::instance().tr(QStringLiteral("shareTrack")));
+    connect(m_shareBtn, &QPushButton::clicked, this, [this]() { emit shareClicked(); });
+    rl->addWidget(m_shareBtn);
 
     m_desktopLrcBtn = new QPushButton(QStringLiteral("词"), this);
     m_desktopLrcBtn->setObjectName("pbDesktopLrcBtn");
@@ -780,6 +794,8 @@ void PlayerBar::retranslate()
 
     if (m_desktopLrcBtn)
         m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
+    if (m_shareBtn)
+        m_shareBtn->setToolTip(I18n::instance().tr(QStringLiteral("shareTrack")));
 }
 
 void PlayerBar::setSongInfo(const QString &title, const QString &artist, const QString &coverUrl)

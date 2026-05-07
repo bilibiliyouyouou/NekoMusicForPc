@@ -29,6 +29,7 @@ signals:
     void previousClicked();
     void nextClicked();
     void favoriteClicked(int musicId);
+    void shareClicked();
     void playModeClicked();
     void volumePercentChanged(int percent);
 
@@ -65,6 +66,7 @@ private:
     QPushButton *m_playBtn = nullptr;
     QPushButton *m_playModeBtn = nullptr;
     QPushButton *m_heartBtn = nullptr;
+    QPushButton *m_shareBtn = nullptr;
     QSlider *m_progress = nullptr;
     
     QWidget *m_volumePanel = nullptr;

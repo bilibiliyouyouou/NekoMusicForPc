@@ -36,6 +36,7 @@ public:
     void fadeIn();
     void fadeOut();
     void setCurrentMusic(const MusicInfo& music);
+    const MusicInfo &currentMusic() const { return m_currentMusic; }
 
     PlaybackState playbackState() const;
     /** 对齐 QMediaPlayer，供 MPRIS / 系统媒体用；淡出过程中底层仍在播时仍视为 Paused。 */

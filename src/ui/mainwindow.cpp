@@ -45,6 +45,8 @@
 #include "core/defaultmusicappchecker.h"
 
 #include <QApplication>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QDebug>
 #include <QInputDialog>
 #include <QTimer>
@@ -491,6 +493,7 @@ void MainWindow::setupUi()
 
     // 收藏按钮
     connect(m_playerBar, &PlayerBar::favoriteClicked, this, &MainWindow::toggleFavorite);
+    connect(m_playerBar, &PlayerBar::shareClicked, this, &MainWindow::copyCurrentTrackShare);
 
     // 播放模式按钮
     connect(m_playerBar, &PlayerBar::playModeClicked, this, [this]() {
@@ -1333,6 +1336,33 @@ void MainWindow::toggleFavorite(int musicId)
             }
         });
     }
+}
+
+void MainWindow::copyCurrentTrackShare()
+{
+    if (!m_engine)
+        return;
+    QClipboard *clip = QGuiApplication::clipboard();
+    if (!clip)
+        return;
+
+    const MusicInfo &m = m_engine->currentMusic();
+    if (m.isLocalFile()) {
+        if (m.localPath.isEmpty()) {
+            Toast::show(this, I18n::instance().tr(QStringLiteral("shareNothingPlaying")), Toast::Error);
+            return;
+        }
+        clip->setText(QUrl::fromLocalFile(m.localPath).toString());
+        Toast::show(this, I18n::instance().tr(QStringLiteral("shareLocalCopied")), Toast::Success);
+        return;
+    }
+    if (m.id <= 0) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("shareNothingPlaying")), Toast::Error);
+        return;
+    }
+    const QString link = QStringLiteral("%1/#/player?id=%2").arg(QString::fromUtf8(Theme::kApiBase)).arg(m.id);
+    clip->setText(link);
+    Toast::show(this, I18n::instance().tr(QStringLiteral("shareOnlineCopied")), Toast::Success);
 }
 
 bool MainWindow::checkIsFavorited(int musicId)

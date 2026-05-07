@@ -307,6 +307,10 @@ static QMap<QString, QString> zhCN()
     m["emptyFavorites"] = QStringLiteral("暂无收藏音乐");
     m["addToFavorites"] = QStringLiteral("添加到收藏");
     m["removeFromFavorites"] = QStringLiteral("取消收藏");
+    m["shareTrack"] = QStringLiteral("分享");
+    m["shareOnlineCopied"] = QStringLiteral("歌曲链接已复制到剪贴板");
+    m["shareLocalCopied"] = QStringLiteral("本地文件链接已复制到剪贴板");
+    m["shareNothingPlaying"] = QStringLiteral("当前没有可分享的曲目");
     m["cancelFavoriteSuccess"] = QStringLiteral("已取消收藏");
     m["cancelFavoriteFailed"] = QStringLiteral("取消收藏失败");
     m["deleteConfirmWithPlaylistName"] = QStringLiteral("确定要删除歌单\"{name}\"吗？此操作不可恢复。");
@@ -408,6 +412,10 @@ static QMap<QString, QString> nyaCN()
     m["pause"] = QStringLiteral("暂停喵~");
     m["previous"] = QStringLiteral("上一首喵~");
     m["next"] = QStringLiteral("下一首喵~");
+    m["shareTrack"] = QStringLiteral("分享喵~");
+    m["shareOnlineCopied"] = QStringLiteral("链接已经复制到剪贴板喵~");
+    m["shareLocalCopied"] = QStringLiteral("本地文件链接已经复制喵~");
+    m["shareNothingPlaying"] = QStringLiteral("现在没有可以分享的曲子喵~");
     m["favorite"] = QStringLiteral("收藏喵~");
     m["unfavorite"] = QStringLiteral("取消收藏喵~");
     m["playAll"] = QStringLiteral("播放全部喵~");
@@ -849,6 +857,10 @@ static QMap<QString, QString> enUS()
     m["emptyFavorites"] = "No favorite music yet";
     m["addToFavorites"] = "Add to favorites";
     m["removeFromFavorites"] = "Remove from favorites";
+    m["shareTrack"] = "Share";
+    m["shareOnlineCopied"] = "Track link copied to clipboard";
+    m["shareLocalCopied"] = "Local file link copied to clipboard";
+    m["shareNothingPlaying"] = "Nothing to share right now";
     m["cancelFavoriteSuccess"] = "Favorite removed";
     m["cancelFavoriteFailed"] = "Failed to remove favorite";
     m["deleteConfirmWithPlaylistName"] = "Are you sure you want to delete playlist \"{name}\"? This cannot be undone.";
