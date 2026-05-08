@@ -474,14 +474,16 @@ bool SystemMediaController::mprisCanPlay() const
 {
     if (!m_engine)
         return false;
-    return m_engine->transportStateForOs() != PlayerEngine::Playing;
+    // Keep capability evaluation consistent with exported PlaybackStatus to avoid
+    // transient state drift in desktop media UIs.
+    return m_playbackStatus != QStringLiteral("Playing");
 }
 
 bool SystemMediaController::mprisCanPause() const
 {
     if (!m_engine)
         return false;
-    return m_engine->transportStateForOs() == PlayerEngine::Playing;
+    return m_playbackStatus == QStringLiteral("Playing");
 }
 
 #include "systemmediacontroller_linux.moc"
