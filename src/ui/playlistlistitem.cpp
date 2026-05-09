@@ -3,6 +3,7 @@
 
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointer>
 #include <QMenu>
 #include <QHBoxLayout>
 #include <QPainterPath>
@@ -29,7 +30,10 @@ PlaylistListItem::PlaylistListItem(int playlistId, const QString& name, int musi
         QUrl url(coverUrl.startsWith("http") ? coverUrl : QString::fromUtf8("https://music.cnmsb.xin%1").arg(coverUrl));
         auto *nam = new QNetworkAccessManager(this);
         auto *reply = nam->get(QNetworkRequest(url));
-        QObject::connect(reply, &QNetworkReply::finished, this, [this, reply, nam]() {
+        QPointer<PlaylistListItem> self(this);
+        QObject::connect(reply, &QNetworkReply::finished, this, [self, reply, nam]() {
+            if (!self)
+                return;
             reply->deleteLater();
             nam->deleteLater();
             if (reply->error() == QNetworkReply::NoError) {
@@ -37,12 +41,13 @@ PlaylistListItem::PlaylistListItem(int playlistId, const QString& name, int musi
                 pix.loadFromData(reply->readAll());
                 if (!pix.isNull()) {
                     pix = pix.scaled(36, 36, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-                    m_coverLbl->setPixmap(pix);
+                    if (self->m_coverLbl)
+                        self->m_coverLbl->setPixmap(pix);
                 } else {
-                    setPlaceholderCover();
+                    self->setPlaceholderCover();
                 }
             } else {
-                setPlaceholderCover();
+                self->setPlaceholderCover();
             }
         });
     } else {

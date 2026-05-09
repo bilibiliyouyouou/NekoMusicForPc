@@ -1,8 +1,12 @@
 #include "glasspaint.h"
 
+#include <QImage>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPixmap>
 #include <QtMath>
+
+#include <cmath>
 
 namespace {
 
@@ -39,6 +43,12 @@ void drawNoiseOverlay(QPainter &p, const QRect &r, qreal strength = 1.0)
     p.restore();
 }
 
+float circleMap(float x)
+{
+    x = qBound(0.f, x, 1.f);
+    return 1.f - std::sqrt(std::max(0.f, 1.f - x * x));
+}
+
 } // namespace
 
 namespace GlassPaint {
@@ -59,7 +69,6 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
     }
     p.fillRect(r, bg);
 
-    // 顶区柔光（类似 Plasma 桌面泛光）
     QRadialGradient topGlow(QPointF(r.center().x(), r.top() + r.height() * 0.08), r.width() * 0.75);
     if (darkMode) {
         topGlow.setColorAt(0.0, QColor(196, 167, 231, 38));
@@ -72,7 +81,6 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
     }
     p.fillRect(r, topGlow);
 
-    // 底部两侧暗角（增加景深）
     const int vx = int(r.width() * 0.35);
     const int vy = int(r.height() * 0.4);
     QRadialGradient vLeft(r.bottomLeft(), qMax(vx, vy));
@@ -104,7 +112,6 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
     }
     p.fillRect(r, depth);
 
-    // 左上高光（KDE 面板常见）
     QRadialGradient hi(QPointF(r.left() + r.width() * 0.08, r.top() + r.height() * 0.12), r.height() * 1.1);
     if (darkMode) {
         hi.setColorAt(0.0, QColor(255, 255, 255, 26));
@@ -118,6 +125,35 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
     p.fillRect(r, hi);
 
     drawNoiseOverlay(p, r, 0.9);
+
+    {
+        const int stripH = qBound(3, r.height() / 22, 18);
+        constexpr float kPi = 3.14159265f;
+        p.save();
+        for (int py = 0; py < stripH; ++py) {
+            const float t = qBound(0.f, 1.f - (py + 0.35f) / float(stripH), 1.f);
+            float lens = circleMap(t);
+            lens *= 0.88f + 0.12f * std::sin(kPi * float(py + 1) / float(stripH + 1));
+
+            const int a = qBound(0, int(std::lround(255.f * lens * (darkMode ? 0.21f : 0.36f))), 255);
+            if (a < 2)
+                continue;
+
+            const float hueShift = std::sin(float(py) * 0.85f) * 0.5f + 0.5f;
+            int r0, g0, b0;
+            if (darkMode) {
+                r0 = qBound(0, int(175 + 40 * hueShift), 255);
+                g0 = qBound(0, int(205 + 35 * (1.f - hueShift * 0.5f)), 255);
+                b0 = qBound(0, int(248 - 15 * hueShift), 255);
+            } else {
+                r0 = qBound(0, int(228 + 25 * hueShift), 255);
+                g0 = qBound(0, int(238 + 20 * (1.f - hueShift * 0.5f)), 255);
+                b0 = 255;
+            }
+            p.fillRect(r.left(), r.top() + py, r.width(), 1, QColor(r0, g0, b0, a));
+        }
+        p.restore();
+    }
 
     QLinearGradient accent;
     switch (kind) {
@@ -145,48 +181,6 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
         p.drawLine(r.topLeft(), r.topRight());
         break;
     }
-}
-
-void paintRoundedGlassCard(QPainter &p, const QPainterPath &path, const QColor &base, qreal bodyOpacity,
-                           const QColor &border, int /*radius*/, bool darkMode)
-{
-    p.setRenderHint(QPainter::Antialiasing);
-
-    QColor body = base;
-    body.setAlphaF(qBound(0.0, bodyOpacity * (darkMode ? 0.92 : 0.88), 1.0));
-    p.fillPath(path, body);
-
-    QRectF br = path.boundingRect();
-    QLinearGradient spec(br.topLeft(), QPointF(br.center().x(), br.top() + br.height() * 0.42));
-    if (darkMode) {
-        spec.setColorAt(0.0, QColor(255, 255, 255, 34));
-        spec.setColorAt(0.55, QColor(196, 167, 231, 18));
-        spec.setColorAt(1.0, Qt::transparent);
-    } else {
-        spec.setColorAt(0.0, QColor(255, 255, 255, 210));
-        spec.setColorAt(0.45, QColor(196, 167, 231, 55));
-        spec.setColorAt(1.0, Qt::transparent);
-    }
-    p.fillPath(path, spec);
-
-    p.save();
-    p.setClipPath(path);
-    drawNoiseOverlay(p, br.toRect(), darkMode ? 1.08 : 0.82);
-
-    // 底部轻微收光，增强「磨砂层」厚度感（类似 Plasma 卡片景深）
-    QLinearGradient foot(br.bottomLeft(), QPointF(br.center().x(), br.top() + br.height() * 0.35));
-    if (darkMode) {
-        foot.setColorAt(0.0, QColor(0, 0, 0, 52));
-        foot.setColorAt(1.0, Qt::transparent);
-    } else {
-        foot.setColorAt(0.0, QColor(108, 117, 125, 18));
-        foot.setColorAt(1.0, Qt::transparent);
-    }
-    p.fillRect(br.toRect(), foot);
-    p.restore();
-
-    p.setPen(QPen(border, 1.0));
-    p.drawPath(path);
 }
 
 } // namespace GlassPaint

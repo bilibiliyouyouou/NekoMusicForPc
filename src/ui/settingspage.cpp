@@ -40,19 +40,20 @@ void SettingsPage::setupUi()
     auto *card = new GlassWidget(container);
     card->setBorderRadius(Theme::kRXl);
     card->setOpacity(0.58);
+    QWidget *cardBody = card->contentWidget();
 
-    auto *cardLay = new QVBoxLayout(card);
+    auto *cardLay = new QVBoxLayout(cardBody);
     cardLay->setContentsMargins(24, 20, 24, 20);
     cardLay->setSpacing(16);
 
     // 语言设置
     auto *langRow = new QHBoxLayout();
-    m_langLabel = new QLabel(I18n::instance().languageLabel(), card);
+    m_langLabel = new QLabel(I18n::instance().languageLabel(), cardBody);
     m_langLabel->setObjectName("settingsLabel");
     langRow->addWidget(m_langLabel);
     langRow->addStretch();
 
-    m_langCombo = new QComboBox(card);
+    m_langCombo = new QComboBox(cardBody);
     m_langCombo->setObjectName("settingsCombo");
     m_langCombo->blockSignals(true);
     m_langCombo->addItem(I18n::instance().languageChinese(), I18n::ZhCN);
@@ -81,19 +82,19 @@ void SettingsPage::setupUi()
     cardLay->addLayout(langRow);
 
     // 分隔线
-    auto *line = new QFrame(card);
+    auto *line = new QFrame(cardBody);
     line->setFrameShape(QFrame::HLine);
     line->setObjectName("settingsDivider");
     cardLay->addWidget(line);
 
     // 主题设置（桌面歌词入口在播放栏「词」按钮，此处不重复）
     auto *themeRow = new QHBoxLayout();
-    auto *themeLabel = new QLabel(I18n::instance().tr("theme"), card);
+    auto *themeLabel = new QLabel(I18n::instance().tr("theme"), cardBody);
     themeLabel->setObjectName("settingsLabel");
     themeRow->addWidget(themeLabel);
     themeRow->addStretch();
 
-    m_themeCombo = new QComboBox(card);
+    m_themeCombo = new QComboBox(cardBody);
     m_themeCombo->setObjectName("settingsCombo");
     m_themeCombo->blockSignals(true);
     m_themeCombo->addItem(I18n::instance().tr("themeSystem"), static_cast<int>(Theme::System));
@@ -112,22 +113,22 @@ void SettingsPage::setupUi()
     themeRow->addWidget(m_themeCombo);
     cardLay->addLayout(themeRow);
 
-    auto *lineTheme = new QFrame(card);
+    auto *lineTheme = new QFrame(cardBody);
     lineTheme->setFrameShape(QFrame::HLine);
     lineTheme->setObjectName("settingsDivider");
     cardLay->addWidget(lineTheme);
 
     // 版本 & 系统
-    m_versionLabel = new QLabel(QString("%1: %2").arg(I18n::instance().version(), QString::fromUtf8(APP_VERSION)), card);
+    m_versionLabel = new QLabel(QString("%1: %2").arg(I18n::instance().version(), QString::fromUtf8(APP_VERSION)), cardBody);
     m_versionLabel->setObjectName("settingsInfo");
     cardLay->addWidget(m_versionLabel);
 
-    m_systemLabel = new QLabel(QString("%1: %2").arg(I18n::instance().system()).arg(QSysInfo::prettyProductName()), card);
+    m_systemLabel = new QLabel(QString("%1: %2").arg(I18n::instance().system()).arg(QSysInfo::prettyProductName()), cardBody);
     m_systemLabel->setObjectName("settingsInfo");
     cardLay->addWidget(m_systemLabel);
 
     // 检查更新按钮
-    m_checkUpdateBtn = new QPushButton(I18n::instance().tr("checkForUpdates"), card);
+    m_checkUpdateBtn = new QPushButton(I18n::instance().tr("checkForUpdates"), cardBody);
     m_checkUpdateBtn->setObjectName("checkUpdateBtn");
     m_checkUpdateBtn->setFixedHeight(40);
     m_checkUpdateBtn->setCursor(Qt::PointingHandCursor);

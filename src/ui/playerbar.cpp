@@ -9,7 +9,7 @@
 #include "playerbar.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
-#include "ui/glasspaint.h"
+#include "ui/glasswidget.h"
 #include "core/playerengine.h"
 #include "core/playlistmanager.h"
 #include "ui/svgicon.h"
@@ -263,6 +263,7 @@ PlayerBar::PlayerBar(PlayerEngine *engine, QWidget *parent)
 
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged,
             this, [this](Theme::ThemeMode) {
+                applyPlayerBarGlassStyle();
                 for (auto *b : findChildren<QPushButton *>())
                     b->update();
                 if (m_localBadge && m_localBadge->isVisible())
@@ -273,18 +274,30 @@ PlayerBar::PlayerBar(PlayerEngine *engine, QWidget *parent)
 
 void PlayerBar::setupUi()
 {
-    auto *lay = new QHBoxLayout(this);
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->setSpacing(0);
+
+    m_glass = new GlassWidget(this);
+    m_glass->setBackdropSource(window());
+    m_glass->setBorderRadius(0);
+    m_glass->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_glass->setFixedHeight(Theme::kPlayerBarH);
+
+    QWidget *const body = m_glass->contentWidget();
+
+    auto *lay = new QHBoxLayout(body);
     lay->setContentsMargins(20, 0, 20, 0);
     lay->setSpacing(0);
 
     // ─── 左侧：封面+信息 ────────────────────────────
-    auto *left = new QWidget(this);
+    auto *left = new QWidget(body);
     left->setFixedWidth(240);
     auto *ll = new QHBoxLayout(left);
     ll->setContentsMargins(0, 0, 0, 0);
     ll->setSpacing(10);
 
-    auto *coverBtn = new QPushButton(this);
+    auto *coverBtn = new QPushButton(body);
     coverBtn->setObjectName("pbCover");
     coverBtn->setFixedSize(48, 48);
     coverBtn->setCursor(Qt::PointingHandCursor);
@@ -327,14 +340,14 @@ void PlayerBar::setupUi()
     titleRowLay->addWidget(m_songName, 1, Qt::AlignVCenter);
     infoL->addWidget(titleRow);
 
-    m_artist = new QLabel(I18n::instance().tr("unknown"), this);
+    m_artist = new QLabel(I18n::instance().tr("unknown"), body);
     m_artist->setObjectName("pbArtist");
     infoL->addWidget(m_artist);
     ll->addLayout(infoL);
     lay->addWidget(left);
 
     // ─── 中间：控制+进度 ────────────────────────────
-    auto *center = new QWidget(this);
+    auto *center = new QWidget(body);
     auto *cl = new QVBoxLayout(center);
     cl->setContentsMargins(0, 6, 0, 6);
     cl->setSpacing(2);
@@ -343,7 +356,7 @@ void PlayerBar::setupUi()
     ctrlL->setSpacing(12);
     ctrlL->setAlignment(Qt::AlignCenter);
 
-    auto *prevBtn = new PlayerBarInkButton(this);
+    auto *prevBtn = new PlayerBarInkButton(body);
     prevBtn->setObjectName("pbCtrlBtn");
     prevBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     prevBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
@@ -355,7 +368,7 @@ void PlayerBar::setupUi()
     });
     ctrlL->addWidget(prevBtn);
 
-    m_playBtn = new PlayerBarInkButton(this);
+    m_playBtn = new PlayerBarInkButton(body);
     m_playBtn->setObjectName("pbPlayBtn");
     m_playBtn->setFixedSize(kPbPlayBtn, kPbPlayBtn);
     m_playBtn->setIconSize(QSize(kPbPlayIcon, kPbPlayIcon));
@@ -366,7 +379,7 @@ void PlayerBar::setupUi()
     m_playBtn->setToolTip(I18n::instance().tr("play"));
     ctrlL->addWidget(m_playBtn);
 
-    auto *nextBtn = new PlayerBarInkButton(this);
+    auto *nextBtn = new PlayerBarInkButton(body);
     nextBtn->setObjectName("pbCtrlBtn");
     nextBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     nextBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
@@ -378,7 +391,7 @@ void PlayerBar::setupUi()
     });
     ctrlL->addWidget(nextBtn);
 
-    m_playModeBtn = new PlayerBarInkButton(this);
+    m_playModeBtn = new PlayerBarInkButton(body);
     m_playModeBtn->setObjectName("pbPlayModeBtn");
     m_playModeBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     m_playModeBtn->setIconSize(QSize(24, 24));
@@ -396,19 +409,19 @@ void PlayerBar::setupUi()
     // 进度条
     auto *progL = new QHBoxLayout();
     progL->setSpacing(6);
-    auto *curTime = new QLabel(QStringLiteral("0:00"), this);
+    auto *curTime = new QLabel(QStringLiteral("0:00"), body);
     curTime->setObjectName("pbTime");
     curTime->setFixedWidth(36);
     m_curTime = curTime;
     progL->addWidget(curTime);
 
-    m_progress = new QSlider(Qt::Horizontal, this);
+    m_progress = new QSlider(Qt::Horizontal, body);
     m_progress->setObjectName("pbProgress");
     m_progress->setRange(0, 1000);
     m_progress->setValue(0);
     progL->addWidget(m_progress);
 
-    auto *durTime = new QLabel(QStringLiteral("0:00"), this);
+    auto *durTime = new QLabel(QStringLiteral("0:00"), body);
     durTime->setObjectName("pbTime");
     durTime->setFixedWidth(36);
     m_durTime = durTime;
@@ -418,7 +431,7 @@ void PlayerBar::setupUi()
     lay->addWidget(center, 1);
 
     // ─── 右侧：收藏+分享+音量等 ─────────────────────────────
-    auto *right = new QWidget(this);
+    auto *right = new QWidget(body);
     right->setFixedWidth(230);
     auto *rl = new QHBoxLayout(right);
     rl->setContentsMargins(0, 0, 0, 0);
@@ -426,7 +439,7 @@ void PlayerBar::setupUi()
     rl->setSpacing(8);
 
     // 收藏按钮（与 old 相同 SVG 心形路径）
-    m_heartBtn = new PlayerBarInkButton(this);
+    m_heartBtn = new PlayerBarInkButton(body);
     m_heartBtn->setObjectName("pbHeartBtn");
     m_heartBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     m_heartBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
@@ -440,7 +453,7 @@ void PlayerBar::setupUi()
     });
     rl->addWidget(m_heartBtn);
 
-    m_shareBtn = new PlayerBarInkButton(this);
+    m_shareBtn = new PlayerBarInkButton(body);
     m_shareBtn->setObjectName(QStringLiteral("pbShareBtn"));
     m_shareBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     m_shareBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
@@ -450,7 +463,7 @@ void PlayerBar::setupUi()
     connect(m_shareBtn, &QPushButton::clicked, this, [this]() { emit shareClicked(); });
     rl->addWidget(m_shareBtn);
 
-    m_desktopLrcBtn = new QPushButton(QStringLiteral("词"), this);
+    m_desktopLrcBtn = new QPushButton(QStringLiteral("词"), body);
     m_desktopLrcBtn->setObjectName("pbDesktopLrcBtn");
     m_desktopLrcBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     m_desktopLrcBtn->setFlat(true);
@@ -474,7 +487,7 @@ void PlayerBar::setupUi()
     });
     rl->addWidget(m_desktopLrcBtn);
 
-    auto *playlistBtn = new PlayerBarInkButton(this);
+    auto *playlistBtn = new PlayerBarInkButton(body);
     playlistBtn->setObjectName("pbPlaylistBtn");
     playlistBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     playlistBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
@@ -487,13 +500,13 @@ void PlayerBar::setupUi()
     rl->addWidget(playlistBtn);
 
     // 音量控制
-    auto *volWrapper = new QWidget(this);
+    auto *volWrapper = new QWidget(body);
     volWrapper->setObjectName("pbVolumeWrapper");
     auto *volLay = new QHBoxLayout(volWrapper);
     volLay->setContentsMargins(0, 0, 0, 0);
     volLay->setSpacing(0);
 
-    m_volumeBtn = new PlayerBarInkButton(this);
+    m_volumeBtn = new PlayerBarInkButton(body);
     m_volumeBtn->setObjectName("pbVolumeBtn");
     m_volumeBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     m_volumeBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
@@ -558,6 +571,9 @@ void PlayerBar::setupUi()
     });
 
     lay->addWidget(right);
+
+    outer->addWidget(m_glass);
+    applyPlayerBarGlassStyle();
 
     // 连接引擎
     if (m_engine) {
@@ -1036,9 +1052,25 @@ void PlayerBar::updatePlayModeBtn(const QString &mode)
     m_playModeBtn->update();
 }
 
-void PlayerBar::paintEvent(QPaintEvent *)
+void PlayerBar::applyPlayerBarGlassStyle()
 {
-    QPainter p(this);
-    GlassPaint::paintBarGlass(p, rect(), GlassPaint::BarKind::PlayerBar,
-                              Theme::ThemeManager::instance().isDarkMode());
+    if (!m_glass)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (dark) {
+        m_glass->setBaseColor(QColor(44, 38, 62));
+        m_glass->setBorderColor(QColor(196, 167, 231, 70));
+        m_glass->setOpacity(0.70);
+    } else {
+        m_glass->setBaseColor(QColor(255, 255, 255));
+        m_glass->setBorderColor(QColor(111, 66, 193, 72));
+        m_glass->setOpacity(0.76);
+    }
+    m_glass->setBorderRadius(0);
+}
+
+void PlayerBar::refreshGlassBackdrop()
+{
+    if (m_glass)
+        m_glass->refreshBackdrop();
 }

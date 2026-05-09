@@ -46,12 +46,15 @@ public:
     void setLoading(bool loading);
     void updatePlayModeBtn(const QString &mode);
 
+    /** 切页等导致主内容变化时刷新底部栏磨砂采样 */
+    void refreshGlassBackdrop();
+
 protected:
-    void paintEvent(QPaintEvent *) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setupUi();
+    void applyPlayerBarGlassStyle();
     void updateState();
     void setCoverPixmap(const QPixmap &pm);
     void setCoverUnknownPlaceholder();
@@ -65,6 +68,7 @@ private:
     void refreshLocalBadge();
 
     PlayerEngine *m_engine = nullptr;
+    class GlassWidget *m_glass = nullptr;
     QPushButton *m_playBtn = nullptr;
     QPushButton *m_playModeBtn = nullptr;
     QPushButton *m_heartBtn = nullptr;

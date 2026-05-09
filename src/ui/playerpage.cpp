@@ -206,30 +206,31 @@ void PlayerPage::setupUi()
     m_leftGlass->setFixedWidth(320 + 48); // 封面 + 左右内边距
     m_leftGlass->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 
-    auto *coverCol = new QVBoxLayout(m_leftGlass);
+    QWidget *leftBody = m_leftGlass->contentWidget();
+    auto *coverCol = new QVBoxLayout(leftBody);
     coverCol->setSpacing(20);
     coverCol->setContentsMargins(24, 28, 24, 28);
     coverCol->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
 
-    m_coverLabel = new QLabel(m_leftGlass);
+    m_coverLabel = new QLabel(leftBody);
     m_coverLabel->setFixedSize(320, 320);
     m_coverLabel->setScaledContents(false);
     m_coverLabel->setAlignment(Qt::AlignCenter);
     m_coverLabel->setObjectName("playerCoverLabel");
 
-    m_titleLabel = new QLabel(I18n::instance().tr("unknown"), m_leftGlass);
+    m_titleLabel = new QLabel(I18n::instance().tr("unknown"), leftBody);
     m_titleLabel->setObjectName("playerSongTitleLabel");
     m_titleLabel->setAlignment(Qt::AlignCenter);
     m_titleLabel->setWordWrap(false);
     m_titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
-    m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), m_leftGlass);
+    m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), leftBody);
     m_artistLabel->setObjectName("playerArtistLabel");
     m_artistLabel->setAlignment(Qt::AlignCenter);
     m_artistLabel->setWordWrap(false);
     m_artistLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
-    m_albumLabel = new QLabel(m_leftGlass);
+    m_albumLabel = new QLabel(leftBody);
     m_albumLabel->setObjectName("playerAlbumLabel");
     m_albumLabel->setAlignment(Qt::AlignCenter);
     m_albumLabel->setWordWrap(false);
@@ -255,25 +256,26 @@ void PlayerPage::setupUi()
     m_rightGlass->setMinimumWidth(520);
     m_rightGlass->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    auto *lyricsCol = new QVBoxLayout(m_rightGlass);
+    QWidget *rightBody = m_rightGlass->contentWidget();
+    auto *lyricsCol = new QVBoxLayout(rightBody);
     lyricsCol->setContentsMargins(20, 22, 22, 24);
     lyricsCol->setSpacing(0);
 
-    auto *lyricsTitle = new QLabel(I18n::instance().tr("lyrics"), m_rightGlass);
+    auto *lyricsTitle = new QLabel(I18n::instance().tr("lyrics"), rightBody);
     lyricsTitle->setObjectName("lyricsTitleLabel");
     lyricsTitle->setMaximumWidth(500);
 
     lyricsCol->addWidget(lyricsTitle);
     lyricsCol->addSpacing(16);
 
-    auto *separator = new QLabel(m_rightGlass);
+    auto *separator = new QLabel(rightBody);
     separator->setFixedHeight(1);
     separator->setObjectName("lyricsSeparator");
     separator->setMaximumWidth(500);
     lyricsCol->addWidget(separator);
     lyricsCol->addSpacing(16);
 
-    m_lyricsScroll = new QScrollArea(m_rightGlass);
+    m_lyricsScroll = new QScrollArea(rightBody);
     m_lyricsScroll->setObjectName("lyricsScroll");
     m_lyricsScroll->setWidgetResizable(true);
     m_lyricsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

@@ -723,6 +723,8 @@ void MainWindow::switchPage(QWidget *target)
         current->setGraphicsEffect(nullptr);
         target->setGraphicsEffect(nullptr);
         m_switching = false;
+        if (m_playerBar)
+            m_playerBar->refreshGlassBackdrop();
     });
 
     fadeOut->start(QAbstractAnimation::DeleteWhenStopped);

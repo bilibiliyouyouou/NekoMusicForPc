@@ -123,7 +123,8 @@ public:
         glass->setOpacity(0.60);
         glass->setObjectName(type == Hot ? "hpHotMusicCard" : "hpLatestMusicCard");
 
-        auto *vlay = new QVBoxLayout(glass);
+        QWidget *glassBody = glass->contentWidget();
+        auto *vlay = new QVBoxLayout(glassBody);
         vlay->setContentsMargins(12, 12, 12, 12);
         vlay->setSpacing(8);
 
@@ -142,12 +143,12 @@ public:
 
         // 标题 & 数量
         auto *titleLbl = new QLabel(
-            type == Hot ? I18n::instance().tr("hot_music") : I18n::instance().tr("latest_music"), glass);
+            type == Hot ? I18n::instance().tr("hot_music") : I18n::instance().tr("latest_music"), glassBody);
         titleLbl->setObjectName(type == Hot ? "hpHotTitle" : "hpLatestTitle");
         vlay->addWidget(titleLbl);
 
         auto *countLbl = new QLabel(
-            QString::number(totalCount) + I18n::instance().tr("songs"), glass);
+            QString::number(totalCount) + I18n::instance().tr("songs"), glassBody);
         countLbl->setObjectName(type == Hot ? "hpHotCount" : "hpLatestCount");
         vlay->addWidget(countLbl);
 

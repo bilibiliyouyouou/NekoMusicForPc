@@ -395,16 +395,17 @@ void PlaylistDetailPage::setupUi()
 
     m_headerGlass = new GlassWidget(m_contentWidget);
     m_headerGlass->setAttribute(Qt::WA_StyledBackground, false);
-    auto *headerLay = new QHBoxLayout(m_headerGlass);
+    QWidget *headerBody = m_headerGlass->contentWidget();
+    auto *headerLay = new QHBoxLayout(headerBody);
     headerLay->setContentsMargins(24, 24, 24, 24);
     headerLay->setSpacing(24);
 
-    m_coverLbl = new QLabel(m_headerGlass);
+    m_coverLbl = new QLabel(headerBody);
     m_coverLbl->setFixedSize(200, 200);
     m_coverLbl->setScaledContents(false);
     headerLay->addWidget(m_coverLbl);
 
-    auto *infoWidget = new QWidget(m_headerGlass);
+    auto *infoWidget = new QWidget(headerBody);
     auto *infoLay = new QVBoxLayout(infoWidget);
     infoLay->setContentsMargins(0, 0, 0, 0);
     infoLay->setSpacing(12);
@@ -453,11 +454,12 @@ void PlaylistDetailPage::setupUi()
 
     m_listGlass = new GlassWidget(m_contentWidget);
     m_listGlass->setAttribute(Qt::WA_StyledBackground, false);
-    auto *listOuter = new QVBoxLayout(m_listGlass);
+    QWidget *listBody = m_listGlass->contentWidget();
+    auto *listOuter = new QVBoxLayout(listBody);
     listOuter->setContentsMargins(0, 0, 0, 0);
     listOuter->setSpacing(0);
 
-    m_listHeaderWidget = new QWidget(m_listGlass);
+    m_listHeaderWidget = new QWidget(listBody);
     m_listHeaderWidget->setObjectName("listHeader");
     auto *listHeaderLay = new QHBoxLayout(m_listHeaderWidget);
     listHeaderLay->setContentsMargins(20, 16, 20, 16);
@@ -474,7 +476,7 @@ void PlaylistDetailPage::setupUi()
 
     listOuter->addWidget(m_listHeaderWidget);
 
-    m_listContainer = new QWidget(m_listGlass);
+    m_listContainer = new QWidget(listBody);
     m_listContainer->setObjectName("playlistContainer");
     m_listContainer->setStyleSheet(QStringLiteral("QWidget#playlistContainer { background: transparent; }"));
     m_listLayout = new QVBoxLayout(m_listContainer);

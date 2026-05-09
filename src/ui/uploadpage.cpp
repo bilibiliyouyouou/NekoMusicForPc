@@ -74,46 +74,47 @@ void UploadPage::setupUi()
     auto *card = new GlassWidget(container);
     card->setBorderRadius(Theme::kRXl);
     card->setOpacity(0.58);
+    QWidget *cardBody = card->contentWidget();
 
-    auto *cardLay = new QVBoxLayout(card);
+    auto *cardLay = new QVBoxLayout(cardBody);
     cardLay->setContentsMargins(24, 20, 24, 20);
     cardLay->setSpacing(16);
 
     // ─── File selection section ───
     // Music file
     auto *musicRow = new QHBoxLayout();
-    auto *musicIcon = new QLabel(card);
+    auto *musicIcon = new QLabel(cardBody);
     musicIcon->setPixmap(Icons::render(Icons::kMusic, 20, QColor(Theme::kLavender)));
     musicRow->addWidget(musicIcon);
 
-    auto *musicLabel = new QLabel(I18n::instance().tr("musicFileInfo") + " " + I18n::instance().tr("required"), card);
+    auto *musicLabel = new QLabel(I18n::instance().tr("musicFileInfo") + " " + I18n::instance().tr("required"), cardBody);
     musicLabel->setObjectName("settingsLabel");
     musicRow->addWidget(musicLabel);
     musicRow->addStretch();
 
-    m_musicFileBtn = new QPushButton(I18n::instance().tr("selectMusicFile"), card);
+    m_musicFileBtn = new QPushButton(I18n::instance().tr("selectMusicFile"), cardBody);
     m_musicFileBtn->setObjectName("smallBtn");
     m_musicFileBtn->setFixedWidth(140);
     connect(m_musicFileBtn, &QPushButton::clicked, this, &UploadPage::selectMusicFile);
     musicRow->addWidget(m_musicFileBtn);
     cardLay->addLayout(musicRow);
 
-    m_musicFileLabel = new QLabel(I18n::instance().tr("musicFileFormat"), card);
+    m_musicFileLabel = new QLabel(I18n::instance().tr("musicFileFormat"), cardBody);
     m_musicFileLabel->setObjectName("settingsInfo");
     cardLay->addWidget(m_musicFileLabel);
 
     // Cover file with preview
     auto *coverRow = new QHBoxLayout();
-    auto *coverIcon = new QLabel(card);
+    auto *coverIcon = new QLabel(cardBody);
     coverIcon->setPixmap(QPixmap(":/icons/icon_heart_sakura.png"));
     coverRow->addWidget(coverIcon);
 
-    auto *coverLabel = new QLabel(I18n::instance().tr("coverInfo") + " " + I18n::instance().tr("optional"), card);
+    auto *coverLabel = new QLabel(I18n::instance().tr("coverInfo") + " " + I18n::instance().tr("optional"), cardBody);
     coverLabel->setObjectName("settingsLabel");
     coverRow->addWidget(coverLabel);
     coverRow->addStretch();
 
-    m_coverFileBtn = new QPushButton(I18n::instance().tr("selectCoverFile"), card);
+    m_coverFileBtn = new QPushButton(I18n::instance().tr("selectCoverFile"), cardBody);
     m_coverFileBtn->setObjectName("smallBtn");
     m_coverFileBtn->setFixedWidth(140);
     connect(m_coverFileBtn, &QPushButton::clicked, this, &UploadPage::selectCoverFile);
@@ -121,7 +122,7 @@ void UploadPage::setupUi()
     cardLay->addLayout(coverRow);
 
     // Cover preview
-    m_coverPreview = new QLabel(card);
+    m_coverPreview = new QLabel(cardBody);
     m_coverPreview->setObjectName("coverPreview");
     m_coverPreview->setFixedSize(120, 120);
     m_coverPreview->setAlignment(Qt::AlignCenter);
@@ -134,16 +135,16 @@ void UploadPage::setupUi()
 
     // Lyrics file with preview
     auto *lyricsRow = new QHBoxLayout();
-    auto *lyricsIcon = new QLabel(card);
+    auto *lyricsIcon = new QLabel(cardBody);
     lyricsIcon->setPixmap(Icons::render(Icons::kSearch, 20, QColor(Theme::kMint)));
     lyricsRow->addWidget(lyricsIcon);
 
-    auto *lyricsLabel = new QLabel(I18n::instance().tr("lyricsInfo") + " " + I18n::instance().tr("optional"), card);
+    auto *lyricsLabel = new QLabel(I18n::instance().tr("lyricsInfo") + " " + I18n::instance().tr("optional"), cardBody);
     lyricsLabel->setObjectName("settingsLabel");
     lyricsRow->addWidget(lyricsLabel);
     lyricsRow->addStretch();
 
-    m_lyricsFileBtn = new QPushButton(I18n::instance().tr("selectLyricsFile"), card);
+    m_lyricsFileBtn = new QPushButton(I18n::instance().tr("selectLyricsFile"), cardBody);
     m_lyricsFileBtn->setObjectName("smallBtn");
     m_lyricsFileBtn->setFixedWidth(140);
     connect(m_lyricsFileBtn, &QPushButton::clicked, this, &UploadPage::selectLyricsFile);
@@ -151,7 +152,7 @@ void UploadPage::setupUi()
     cardLay->addLayout(lyricsRow);
 
     // Lyrics preview
-    m_lyricsPreview = new QTextEdit(card);
+    m_lyricsPreview = new QTextEdit(cardBody);
     m_lyricsPreview->setObjectName("lyricsPreview");
     m_lyricsPreview->setReadOnly(true);
     m_lyricsPreview->setMaximumHeight(150);
@@ -159,24 +160,24 @@ void UploadPage::setupUi()
     cardLay->addWidget(m_lyricsPreview);
 
     // Divider
-    auto *line1 = new QFrame(card);
+    auto *line1 = new QFrame(cardBody);
     line1->setFrameShape(QFrame::HLine);
     line1->setObjectName("settingsDivider");
     cardLay->addWidget(line1);
 
     // ─── Basic info section ───
-    auto *basicTitle = new QLabel(I18n::instance().tr("basicInfo"), card);
+    auto *basicTitle = new QLabel(I18n::instance().tr("basicInfo"), cardBody);
     basicTitle->setObjectName("settingsLabel");
     cardLay->addWidget(basicTitle);
 
     // Title
     auto *titleRow = new QHBoxLayout();
-    auto *titleLabel = new QLabel(I18n::instance().tr("musicTitle") + " " + I18n::instance().tr("required"), card);
+    auto *titleLabel = new QLabel(I18n::instance().tr("musicTitle") + " " + I18n::instance().tr("required"), cardBody);
     titleLabel->setObjectName("settingsLabel");
     titleLabel->setFixedWidth(120);
     titleRow->addWidget(titleLabel);
 
-    m_titleEdit = new QLineEdit(card);
+    m_titleEdit = new QLineEdit(cardBody);
     m_titleEdit->setObjectName("settingsInput");
     m_titleEdit->setPlaceholderText(I18n::instance().tr("titleRequired"));
     titleRow->addWidget(m_titleEdit);
@@ -184,12 +185,12 @@ void UploadPage::setupUi()
 
     // Artist
     auto *artistRow = new QHBoxLayout();
-    auto *artistLabel = new QLabel(I18n::instance().tr("artistName") + " " + I18n::instance().tr("required"), card);
+    auto *artistLabel = new QLabel(I18n::instance().tr("artistName") + " " + I18n::instance().tr("required"), cardBody);
     artistLabel->setObjectName("settingsLabel");
     artistLabel->setFixedWidth(120);
     artistRow->addWidget(artistLabel);
 
-    m_artistEdit = new QLineEdit(card);
+    m_artistEdit = new QLineEdit(cardBody);
     m_artistEdit->setObjectName("settingsInput");
     m_artistEdit->setPlaceholderText(I18n::instance().tr("artistRequired"));
     artistRow->addWidget(m_artistEdit);
@@ -197,12 +198,12 @@ void UploadPage::setupUi()
 
     // Language
     auto *langRow = new QHBoxLayout();
-    auto *langLabel = new QLabel(I18n::instance().tr("uploadLanguageLabel") + " " + I18n::instance().tr("required"), card);
+    auto *langLabel = new QLabel(I18n::instance().tr("uploadLanguageLabel") + " " + I18n::instance().tr("required"), cardBody);
     langLabel->setObjectName("settingsLabel");
     langLabel->setFixedWidth(120);
     langRow->addWidget(langLabel);
 
-    m_langCombo = new QComboBox(card);
+    m_langCombo = new QComboBox(cardBody);
     m_langCombo->setObjectName("settingsCombo");
     m_langCombo->addItem(I18n::instance().tr("langChinese"), "中文");
     m_langCombo->addItem(I18n::instance().tr("langCantonese"), "粤语");
@@ -219,36 +220,36 @@ void UploadPage::setupUi()
 
     // Album
     auto *albumRow = new QHBoxLayout();
-    auto *albumLabel = new QLabel(I18n::instance().tr("albumName"), card);
+    auto *albumLabel = new QLabel(I18n::instance().tr("albumName"), cardBody);
     albumLabel->setObjectName("settingsLabel");
     albumLabel->setFixedWidth(120);
     albumRow->addWidget(albumLabel);
 
-    m_albumEdit = new QLineEdit(card);
+    m_albumEdit = new QLineEdit(cardBody);
     m_albumEdit->setObjectName("settingsInput");
     albumRow->addWidget(m_albumEdit);
     cardLay->addLayout(albumRow);
 
     // Tags
     auto *tagsRow = new QHBoxLayout();
-    auto *tagsLabel = new QLabel(I18n::instance().tr("tagsLabel"), card);
+    auto *tagsLabel = new QLabel(I18n::instance().tr("tagsLabel"), cardBody);
     tagsLabel->setObjectName("settingsLabel");
     tagsLabel->setFixedWidth(120);
     tagsRow->addWidget(tagsLabel);
 
-    m_tagsEdit = new QLineEdit(card);
+    m_tagsEdit = new QLineEdit(cardBody);
     m_tagsEdit->setObjectName("settingsInput");
     tagsRow->addWidget(m_tagsEdit);
     cardLay->addLayout(tagsRow);
 
     // Duration
     auto *durationRow = new QHBoxLayout();
-    auto *durationLabel = new QLabel(I18n::instance().tr("durationLabel") + " " + I18n::instance().tr("required"), card);
+    auto *durationLabel = new QLabel(I18n::instance().tr("durationLabel") + " " + I18n::instance().tr("required"), cardBody);
     durationLabel->setObjectName("settingsLabel");
     durationLabel->setFixedWidth(120);
     durationRow->addWidget(durationLabel);
 
-    m_durationEdit = new QLineEdit(card);
+    m_durationEdit = new QLineEdit(cardBody);
     m_durationEdit->setObjectName("settingsInput");
     m_durationEdit->setPlaceholderText(I18n::instance().tr("durationRequired"));
     m_durationEdit->setFixedWidth(120);
@@ -257,12 +258,12 @@ void UploadPage::setupUi()
     cardLay->addLayout(durationRow);
 
     // Upload note
-    auto *noteLabel = new QLabel(I18n::instance().tr("uploadNote"), card);
+    auto *noteLabel = new QLabel(I18n::instance().tr("uploadNote"), cardBody);
     noteLabel->setObjectName("settingsInfo");
     cardLay->addWidget(noteLabel);
 
     // Upload button
-    m_uploadBtn = new QPushButton(I18n::instance().tr("uploadBtn"), card);
+    m_uploadBtn = new QPushButton(I18n::instance().tr("uploadBtn"), cardBody);
     m_uploadBtn->setObjectName("primaryBtn");
     m_uploadBtn->setFixedHeight(44);
     m_uploadBtn->setCursor(Qt::PointingHandCursor);
