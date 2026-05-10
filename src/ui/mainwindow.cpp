@@ -1082,6 +1082,10 @@ void MainWindow::playNext()
     m_playerPage->loadLyrics(lyricsApiMusicId(info));
     m_engine->setCurrentMusic(info);
 
+    // Refresh system media with the new song info immediately
+    // This ensures MPRIS clients get the correct metadata even during stop() state
+    refreshSystemMediaIntegration();
+
     QTimer::singleShot(50, this, [this, info, playSeq]() {
         if (playSeq != m_enginePlaySeq)
             return;
@@ -1131,6 +1135,9 @@ void MainWindow::playPrevious()
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
     m_playerPage->loadLyrics(lyricsApiMusicId(info));
     m_engine->setCurrentMusic(info);
+
+    // Refresh system media with the new song info immediately
+    refreshSystemMediaIntegration();
 
     QTimer::singleShot(0, this, [this, info, playSeq]() {
         if (playSeq != m_enginePlaySeq)
@@ -1529,6 +1536,9 @@ void MainWindow::refreshSystemMediaIntegration()
     auto &mgr = PlaylistManager::instance();
     const bool hasQueue = mgr.count() > 0;
     const bool canSeek = m_engine->duration() > 0;
+    qDebug() << "[SystemMedia] refreshSystemMediaIntegration: hasQueue =" << hasQueue
+             << "canSeek =" << canSeek
+             << "transportState =" << m_engine->transportStateForOs();
     m_systemMedia->updateCapabilities(hasQueue, hasQueue, canSeek);
     m_systemMedia->updateLoopShuffle(mgr.playMode());
     m_systemMedia->syncVolumeFromEngine(m_engine->volume());
