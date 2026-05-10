@@ -1061,11 +1061,11 @@ void PlayerBar::applyPlayerBarGlassStyle()
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
     if (dark) {
         m_glass->setBaseColor(QColor(44, 38, 62));
-        m_glass->setBorderColor(QColor(196, 167, 231, 70));
+        m_glass->setBorderColor(QColor(0, 0, 0, 0));
         m_glass->setOpacity(0.70);
     } else {
         m_glass->setBaseColor(QColor(255, 255, 255));
-        m_glass->setBorderColor(QColor(111, 66, 193, 72));
+        m_glass->setBorderColor(QColor(0, 0, 0, 0));
         m_glass->setOpacity(0.76);
     }
     m_glass->setBorderRadius(0);

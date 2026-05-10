@@ -165,6 +165,7 @@ set(HEADERS
         src/ui/favoritespage.h
         src/core/playerengine.h
         src/core/apiclient.h
+        src/core/httpprotocollabel.h
         src/core/i18n.h
         src/core/covercache.h
         src/core/usermanager.h

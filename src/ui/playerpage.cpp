@@ -2,6 +2,7 @@
 #include "../core/playerengine.h"
 #include "../core/i18n.h"
 #include "../core/covercache.h"
+#include "../core/httpprotocollabel.h"
 #include "../theme/theme.h"
 #include "../theme/thememanager.h"
 #include "glasspaint.h"
@@ -545,13 +546,16 @@ void PlayerPage::loadLyrics(int musicId)
                         m_lyricsCache.insert(musicId, m_lyrics);
                     }
                 } else {
-                    qDebug() << "歌词API返回空歌词内容，musicId:" << musicId;
+                    qDebug() << "歌词API返回空歌词内容，musicId:" << musicId << "，协议:"
+                             << httpProtocolLabel(reply);
                 }
             } else {
-                qDebug() << "歌词API返回失败，musicId:" << musicId << "message:" << obj.value("message").toString();
+                qDebug() << "歌词API返回失败，musicId:" << musicId << "，协议:" << httpProtocolLabel(reply)
+                         << "，message:" << obj.value("message").toString();
             }
         } else {
-            qDebug() << "歌词API请求失败，musicId:" << musicId << "error:" << reply->errorString();
+            qDebug() << "歌词API请求失败，musicId:" << musicId << "，协议:" << httpProtocolLabel(reply)
+                     << "，error:" << reply->errorString();
         }
         cleanup();
     });

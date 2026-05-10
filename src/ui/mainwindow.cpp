@@ -31,6 +31,7 @@
 #include "core/playerengine.h"
 #include "core/i18n.h"
 #include "core/apiclient.h"
+#include "core/httpprotocollabel.h"
 #include "core/musicdownloader.h"
 #include "core/usermanager.h"
 #include "core/playlistdb.h"
@@ -1348,7 +1349,8 @@ void MainWindow::toggleFavorite(int musicId)
             reply->deleteLater();
             nam->deleteLater();
             QByteArray body = reply->readAll();
-            qDebug() << "[收藏] 取消收藏响应, error =" << reply->error() << ", body =" << body;
+            qDebug() << "[收藏] 取消收藏响应, 协议:" << httpProtocolLabel(reply)
+                     << ", error =" << reply->error() << ", body =" << body;
             if (reply->error() == QNetworkReply::NoError) {
                 m_favoritesCache.removeAll(musicId);
                 m_playerBar->setFavoriteStatus(false);
@@ -1382,7 +1384,8 @@ void MainWindow::toggleFavorite(int musicId)
             reply->deleteLater();
             nam->deleteLater();
             QByteArray body = reply->readAll();
-            qDebug() << "[收藏] 添加收藏响应, error =" << reply->error() << ", body =" << body;
+            qDebug() << "[收藏] 添加收藏响应, 协议:" << httpProtocolLabel(reply)
+                     << ", error =" << reply->error() << ", body =" << body;
             if (reply->error() == QNetworkReply::NoError) {
                 if (!m_favoritesCache.contains(musicId)) {
                     m_favoritesCache.append(musicId);

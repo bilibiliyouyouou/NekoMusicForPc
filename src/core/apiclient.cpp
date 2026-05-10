@@ -4,6 +4,7 @@
  */
 
 #include "apiclient.h"
+#include "httpprotocollabel.h"
 #include "theme/theme.h"
 #include "core/usermanager.h"
 
@@ -205,7 +206,8 @@ void ApiClient::searchMusic(const QString &query, int page, int pageSize, MusicS
         reply->deleteLater();
         int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (reply->error() != QNetworkReply::NoError) {
-            qDebug() << "[搜索API]搜索:" << query << "，HTTP状态码:" << statusCode << "，错误:" << reply->errorString();
+            qDebug() << "[搜索API]搜索:" << query << "，HTTP状态码:" << statusCode
+                     << "，协议:" << httpProtocolLabel(reply) << "，错误:" << reply->errorString();
             if (cb) cb(false, 0, 0, 0, {});
             return;
         }
@@ -233,10 +235,12 @@ void ApiClient::searchMusic(const QString &query, int page, int pageSize, MusicS
                     results.append(v.toObject().toVariantMap());
                 }
             }
-            qDebug() << "[搜索API]搜索:" << query << "，HTTP状态码:" << statusCode << "，成功，找到" << total << "个结果";
+            qDebug() << "[搜索API]搜索:" << query << "，HTTP状态码:" << statusCode
+                     << "，协议:" << httpProtocolLabel(reply) << "，成功，找到" << total << "个结果";
         } else {
             QString message = doc.object().value("message").toString();
-            qDebug() << "[搜索API]搜索:" << query << "，HTTP状态码:" << statusCode << "，失败，消息:" << message;
+            qDebug() << "[搜索API]搜索:" << query << "，HTTP状态码:" << statusCode
+                     << "，协议:" << httpProtocolLabel(reply) << "，失败，消息:" << message;
         }
         if (cb) cb(ok, total, currentPage, currentPageSize, results);
     });
@@ -501,7 +505,8 @@ void ApiClient::fetchPlaylistMusic(int playlistId, PlaylistMusicCb cb) {
     connect(reply, &QNetworkReply::finished, this, [reply, cb, playlistId]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
-            qDebug() << "[歌单音乐] playlistId =" << playlistId << ", 网络错误:" << reply->errorString();
+            qDebug() << "[歌单音乐] playlistId =" << playlistId << ", 协议:" << httpProtocolLabel(reply)
+                     << ", 网络错误:" << reply->errorString();
             if (cb) cb(false, 0, {});
             return;
         }
@@ -514,9 +519,11 @@ void ApiClient::fetchPlaylistMusic(int playlistId, PlaylistMusicCb cb) {
             total = doc.object().value("total").toInt();
             for (const auto &v : doc.object().value("musicList").toArray())
                 res.append(v.toObject().toVariantMap());
-            qDebug() << "[歌单音乐] playlistId =" << playlistId << ", total =" << total << ", 实际获取 =" << res.size();
+            qDebug() << "[歌单音乐] playlistId =" << playlistId << ", 协议:" << httpProtocolLabel(reply)
+                     << ", total =" << total << ", 实际获取 =" << res.size();
         } else {
-            qDebug() << "[歌单音乐] playlistId =" << playlistId << ", API返回success=false, body:" << body;
+            qDebug() << "[歌单音乐] playlistId =" << playlistId << ", 协议:" << httpProtocolLabel(reply)
+                     << ", API返回success=false, body:" << body;
         }
         if (cb) cb(ok, total, res);
     });
