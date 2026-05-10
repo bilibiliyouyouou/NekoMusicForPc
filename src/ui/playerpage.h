@@ -13,6 +13,7 @@
 #include <QPropertyAnimation>
 #include <QHash>
 #include <QMetaObject>
+#include "../core/musicinfo.h"
 #include "../core/playerengine.h"
 
 struct LyricLine {
@@ -32,7 +33,8 @@ public:
     void setMusicInfo(int id, const QString &title, const QString &artist,
                       const QString &album, const QString &coverUrl = QString());
     void retranslate();
-    void loadLyrics(int musicId);
+    /** 在线曲走 API；本地曲读内嵌标签（ID3 USLT / FLAC 注释）再尝试同名 .lrc，不请求网络。 */
+    void loadLyricsForTrack(const MusicInfo &info);
     void updateLyricHighlight(qint64 positionMs);
 
 protected:
@@ -52,6 +54,8 @@ private:
     void applyCoverPixmap(const QPixmap &sourcePixmap);
     void applyCoverUnknownLarge();
     void parseLrc(const QString &lrc);
+    /** 将一段 LRC 或纯文本歌词写入 m_lyrics（无时间轴时整段作为 t=0 一行） */
+    void applyLyricsRawText(const QString &raw);
     void rebuildLyricLabels();
 
     PlayerEngine *m_engine;
@@ -84,7 +88,7 @@ private:
     int m_musicId = 0;
     QString m_coverUrl;
     QVector<LyricLine> m_lyrics;
-    /** 已解析歌词内存缓存（有上限，超出时淘汰任意一条） */
+    /** 已解析歌词：在线为正 id；本地为 stableLocalTrackId（负） */
     QHash<int, QVector<LyricLine>> m_lyricsCache;
     QMetaObject::Connection m_coverConn;
     int m_currentLyricLine = -1;

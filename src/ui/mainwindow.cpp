@@ -80,14 +80,6 @@ namespace {
 constexpr int kStreamReadyTimeoutMs = 12000;
 constexpr int kStreamRetryDelayMs = 350;
 
-/** 请求 /api/music/lyrics/{id} 时使用的 id：在线为正 id；本地文件若文件名为纯数字则尝试同 id 歌词 */
-int lyricsApiMusicId(const MusicInfo &info)
-{
-    if (!info.isLocalFile())
-        return info.id;
-    return LocalMusic::onlineCatalogIdFromFilename(info.localPath);
-}
-
 QString buildShareClipboardText(const MusicInfo &m)
 {
     I18n &i18n = I18n::instance();
@@ -285,7 +277,7 @@ void MainWindow::setupUi()
         m_playerBar->setCurrentMusicId(lastMusic.id);
         m_playerBar->setSongInfo(lastMusic.title, lastMusic.artist, lastMusic.coverUrl);
         m_playerPage->setMusicInfo(lastMusic.id, lastMusic.title, lastMusic.artist, lastMusic.album, lastMusic.coverUrl);
-        m_playerPage->loadLyrics(lyricsApiMusicId(lastMusic));
+        m_playerPage->loadLyricsForTrack(lastMusic);
         m_engine->setCurrentMusic(lastMusic);
 
         // 检查收藏状态（loadFavoritesCache 会在之后异步更新，但这里先设置初始状态）
@@ -811,7 +803,7 @@ void MainWindow::playLocalMusicInfo(const MusicInfo &info)
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
     m_playerBar->setFavoriteStatus(false);
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
-    m_playerPage->loadLyrics(lyricsApiMusicId(info));
+    m_playerPage->loadLyricsForTrack(info);
     m_engine->setCurrentMusic(info);
 
     m_playerBar->setLoading(true);
@@ -1080,7 +1072,7 @@ void MainWindow::playNext()
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
     m_playerBar->setFavoriteStatus(checkIsFavorited(info.id));
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
-    m_playerPage->loadLyrics(lyricsApiMusicId(info));
+    m_playerPage->loadLyricsForTrack(info);
     m_engine->setCurrentMusic(info);
 
     // Refresh system media with the new song info immediately
@@ -1134,7 +1126,7 @@ void MainWindow::playPrevious()
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
     m_playerBar->setFavoriteStatus(checkIsFavorited(info.id));
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
-    m_playerPage->loadLyrics(lyricsApiMusicId(info));
+    m_playerPage->loadLyricsForTrack(info);
     m_engine->setCurrentMusic(info);
 
     // Refresh system media with the new song info immediately
@@ -1208,7 +1200,7 @@ void MainWindow::playMusicById(int musicId, const QString &title, const QString 
 
     // Update player page
     m_playerPage->setMusicInfo(musicId, title, artist, QString(), coverUrl);
-    m_playerPage->loadLyrics(musicId);
+    m_playerPage->loadLyricsForTrack(mInfo);
 
     // Set current music info for recent play tracking
     m_engine->setCurrentMusic(mInfo);

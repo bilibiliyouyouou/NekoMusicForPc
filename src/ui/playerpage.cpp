@@ -3,6 +3,7 @@
 #include "../core/i18n.h"
 #include "../core/covercache.h"
 #include "../core/httpprotocollabel.h"
+#include "../core/embeddedlyrics.h"
 #include "../theme/theme.h"
 #include "../theme/thememanager.h"
 #include "glasspaint.h"
@@ -26,6 +27,8 @@
 #include <QPropertyAnimation>
 #include <QDebug>
 #include <QUrl>
+#include <QFile>
+#include <QFileInfo>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, QWidget *parent)
     : QWidget(parent), m_engine(engine)
@@ -494,12 +497,50 @@ void PlayerPage::loadCover(const QString &url)
     cc->fetchCover(cacheKey, fetchUrl);
 }
 
-void PlayerPage::loadLyrics(int musicId)
+void PlayerPage::loadLyricsForTrack(const MusicInfo &info)
 {
     ++m_lyricsFetchGeneration;
     const int lyricsGen = m_lyricsFetchGeneration;
     m_currentLyricLine = -1;
 
+    if (info.isLocalFile()) {
+        const int cacheKey = info.id;
+        if (m_lyricsCache.contains(cacheKey)) {
+            m_lyrics = m_lyricsCache.value(cacheKey);
+            rebuildLyricLabels();
+            return;
+        }
+
+        m_lyrics.clear();
+        rebuildLyricLabels();
+
+        QString raw = EmbeddedLyrics::readEmbeddedLyricsText(info.localPath);
+        if (raw.trimmed().isEmpty()) {
+            const QFileInfo fi(info.localPath);
+            const QString lrcPath = fi.absolutePath() + QLatin1Char('/') + fi.completeBaseName()
+                + QLatin1String(".lrc");
+            QFile f(lrcPath);
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QByteArray bytes = f.readAll();
+                f.close();
+                raw = QString::fromUtf8(bytes);
+            }
+        }
+
+        if (!raw.trimmed().isEmpty())
+            applyLyricsRawText(raw);
+        rebuildLyricLabels();
+
+        if (!m_lyrics.isEmpty()) {
+            constexpr int kMax = 64;
+            if (m_lyricsCache.size() >= kMax && !m_lyricsCache.contains(cacheKey))
+                m_lyricsCache.remove(m_lyricsCache.constBegin().key());
+            m_lyricsCache.insert(cacheKey, m_lyrics);
+        }
+        return;
+    }
+
+    const int musicId = info.id;
     if (musicId <= 0) {
         m_lyrics.clear();
         rebuildLyricLabels();
@@ -559,6 +600,19 @@ void PlayerPage::loadLyrics(int musicId)
         }
         cleanup();
     });
+}
+
+void PlayerPage::applyLyricsRawText(const QString &raw)
+{
+    QString t = raw;
+    if (!t.isEmpty() && t.front() == QChar(0xFEFF))
+        t.remove(0, 1);
+    parseLrc(t);
+    if (m_lyrics.isEmpty() && !t.trimmed().isEmpty()) {
+        static const QRegularExpression hasTime(R"(\[\d+:\d)");
+        if (!t.contains(hasTime))
+            m_lyrics.append({0, t.trimmed(), QString()});
+    }
 }
 
 void PlayerPage::parseLrc(const QString &lrc)
