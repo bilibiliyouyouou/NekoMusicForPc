@@ -576,7 +576,7 @@ void PlayerBar::setupUi()
         connect(m_playBtn, &QPushButton::clicked, this, [this]() {
             if (m_isLoading)
                 return;
-            if (m_engine->playbackState() == PlayerEngine::Playing) m_engine->fadeOut();
+            if (m_engine->isActuallyPlaying()) m_engine->fadeOut();
             else m_engine->fadeIn();
         });
         connect(m_engine, &PlayerEngine::stateChanged, this, [this]() { updateState(); });
@@ -780,7 +780,7 @@ void PlayerBar::retranslate()
         m_artist->setText(I18n::instance().tr("unknown"));
 
     if (m_playBtn) {
-        bool playing = m_engine && m_engine->playbackState() == PlayerEngine::Playing;
+        bool playing = m_engine && m_engine->isActuallyPlaying();
         m_playBtn->setToolTip(playing ? I18n::instance().tr("pause") : I18n::instance().tr("play"));
     }
 
@@ -1008,7 +1008,9 @@ void PlayerBar::setCoverPixmap(const QPixmap &pm)
 void PlayerBar::updateState()
 {
     if (!m_engine) return;
-    bool playing = m_engine->playbackState() == PlayerEngine::Playing;
+    // Use isActuallyPlaying() to check the real QMediaPlayer state,
+    // so the button shows pause icon during fadeOut until audio actually pauses.
+    bool playing = m_engine->isActuallyPlaying();
     if (m_playBtn) {
         if (!m_isLoading)
             m_playBtn->setProperty("pbLoading", false);
