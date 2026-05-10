@@ -179,6 +179,11 @@ PlayerEngine::PlaybackState PlayerEngine::playbackState() const
     return m_state;
 }
 
+bool PlayerEngine::isActuallyPlaying() const
+{
+    return m_player->playbackState() == QMediaPlayer::PlayingState;
+}
+
 PlayerEngine::PlaybackState PlayerEngine::transportStateForOs() const
 {
     const auto ps = m_player->playbackState();
