@@ -60,6 +60,22 @@ Section "Neko云音乐" SecMain
     File "../build/Qt6Network.dll"
     File "../build/Qt6Sql.dll"
     File "../build/Qt6Svg.dll"
+    File "../build/Qt6SvgWidgets.dll"
+    File "../build/Qt6Concurrent.dll"
+
+    ; Qt Multimedia -> FFmpeg（版本号随 Qt 变化，用通配）
+    File /nonfatal "../build/avcodec-*.dll"
+    File /nonfatal "../build/avformat-*.dll"
+    File /nonfatal "../build/avutil-*.dll"
+    File /nonfatal "../build/swresample-*.dll"
+    File /nonfatal "../build/swscale-*.dll"
+
+    ; MinGW / 图形依赖（与 build_windows.sh 部署目录一致）
+    File "../build/libstdc++-6.dll"
+    File "../build/libgcc_s_seh-1.dll"
+    File "../build/libwinpthread-1.dll"
+    File /nonfatal "../build/d3dcompiler_47.dll"
+    File /nonfatal "../build/opengl32sw.dll"
 
     ; Optional: OpenSSL DLLs
     File /nonfatal "../build/libssl*.dll"

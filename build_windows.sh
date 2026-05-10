@@ -152,7 +152,7 @@ if [ ! -d "$QT_BIN" ]; then
     exit 1
 fi
 
-# Required Qt DLLs
+# Required Qt DLLs（与 CMake target_link_libraries 一致；缺任一则安装后无法启动）
 QT_DLLS=(
     Qt6Core
     Qt6Gui
@@ -161,6 +161,8 @@ QT_DLLS=(
     Qt6Network
     Qt6Sql
     Qt6Svg
+    Qt6SvgWidgets
+    Qt6Concurrent
 )
 
 for dll in "${QT_DLLS[@]}"; do
@@ -168,9 +170,58 @@ for dll in "${QT_DLLS[@]}"; do
         cp "$QT_BIN/${dll}.dll" "$DEPLOY_DIR/"
         echo "  Copied ${dll}.dll"
     else
-        echo "  WARNING: ${dll}.dll not found"
+        echo "  ERROR: ${dll}.dll not found under $QT_BIN"
+        exit 1
     fi
 done
+
+# Qt Multimedia（MinGW 套件）在运行时会加载 FFmpeg，需与 exe 同目录
+for pattern in 'avcodec-*.dll' 'avformat-*.dll' 'avutil-*.dll' 'swresample-*.dll' 'swscale-*.dll'; do
+    shopt -s nullglob
+    for f in "$QT_BIN"/$pattern; do
+        cp "$f" "$DEPLOY_DIR/"
+        echo "  Copied $(basename "$f")"
+    done
+    shopt -u nullglob
+done
+
+# 图形栈常用同目录依赖（Qt 安装包 bin 内自带）
+for extra in d3dcompiler_47.dll opengl32sw.dll; do
+    if [ -f "$QT_BIN/$extra" ]; then
+        cp "$QT_BIN/$extra" "$DEPLOY_DIR/"
+        echo "  Copied $extra"
+    fi
+done
+
+# 交叉编译链接的是本机 MinGW 运行时，须与 exe 一致（勿假设用户已装 Qt 或自带 PATH）
+MINGW_COPY=(libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll)
+for dll in "${MINGW_COPY[@]}"; do
+    libpath=$(x86_64-w64-mingw32-g++ --print-file-name="$dll" 2>/dev/null || true)
+    if [ -n "$libpath" ] && [ -f "$libpath" ]; then
+        cp "$libpath" "$DEPLOY_DIR/"
+        echo "  Copied $dll (toolchain)"
+    elif [ -f "$QT_BIN/$dll" ]; then
+        cp "$QT_BIN/$dll" "$DEPLOY_DIR/"
+        echo "  Copied $dll (from Qt bin fallback)"
+    else
+        echo "  ERROR: $dll not found (MinGW and Qt bin)"
+        exit 1
+    fi
+done
+
+# 若仍漏掉 Qt6*.dll，按 PE 导入表从 Qt bin 补拷（例如将来新增模块）
+if command -v x86_64-w64-mingw32-objdump &>/dev/null; then
+    while IFS= read -r imp; do
+        case "${imp,,}" in
+            qt6*.dll)
+                if [ -f "$QT_BIN/$imp" ] && [ ! -f "$DEPLOY_DIR/$imp" ]; then
+                    cp "$QT_BIN/$imp" "$DEPLOY_DIR/"
+                    echo "  Copied $imp (from PE imports)"
+                fi
+                ;;
+        esac
+    done < <(x86_64-w64-mingw32-objdump -p "$DEPLOY_DIR/NekoMusic.exe" 2>/dev/null | sed -n 's/.*DLL Name: //p' | sort -u)
+fi
 
 # Copy Qt plugins
 for plugin in platforms multimedia iconengines imageformats styles translations sqldrivers; do
