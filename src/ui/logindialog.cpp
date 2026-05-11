@@ -82,7 +82,7 @@ void LoginDialog::setupUi()
     loginLayout->setSpacing(12);
 
     m_loginUserEdit = new QLineEdit(loginWidget);
-    m_loginUserEdit->setPlaceholderText(I18n::instance().tr("username"));
+    m_loginUserEdit->setPlaceholderText(I18n::instance().tr("email")); // 改正，邮箱
     m_loginUserEdit->setObjectName("dialogEdit");
     m_loginUserEdit->setFixedHeight(40);
     loginLayout->addWidget(m_loginUserEdit);
