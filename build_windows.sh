@@ -223,17 +223,19 @@ if command -v x86_64-w64-mingw32-objdump &>/dev/null; then
     done < <(x86_64-w64-mingw32-objdump -p "$DEPLOY_DIR/NekoMusic.exe" 2>/dev/null | sed -n 's/.*DLL Name: //p' | sort -u)
 fi
 
-# Copy Qt plugins
-for plugin in platforms multimedia iconengines imageformats styles translations sqldrivers; do
+# Copy Qt plugins（tls：HTTPS 必需，含 qschannelbackend / qopensslbackend 等）
+for plugin in platforms multimedia iconengines imageformats styles translations sqldrivers tls networkinformation generic; do
     if [ -d "$QT_BIN/../plugins/${plugin}" ]; then
         cp -r "$QT_BIN/../plugins/${plugin}" "$DEPLOY_DIR/"
         echo "  Copied plugins/${plugin}"
     fi
 done
 
-# Copy OpenSSL if available
-for ssl in libssl libcrypto; do
-    find "$QT_WIN_ROOT" -name "${ssl}-*.dll" -exec cp {} "$DEPLOY_DIR/" \; 2>/dev/null
+# OpenSSL DLL（若运行库选用 qopensslbackend；Schannel 后端见 plugins/tls）
+find "$QT_WIN_ROOT" -maxdepth 4 \( -name 'libssl-*.dll' -o -name 'libcrypto-*.dll' \) 2>/dev/null | while read -r f; do
+    [ -f "$f" ] || continue
+    cp "$f" "$DEPLOY_DIR/"
+    echo "  Copied $(basename "$f") (OpenSSL)"
 done
 
 # ============================================================
