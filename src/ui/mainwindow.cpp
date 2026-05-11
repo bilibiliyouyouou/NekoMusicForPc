@@ -666,10 +666,14 @@ void MainWindow::loadStyleSheet()
 
 void MainWindow::applyTheme()
 {
-    QString style = Theme::ThemeManager::instance().currentStyleSheet();
-    if (!style.isEmpty()) {
-        setStyleSheet(style);
-    }
+    const QString style = Theme::ThemeManager::instance().currentStyleSheet();
+    /* 挂在 QApplication 上：QComboBox 下拉、部分弹出层不是 MainWindow 子控件，
+     * 仅 setStyleSheet(this) 时 Windows/Fusion 下会丢失样式。 */
+    setStyleSheet(QString());
+    if (style.isEmpty())
+        qApp->setStyleSheet(QString());
+    else
+        qApp->setStyleSheet(style);
 }
 
 void MainWindow::paintEvent(QPaintEvent *)

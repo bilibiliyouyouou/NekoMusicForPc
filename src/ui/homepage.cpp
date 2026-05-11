@@ -13,6 +13,7 @@
 #include "theme/theme.h"
 #include "ui/playlistcard.h"
 #include "ui/glasswidget.h"
+#include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
 
 #include <QVBoxLayout>
@@ -214,6 +215,7 @@ static QList<MusicAggregateCard *> m_aggCards;
 HomePage::HomePage(QWidget *parent) : QWidget(parent)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
 
     // 延迟加载数据，先显示UI
@@ -271,6 +273,7 @@ void HomePage::setupUi()
     lay->addStretch();
 
     m_scroll->setWidget(container);
+    nekoPolishScrollAreaViewport(m_scroll);
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);

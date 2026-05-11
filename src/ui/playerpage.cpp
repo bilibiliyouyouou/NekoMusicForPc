@@ -7,6 +7,7 @@
 #include "../theme/theme.h"
 #include "../theme/thememanager.h"
 #include "glasspaint.h"
+#include "ui/scrollareafix.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -293,6 +294,7 @@ void PlayerPage::setupUi()
     m_lyricsLayout->setContentsMargins(16, 20, 16, 20);
 
     m_lyricsScroll->setWidget(m_lyricsContainer);
+    nekoPolishScrollAreaViewport(m_lyricsScroll);
     lyricsCol->addWidget(m_lyricsScroll, 1);
 
     contentRow->addWidget(m_leftGlass, 0);

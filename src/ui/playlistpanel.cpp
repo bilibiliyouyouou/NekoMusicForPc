@@ -5,6 +5,7 @@
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "glasspaint.h"
+#include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
 
 #include <QSizePolicy>
@@ -482,6 +483,7 @@ void PlaylistPanel::setupUi()
     m_listLayout->setAlignment(Qt::AlignTop);
 
     m_scroll->setWidget(m_listContainer);
+    nekoPolishScrollAreaViewport(m_scroll);
     lay->addWidget(m_scroll, 1);
 }
 

@@ -48,6 +48,176 @@ QMenu::separator {
     background: rgba(196, 167, 231, 28);
 }
 
+/* ─── 主窗口骨架 / 滚动区（Fusion 默认灰底会盖住主背景渐变）──────── */
+#centralWidget {
+    background: transparent;
+}
+
+#midWidget {
+    background: transparent;
+}
+
+QStackedWidget#pageStack {
+    background: transparent;
+}
+
+/* 具名滚动区（视口在 Windows Fusion 下由 nekoPolishScrollAreaViewport 去不透明底） */
+QScrollArea#sbScroll,
+QScrollArea#hpScroll,
+QScrollArea#recentScroll,
+QScrollArea#favoritesScroll,
+QScrollArea#playlistScroll,
+QScrollArea#ppScroll,
+QScrollArea#lyricsScroll,
+QScrollArea#settingsScroll,
+QScrollArea#uploadScroll,
+QScrollArea#searchScroll {
+    background: transparent;
+    border: none;
+}
+
+QScrollArea#sbScroll > QWidget > QWidget,
+QScrollArea#hpScroll > QWidget > QWidget,
+QScrollArea#recentScroll > QWidget > QWidget,
+QScrollArea#favoritesScroll > QWidget > QWidget,
+QScrollArea#playlistScroll > QWidget > QWidget,
+QScrollArea#ppScroll > QWidget > QWidget,
+QScrollArea#lyricsScroll > QWidget > QWidget,
+QScrollArea#settingsScroll > QWidget > QWidget,
+QScrollArea#uploadScroll > QWidget > QWidget,
+QScrollArea#searchScroll > QWidget > QWidget {
+    background: transparent;
+}
+
+/* 未命名行编辑（#dialogEdit、#settingsInput、#tbSearchInner 等用更高优先级覆盖） */
+QLineEdit {
+    background: rgba(245, 240, 255, 14);
+    border: 1px solid rgba(196, 167, 231, 32);
+    border-radius: 8px;
+    padding: 7px 11px;
+    color: #F5F0FF;
+    min-height: 20px;
+    selection-background-color: #C4A7E7;
+    selection-color: #1A1625;
+}
+
+QLineEdit:focus {
+    border-color: rgba(126, 200, 200, 100);
+    background: rgba(245, 240, 255, 22);
+}
+
+QLineEdit:disabled {
+    color: rgba(245, 240, 255, 90);
+    background: rgba(245, 240, 255, 8);
+}
+
+QTextEdit {
+    background: rgba(245, 240, 255, 12);
+    border: 1px solid rgba(196, 167, 231, 30);
+    border-radius: 10px;
+    padding: 8px;
+    color: #F5F0FF;
+    selection-background-color: #C4A7E7;
+    selection-color: #1A1625;
+}
+
+QTextEdit:focus {
+    border-color: rgba(126, 200, 200, 100);
+    background: rgba(245, 240, 255, 18);
+}
+
+/* 上传页等：行内输入此前无 QSS，Windows 上为系统灰框 */
+#settingsInput {
+    background: rgba(245, 240, 255, 16);
+    border: 1px solid rgba(196, 167, 231, 35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #F5F0FF;
+    font-size: 13px;
+    selection-background-color: #C4A7E7;
+    selection-color: #1A1625;
+}
+
+#settingsInput:focus {
+    background: rgba(245, 240, 255, 24);
+    border-color: rgba(126, 200, 200, 120);
+}
+
+#lyricsPreview, #coverPreview {
+    background: rgba(245, 240, 255, 12);
+    border: 1px solid rgba(196, 167, 231, 32);
+    border-radius: 10px;
+    color: #F5F0FF;
+    padding: 8px;
+    selection-background-color: #C4A7E7;
+    selection-color: #1A1625;
+}
+
+#smallBtn {
+    background: rgba(245, 240, 255, 12);
+    border: 1px solid rgba(196, 167, 231, 30);
+    border-radius: 10px;
+    color: #F5F0FF;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+}
+
+#smallBtn:hover {
+    background: rgba(196, 167, 231, 26);
+}
+
+#smallBtn:pressed {
+    background: rgba(196, 167, 231, 14);
+}
+
+#primaryBtn {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
+    border: none;
+    border-radius: 10px;
+    color: #16101f;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 22px;
+}
+
+#primaryBtn:hover {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #E8DCFF, stop:1 #C4A7E7);
+}
+
+#primaryBtn:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #C4A7E7, stop:1 #8E72C4);
+}
+
+#backBtn {
+    background: rgba(245, 240, 255, 8);
+    border: none;
+    border-radius: 10px;
+}
+
+#backBtn:hover {
+    background: rgba(196, 167, 231, 28);
+}
+
+#backBtn:pressed {
+    background: rgba(196, 167, 231, 14);
+}
+
+#pageTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: -0.2px;
+}
+
+#pageDesc {
+    font-size: 13px;
+    color: rgba(245, 240, 255, 150);
+}
+
 /* ─── 标题栏 ────────────────────────────────────────────── */
 #tbAppName {
     font-size: 14px;
@@ -235,6 +405,26 @@ QMenu::separator {
     letter-spacing: 1px;
 }
 
+#sbCreatePlaylist {
+    background: rgba(245, 240, 255, 10);
+    border: 1px dashed rgba(196, 167, 231, 45);
+    border-radius: 10px;
+    color: rgba(245, 240, 255, 200);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 12px;
+}
+
+#sbCreatePlaylist:hover {
+    background: rgba(196, 167, 231, 22);
+    border-style: solid;
+    color: #F5F0FF;
+}
+
+#sbCreatePlaylist:pressed {
+    background: rgba(196, 167, 231, 14);
+}
+
 #sbEmpty {
     font-size: 12px;
     color: rgba(245, 240, 255, 70);
@@ -382,16 +572,36 @@ QMenu::separator {
 }
 
 #settingsCombo::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
     border: none;
-    width: 24px;
+    width: 28px;
 }
 
 #settingsCombo QAbstractItemView {
     background: #241F31;
     color: #F5F0FF;
     selection-background-color: rgba(196, 167, 231, 50);
+    selection-color: #FFFFFF;
     border: 1px solid rgba(196, 167, 231, 40);
+    border-radius: 8px;
+    outline: none;
+    padding: 4px;
+}
+
+#settingsCombo QAbstractItemView::item {
+    min-height: 26px;
+    padding: 6px 10px;
     border-radius: 6px;
+}
+
+#settingsCombo QAbstractItemView::item:hover {
+    background: rgba(196, 167, 231, 22);
+}
+
+#settingsCombo QAbstractItemView::item:selected {
+    background: rgba(196, 167, 231, 48);
+    color: #FFFFFF;
 }
 
 /* ─── 歌单卡片 ──────────────────────────────────────────── */

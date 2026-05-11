@@ -47,6 +47,173 @@ QMenu::separator {
     background: rgba(111, 66, 193, 0.18);
 }
 
+/* ─── 主窗口骨架 / 滚动区 ───────────────────────────────── */
+#centralWidget {
+    background: transparent;
+}
+
+#midWidget {
+    background: transparent;
+}
+
+QStackedWidget#pageStack {
+    background: transparent;
+}
+
+QScrollArea#sbScroll,
+QScrollArea#hpScroll,
+QScrollArea#recentScroll,
+QScrollArea#favoritesScroll,
+QScrollArea#playlistScroll,
+QScrollArea#ppScroll,
+QScrollArea#lyricsScroll,
+QScrollArea#settingsScroll,
+QScrollArea#uploadScroll,
+QScrollArea#searchScroll {
+    background: transparent;
+    border: none;
+}
+
+QScrollArea#sbScroll > QWidget > QWidget,
+QScrollArea#hpScroll > QWidget > QWidget,
+QScrollArea#recentScroll > QWidget > QWidget,
+QScrollArea#favoritesScroll > QWidget > QWidget,
+QScrollArea#playlistScroll > QWidget > QWidget,
+QScrollArea#ppScroll > QWidget > QWidget,
+QScrollArea#lyricsScroll > QWidget > QWidget,
+QScrollArea#settingsScroll > QWidget > QWidget,
+QScrollArea#uploadScroll > QWidget > QWidget,
+QScrollArea#searchScroll > QWidget > QWidget {
+    background: transparent;
+}
+
+QLineEdit {
+    background: rgba(33, 37, 41, 0.06);
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 8px;
+    padding: 7px 11px;
+    color: #212529;
+    min-height: 20px;
+    selection-background-color: #C4A7E7;
+    selection-color: #212529;
+}
+
+QLineEdit:focus {
+    border-color: rgba(12, 166, 120, 0.45);
+    background: #ffffff;
+}
+
+QLineEdit:disabled {
+    color: rgba(33, 37, 41, 0.45);
+    background: rgba(33, 37, 41, 0.04);
+}
+
+QTextEdit {
+    background: rgba(33, 37, 41, 0.04);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    border-radius: 10px;
+    padding: 8px;
+    color: #212529;
+    selection-background-color: #C4A7E7;
+    selection-color: #212529;
+}
+
+QTextEdit:focus {
+    border-color: rgba(12, 166, 120, 0.45);
+    background: #ffffff;
+}
+
+#settingsInput {
+    background: rgba(33, 37, 41, 0.05);
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #212529;
+    font-size: 13px;
+    selection-background-color: #C4A7E7;
+    selection-color: #212529;
+}
+
+#settingsInput:focus {
+    background: #ffffff;
+    border-color: rgba(12, 166, 120, 0.45);
+}
+
+#lyricsPreview, #coverPreview {
+    background: rgba(33, 37, 41, 0.04);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    border-radius: 10px;
+    color: #212529;
+    padding: 8px;
+    selection-background-color: #C4A7E7;
+    selection-color: #212529;
+}
+
+#smallBtn {
+    background: rgba(33, 37, 41, 0.06);
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 10px;
+    color: #212529;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+}
+
+#smallBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+}
+
+#smallBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#primaryBtn {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
+    border: none;
+    border-radius: 10px;
+    color: #16101f;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 22px;
+}
+
+#primaryBtn:hover {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #E8DCFF, stop:1 #C4A7E7);
+}
+
+#primaryBtn:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #C4A7E7, stop:1 #8E72C4);
+}
+
+#backBtn {
+    background: rgba(33, 37, 41, 0.05);
+    border: none;
+    border-radius: 10px;
+}
+
+#backBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+}
+
+#backBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pageTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: #121417;
+    letter-spacing: -0.2px;
+}
+
+#pageDesc {
+    font-size: 13px;
+    color: rgba(33, 37, 41, 0.65);
+}
+
 /* ─── 标题栏 ────────────────────────────────────────────── */
 #tbAppName {
     font-size: 14px;
@@ -233,6 +400,26 @@ QMenu::separator {
     letter-spacing: 1px;
 }
 
+#sbCreatePlaylist {
+    background: rgba(33, 37, 41, 0.05);
+    border: 1px dashed rgba(111, 66, 193, 0.35);
+    border-radius: 10px;
+    color: rgba(33, 37, 41, 0.75);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 12px;
+}
+
+#sbCreatePlaylist:hover {
+    background: rgba(196, 167, 231, 0.2);
+    border-style: solid;
+    color: #16181c;
+}
+
+#sbCreatePlaylist:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
 #sbEmpty {
     font-size: 12px;
     color: rgba(33, 37, 41, 0.5);
@@ -380,16 +567,36 @@ QMenu::separator {
 }
 
 #settingsCombo::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
     border: none;
-    width: 24px;
+    width: 28px;
 }
 
 #settingsCombo QAbstractItemView {
-    background: #E9ECEF;
+    background: #ffffff;
     color: #212529;
-    selection-background-color: rgba(196, 167, 231, 0.4);
-    border: 1px solid rgba(196, 167, 231, 0.3);
+    selection-background-color: rgba(196, 167, 231, 0.45);
+    selection-color: #121417;
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 8px;
+    outline: none;
+    padding: 4px;
+}
+
+#settingsCombo QAbstractItemView::item {
+    min-height: 26px;
+    padding: 6px 10px;
     border-radius: 6px;
+}
+
+#settingsCombo QAbstractItemView::item:hover {
+    background: rgba(196, 167, 231, 0.18);
+}
+
+#settingsCombo QAbstractItemView::item:selected {
+    background: rgba(196, 167, 231, 0.38);
+    color: #121417;
 }
 
 /* ─── 歌单卡片 ──────────────────────────────────────────── */

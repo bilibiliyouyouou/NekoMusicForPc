@@ -10,6 +10,7 @@
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/glasspaint.h"
+#include "ui/scrollareafix.h"
 #include "ui/playlistlistitem.h"
 #include "core/i18n.h"
 #include "core/usermanager.h"
@@ -41,6 +42,7 @@ Sidebar::Sidebar(ApiClient *apiClient, QWidget *parent) : QWidget(parent), m_api
 {
     setFixedWidth(Theme::kSidebarW);
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
     setActiveNav("home");
     // Upload nav only visible when logged in
@@ -133,6 +135,7 @@ void Sidebar::setupUi()
     lay->addStretch();
 
     scroll->setWidget(container);
+    nekoPolishScrollAreaViewport(scroll);
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);

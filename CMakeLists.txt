@@ -148,6 +148,7 @@ set(HEADERS
         src/ui/mainwindow.h
         src/ui/glasswidget.h
         src/ui/glasspaint.h
+        src/ui/scrollareafix.h
         src/ui/titlebar.h
         src/ui/sidebar.h
         src/ui/carousel.h

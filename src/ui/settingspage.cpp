@@ -8,6 +8,7 @@
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/glasswidget.h"
+#include "ui/scrollareafix.h"
 #include "version.h"
 
 #include <QVBoxLayout>
@@ -22,12 +23,14 @@
 SettingsPage::SettingsPage(QWidget *parent) : QWidget(parent)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
 }
 
 void SettingsPage::setupUi()
 {
     auto *scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("settingsScroll"));
     scroll->setWidgetResizable(true);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -153,6 +156,7 @@ void SettingsPage::setupUi()
     lay->addStretch();
 
     scroll->setWidget(container);
+    nekoPolishScrollAreaViewport(scroll);
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);

@@ -9,6 +9,7 @@
 #include "core/usermanager.h"
 #include "theme/theme.h"
 #include "ui/glasswidget.h"
+#include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
 
 #include <QVBoxLayout>
@@ -28,6 +29,7 @@
 UploadPage::UploadPage(QWidget *parent) : QWidget(parent)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     m_api = new ApiClient(this);
     setupUi();
 }
@@ -35,6 +37,7 @@ UploadPage::UploadPage(QWidget *parent) : QWidget(parent)
 void UploadPage::setupUi()
 {
     auto *scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("uploadScroll"));
     scroll->setWidgetResizable(true);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -275,6 +278,7 @@ void UploadPage::setupUi()
     lay->addStretch();
 
     scroll->setWidget(container);
+    nekoPolishScrollAreaViewport(scroll);
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);

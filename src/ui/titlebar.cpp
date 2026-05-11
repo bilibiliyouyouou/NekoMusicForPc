@@ -189,6 +189,7 @@ void TitleBar::setupUi()
 {
     setFixedHeight(Theme::kTitleBarH);
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
 
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(16, 0, 12, 0);

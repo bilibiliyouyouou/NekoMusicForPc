@@ -4,8 +4,10 @@
  */
 
 #include <QApplication>
+#include <QGuiApplication>
 #include <QDebug>
 #include <QSettings>
+#include <QStyleFactory>
 #include <QLocalSocket>
 #include <QLocalServer>
 #include <QTimer>
@@ -62,7 +64,18 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
     QApplication app(argc, argv);
+
+#ifdef Q_OS_WIN
+    /* Windows 默认「windowsvista/11」样式会大量忽略或错误应用 QSS，自定义界面几乎全废。
+     * Fusion 与 Qt Style Sheet 兼容性最好，与 Linux/macOS 观感一致。 */
+    if (QStyle *fusion = QStyleFactory::create(QStringLiteral("Fusion")))
+        QApplication::setStyle(fusion);
+#endif
+
     app.setApplicationName(QStringLiteral("NekoMusic"));
     app.setApplicationVersion(QStringLiteral(APP_VERSION));
     app.setOrganizationName(QStringLiteral("NekoMusic"));

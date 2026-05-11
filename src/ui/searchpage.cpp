@@ -10,6 +10,7 @@
 #include "core/playlistmanager.h"
 #include "theme/theme.h"
 #include "ui/svgicon.h"
+#include "ui/scrollareafix.h"
 
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -496,6 +497,7 @@ SearchPage::SearchPage(ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_apiClient(apiClient)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
 }
 
@@ -578,6 +580,7 @@ void SearchPage::setupUi()
 
     // Scroll area
     m_scroll = new QScrollArea(this);
+    m_scroll->setObjectName(QStringLiteral("searchScroll"));
     m_scroll->setWidgetResizable(true);
     m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scroll->setFrameShape(QFrame::NoFrame);
@@ -590,6 +593,7 @@ void SearchPage::setupUi()
     m_listLayout->setAlignment(Qt::AlignTop);
 
     m_scroll->setWidget(m_container);
+    nekoPolishScrollAreaViewport(m_scroll);
     mainLay->addWidget(m_scroll, 1);
 }
 

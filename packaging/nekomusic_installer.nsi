@@ -51,6 +51,9 @@ Section "Neko云音乐" SecMain
     File /nonfatal /r "../build/styles"
     File /nonfatal /r "../build/translations"
     File /nonfatal /r "../build/sqldrivers"
+    File /nonfatal /r "../build/tls"
+    File /nonfatal /r "../build/networkinformation"
+    File /nonfatal /r "../build/generic"
 
     ; Qt DLLs
     File "../build/Qt6Core.dll"

@@ -9,6 +9,7 @@
 #include "core/covercache.h"
 #include "theme/theme.h"
 #include "ui/svgicon.h"
+#include "ui/scrollareafix.h"
 
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -178,6 +179,7 @@ MusicListPage::MusicListPage(Type type, QWidget *parent)
     , m_dataFetched(false)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
 
     // 不自动加载,等用户第一次导航到该页面时才加载
@@ -243,6 +245,7 @@ void MusicListPage::setupUi()
     m_listLayout->addStretch();
 
     m_scroll->setWidget(m_listContainer);
+    nekoPolishScrollAreaViewport(m_scroll);
     mainLay->addWidget(m_scroll, 1);
 }
 

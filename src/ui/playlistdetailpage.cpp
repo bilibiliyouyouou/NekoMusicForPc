@@ -10,6 +10,7 @@
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "glasspaint.h"
+#include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
 #include "ui/lineinputdialog.h"
 
@@ -239,6 +240,7 @@ PlaylistDetailPage::PlaylistDetailPage(ApiClient *apiClient, QWidget *parent)
 {
     setObjectName(QStringLiteral("playlistDetailPage"));
     setAttribute(Qt::WA_StyledBackground, true);
+    setAutoFillBackground(false);
     setupUi();
 
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
@@ -490,6 +492,7 @@ void PlaylistDetailPage::setupUi()
     contentLay->addStretch();
 
     m_scroll->setWidget(m_contentWidget);
+    nekoPolishScrollAreaViewport(m_scroll);
     mainLay->addWidget(m_scroll, 1);
 
     applyPlaylistDetailStyle();

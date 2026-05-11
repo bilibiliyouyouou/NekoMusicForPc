@@ -10,6 +10,7 @@
 #include "core/usermanager.h"
 #include "theme/theme.h"
 #include "ui/svgicon.h"
+#include "ui/scrollareafix.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -181,6 +182,7 @@ FavoritesPage::FavoritesPage(ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_apiClient(apiClient)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
 
     // 入场淡入
@@ -244,6 +246,7 @@ void FavoritesPage::setupUi()
     m_mainLay->addStretch();
 
     m_scroll->setWidget(m_container);
+    nekoPolishScrollAreaViewport(m_scroll);
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);

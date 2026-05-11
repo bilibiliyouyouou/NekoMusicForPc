@@ -11,6 +11,7 @@
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
+#include "ui/scrollareafix.h"
 
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -220,6 +221,7 @@ private:
 RecentPage::RecentPage(QWidget *parent) : QWidget(parent)
 {
     setAttribute(Qt::WA_StyledBackground, false);
+    setAutoFillBackground(false);
     setupUi();
 
     // 入场淡入
@@ -276,6 +278,7 @@ void RecentPage::setupUi()
     m_mainLay->addStretch();
 
     m_scroll->setWidget(m_container);
+    nekoPolishScrollAreaViewport(m_scroll);
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
