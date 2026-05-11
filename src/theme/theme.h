@@ -59,8 +59,8 @@ namespace Theme
                                         "stop:0 #F2ACB9, stop:1 #E08FA0)";
     constexpr const char *kGradMint = "qlineargradient(x1:0,y1:0,x2:0.3,y2:1,"
                                       "stop:0 #7EC8C8, stop:1 #5EAEAE)";
-    constexpr const char *kGradBg = "qlineargradient(x1:0,y1:0,x2:0.3,y2:1,"
-                                    "stop:0 #1A1625, stop:1 #241F31)";
+    constexpr const char *kGradBg = "qlineargradient(x1:0,y1:0,x2:0.42,y2:1,"
+                                    "stop:0 #14101c, stop:0.38 #1a1626, stop:1 #252032)";
 
     // ─── 布局尺寸 ──────────────────────────────────────────────
     constexpr int kSidebarW = 240;   // 侧边栏宽度

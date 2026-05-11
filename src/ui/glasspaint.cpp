@@ -25,7 +25,7 @@ QPixmap noiseTile()
             int v = int(t) & 255;
             v = (v - 128) / 8;
             const int g = qBound(0, 128 + v, 255);
-            img.setPixelColor(x, y, QColor(g, g, g, 22));
+            img.setPixelColor(x, y, QColor(g, g, g, 18));
         }
     }
     cache = QPixmap::fromImage(img);
@@ -38,7 +38,7 @@ void drawNoiseOverlay(QPainter &p, const QRect &r, qreal strength = 1.0)
     if (tile.isNull())
         return;
     p.save();
-    p.setOpacity(0.035 * strength);
+    p.setOpacity(0.028 * strength);
     p.drawTiledPixmap(r, tile);
     p.restore();
 }
@@ -57,26 +57,27 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
 {
     p.setRenderHint(QPainter::Antialiasing);
 
-    QLinearGradient bg(r.topLeft(), QPoint(int(r.width() * 0.3), r.height()));
+    /* 与 style.qss / style-light.qss 中 QMainWindow 渐变一致 */
+    QLinearGradient bg(r.topLeft(), QPoint(int(r.width() * 0.42), r.height()));
     if (darkMode) {
-        bg.setColorAt(0.0, QColor(26, 22, 37));
-        bg.setColorAt(0.55, QColor(30, 25, 44));
-        bg.setColorAt(1.0, QColor(36, 31, 49));
+        bg.setColorAt(0.0, QColor(20, 16, 28));    /* #14101c */
+        bg.setColorAt(0.38, QColor(26, 22, 38));  /* #1a1626 */
+        bg.setColorAt(1.0, QColor(37, 32, 50));  /* #252032 */
     } else {
-        bg.setColorAt(0.0, QColor(248, 249, 250));
-        bg.setColorAt(0.5, QColor(241, 243, 246));
-        bg.setColorAt(1.0, QColor(233, 236, 239));
+        bg.setColorAt(0.0, QColor(251, 251, 252));
+        bg.setColorAt(0.45, QColor(241, 243, 246));
+        bg.setColorAt(1.0, QColor(232, 236, 241));
     }
     p.fillRect(r, bg);
 
     QRadialGradient topGlow(QPointF(r.center().x(), r.top() + r.height() * 0.08), r.width() * 0.75);
     if (darkMode) {
-        topGlow.setColorAt(0.0, QColor(196, 167, 231, 38));
-        topGlow.setColorAt(0.45, QColor(126, 200, 200, 12));
+        topGlow.setColorAt(0.0, QColor(196, 167, 231, 34));
+        topGlow.setColorAt(0.42, QColor(126, 200, 200, 14));
         topGlow.setColorAt(1.0, Qt::transparent);
     } else {
-        topGlow.setColorAt(0.0, QColor(196, 167, 231, 55));
-        topGlow.setColorAt(0.5, QColor(255, 255, 255, 90));
+        topGlow.setColorAt(0.0, QColor(196, 167, 231, 48));
+        topGlow.setColorAt(0.48, QColor(255, 255, 255, 88));
         topGlow.setColorAt(1.0, Qt::transparent);
     }
     p.fillRect(r, topGlow);
@@ -84,16 +85,16 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
     const int vx = int(r.width() * 0.35);
     const int vy = int(r.height() * 0.4);
     QRadialGradient vLeft(r.bottomLeft(), qMax(vx, vy));
-    vLeft.setColorAt(0.0, darkMode ? QColor(10, 8, 18, 110) : QColor(108, 117, 125, 28));
+    vLeft.setColorAt(0.0, darkMode ? QColor(8, 6, 14, 100) : QColor(108, 117, 125, 26));
     vLeft.setColorAt(1.0, Qt::transparent);
     p.fillRect(r, vLeft);
 
     QRadialGradient vRight(r.bottomRight(), qMax(vx, vy));
-    vRight.setColorAt(0.0, darkMode ? QColor(10, 8, 18, 100) : QColor(108, 117, 125, 22));
+    vRight.setColorAt(0.0, darkMode ? QColor(8, 6, 14, 92) : QColor(108, 117, 125, 20));
     vRight.setColorAt(1.0, Qt::transparent);
     p.fillRect(r, vRight);
 
-    drawNoiseOverlay(p, r, darkMode ? 1.15 : 0.85);
+    drawNoiseOverlay(p, r, darkMode ? 0.92 : 0.78);
 }
 
 void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
@@ -102,13 +103,13 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
 
     QLinearGradient depth(r.topLeft(), r.bottomLeft());
     if (darkMode) {
-        depth.setColorAt(0.0, QColor(44, 38, 62, 236));
-        depth.setColorAt(0.55, QColor(34, 29, 48, 228));
-        depth.setColorAt(1.0, QColor(26, 22, 37, 218));
+        depth.setColorAt(0.0, QColor(40, 34, 56, 238));
+        depth.setColorAt(0.52, QColor(30, 26, 42, 230));
+        depth.setColorAt(1.0, QColor(22, 18, 32, 222));
     } else {
-        depth.setColorAt(0.0, QColor(255, 255, 255, 248));
-        depth.setColorAt(0.5, QColor(248, 249, 250, 242));
-        depth.setColorAt(1.0, QColor(236, 239, 242, 235));
+        depth.setColorAt(0.0, QColor(255, 255, 255, 250));
+        depth.setColorAt(0.5, QColor(248, 249, 250, 244));
+        depth.setColorAt(1.0, QColor(236, 239, 242, 238));
     }
     p.fillRect(r, depth);
 
@@ -160,7 +161,7 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
     case BarKind::TitleBar:
         accent = QLinearGradient(r.topLeft(), r.topRight());
         accent.setColorAt(0.0, QColor(196, 167, 231, 0));
-        accent.setColorAt(0.5, QColor(196, 167, 231, darkMode ? 48 : 55));
+        accent.setColorAt(0.5, QColor(196, 167, 231, darkMode ? 42 : 52));
         accent.setColorAt(1.0, QColor(196, 167, 231, 0));
         p.setPen(QPen(QBrush(accent), 1));
         p.drawLine(r.bottomLeft(), r.bottomRight());
@@ -175,7 +176,7 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
     case BarKind::PlayerBar:
         accent = QLinearGradient(r.topLeft(), r.topRight());
         accent.setColorAt(0.0, QColor(196, 167, 231, 0));
-        accent.setColorAt(0.5, QColor(196, 167, 231, darkMode ? 52 : 58));
+        accent.setColorAt(0.5, QColor(196, 167, 231, darkMode ? 46 : 54));
         accent.setColorAt(1.0, QColor(196, 167, 231, 0));
         p.setPen(QPen(QBrush(accent), 1));
         p.drawLine(r.topLeft(), r.topRight());

@@ -1,43 +1,75 @@
 /*
- * NekoMusic 日系动漫风全局 QSS - 亮色版
- *
- * 薰衣草紫 #C4A7E7 / 樱花粉 #F2ACB9 / 薄荷绿 #7EC8C8
- * 浅灰白 #F8F9FA / 浅灰 #E9ECEF / 中灰 #DEE2E6
+ * NekoMusic — 全局 QSS（亮色 · 现代层次）
  */
 
 /* ─── 全局 ──────────────────────────────────────────────── */
 QWidget {
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-family: "Inter", "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
     color: #212529;
     font-size: 14px;
 }
 
 QMainWindow {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #F8F9FA, stop:1 #E9ECEF);
+    background: qlineargradient(x1:0,y1:0,x2:0.4,y2:1,
+        stop:0 #fbfbfc,
+        stop:0.45 #f1f3f6,
+        stop:1 #e8ecf1);
+}
+
+QToolTip {
+    background: rgba(255, 255, 255, 248);
+    color: #212529;
+    border: 1px solid rgba(111, 66, 193, 0.28);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+QMenu {
+    background: rgba(255, 255, 255, 252);
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 10px;
+    padding: 6px 4px;
+}
+
+QMenu::item {
+    padding: 8px 28px 8px 16px;
+    border-radius: 6px;
+}
+
+QMenu::item:selected {
+    background: rgba(196, 167, 231, 0.35);
+}
+
+QMenu::separator {
+    height: 1px;
+    margin: 4px 10px;
+    background: rgba(111, 66, 193, 0.18);
 }
 
 /* ─── 标题栏 ────────────────────────────────────────────── */
 #tbAppName {
     font-size: 14px;
-    font-weight: bold;
-    color: #6F42C1;
-    letter-spacing: 0.5px;
+    font-weight: 700;
+    color: #5a32a8;
+    letter-spacing: 0.35px;
 }
 
 #tbSearchWrap {
-    background: rgba(33, 37, 41, 0.06);
-    border: none;
-    border-radius: 16px;
-    min-height: 32px;
+    background: rgba(33, 37, 41, 0.055);
+    border: 1px solid rgba(111, 66, 193, 0.18);
+    border-radius: 18px;
+    min-height: 34px;
 }
 
 #tbSearchWrap:hover {
-    background: rgba(33, 37, 41, 0.1);
+    background: rgba(33, 37, 41, 0.08);
+    border-color: rgba(111, 66, 193, 0.26);
 }
 
 #tbSearchWrap[searchFocus="true"] {
-    background: rgba(33, 37, 41, 0.12);
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(12, 166, 120, 0.45);
 }
 
 #tbSearchGlyph {
@@ -59,15 +91,19 @@ QMainWindow {
 }
 
 #tbAvatarWidget {
-    background: rgba(33, 37, 41, 0.06);
-    border: 1px solid rgba(111, 66, 193, 0.35);
-    border-radius: 18px;
+    background: rgba(33, 37, 41, 0.05);
+    border: 1px solid rgba(111, 66, 193, 0.28);
+    border-radius: 20px;
     min-height: 38px;
 }
 
 #tbAvatarWidget:hover {
-    background: rgba(196, 167, 231, 0.18);
-    border-color: rgba(111, 66, 193, 0.45);
+    background: rgba(196, 167, 231, 0.16);
+    border-color: rgba(111, 66, 193, 0.4);
+}
+
+#tbAvatarWidget:pressed {
+    background: rgba(196, 167, 231, 0.1);
 }
 
 #tbUsername {
@@ -84,53 +120,69 @@ QMainWindow {
 }
 
 #tbIconBtn {
-    background: rgba(33, 37, 41, 0.08);
+    background: rgba(33, 37, 41, 0.06);
     border: none;
-    border-radius: 10px;
-    color: rgba(33, 37, 41, 0.6);
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
     font-size: 14px;
 }
 
 #tbIconBtn:hover {
-    background: rgba(196, 167, 231, 0.3);
-    color: #6F42C1;
+    background: rgba(196, 167, 231, 0.28);
+    color: #5a32a8;
+}
+
+#tbIconBtn:pressed {
+    background: rgba(196, 167, 231, 0.16);
 }
 
 /* ─── 窗口控制按钮（低调，hover 时显色）────────────── */
 #tbMinBtn {
     background: transparent;
     border: none;
-    border-radius: 16px;
+    border-radius: 12px;
     color: rgba(33, 37, 41, 0.5);
 }
 
 #tbMinBtn:hover {
-    background: rgba(196, 167, 231, 0.4);
-    color: #6F42C1;
+    background: rgba(196, 167, 231, 0.38);
+    color: #5a32a8;
+}
+
+#tbMinBtn:pressed {
+    background: rgba(196, 167, 231, 0.22);
 }
 
 #tbMaxBtn {
     background: transparent;
     border: none;
-    border-radius: 16px;
+    border-radius: 12px;
     color: rgba(33, 37, 41, 0.5);
 }
 
 #tbMaxBtn:hover {
-    background: rgba(126, 200, 200, 0.4);
-    color: #0CA678;
+    background: rgba(126, 200, 200, 0.35);
+    color: #0a8f6a;
+}
+
+#tbMaxBtn:pressed {
+    background: rgba(126, 200, 200, 0.2);
 }
 
 #tbCloseBtn {
     background: transparent;
     border: none;
-    border-radius: 16px;
+    border-radius: 12px;
     color: rgba(33, 37, 41, 0.5);
 }
 
 #tbCloseBtn:hover {
-    background: rgba(232, 93, 117, 0.5);
-    color: #E85D75;
+    background: rgba(232, 93, 117, 0.45);
+    color: #c43d54;
+}
+
+#tbCloseBtn:pressed {
+    background: rgba(232, 93, 117, 0.28);
 }
 
 /* ─── 侧边栏 ────────────────────────────────────────────── */
@@ -139,24 +191,28 @@ QMainWindow {
 #sbNavItem {
     background: transparent;
     border: none;
-    border-radius: 10px;
-    color: rgba(33, 37, 41, 0.7);
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.68);
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     text-align: left;
-    padding: 10px 14px;
+    padding: 10px 16px;
     border-left: 3px solid transparent;
 }
 
 #sbNavItem:hover {
-    background: rgba(196, 167, 231, 0.15);
-    color: #212529;
-    padding-left: 17px;
+    background: rgba(196, 167, 231, 0.14);
+    color: #16181c;
+    padding-left: 18px;
+}
+
+#sbNavItem:pressed {
+    background: rgba(196, 167, 231, 0.08);
 }
 
 #sbNavItem[active="true"] {
-    background: rgba(196, 167, 231, 0.25);
-    color: #212529;
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
     border-left-color: #0CA678;
 }
 
@@ -192,42 +248,54 @@ QMainWindow {
 }
 
 #carouselTitle {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 700;
-    color: #212529;
+    color: #16181c;
+    letter-spacing: -0.3px;
 }
 
 #carouselDesc {
     font-size: 13px;
-    color: rgba(33, 37, 41, 0.7);
+    color: rgba(33, 37, 41, 0.72);
+    line-height: 1.45;
 }
 
 #carouselPlayBtn {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #C4A7E7, stop:1 #A88BD4);
+    background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
     border: none;
-    border-radius: 20px;
-    color: white;
-    font-weight: bold;
+    border-radius: 22px;
+    color: #16101f;
+    font-weight: 700;
     font-size: 13px;
+    padding: 2px 4px;
 }
 
 #carouselPlayBtn:hover {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #D4BFF0, stop:1 #C4A7E7);
+    background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
+        stop:0 #E8DCFF, stop:1 #C4A7E7);
+}
+
+#carouselPlayBtn:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
+        stop:0 #C4A7E7, stop:1 #8E72C4);
 }
 
 #carouselPrev, #carouselNext {
-    background: rgba(33, 37, 41, 0.1);
-    border: none;
-    border-radius: 16px;
-    color: rgba(33, 37, 41, 0.7);
+    background: rgba(33, 37, 41, 0.07);
+    border: 1px solid rgba(111, 66, 193, 0.16);
+    border-radius: 14px;
+    color: rgba(33, 37, 41, 0.72);
     font-size: 16px;
 }
 
 #carouselPrev:hover, #carouselNext:hover {
-    background: rgba(196, 167, 231, 0.4);
-    color: #212529;
+    background: rgba(196, 167, 231, 0.35);
+    color: #121417;
+}
+
+#carouselPrev:pressed, #carouselNext:pressed {
+    background: rgba(196, 167, 231, 0.2);
 }
 
 #carouselDot {
@@ -243,9 +311,10 @@ QMainWindow {
 #hpScroll, #hpContainer { background: transparent; }
 
 #hpSectionTitle {
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 700;
-    color: #212529;
+    color: #16181c;
+    letter-spacing: -0.2px;
 }
 
 #hpLoading {
@@ -278,9 +347,10 @@ QMainWindow {
 
 /* ─── 设置页 ──────────────────────────────────────────────── */
 #settingsTitle {
-    font-size: 24px;
+    font-size: 25px;
     font-weight: 700;
-    color: #212529;
+    color: #121417;
+    letter-spacing: -0.3px;
 }
 
 #settingsLabel {
@@ -300,10 +370,10 @@ QMainWindow {
 }
 
 #settingsCombo {
-    background: rgba(33, 37, 41, 0.08);
-    border: 1.5px solid rgba(196, 167, 231, 0.3);
-    border-radius: 8px;
-    padding: 6px 12px;
+    background: rgba(33, 37, 41, 0.06);
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 10px;
+    padding: 7px 14px;
     color: #212529;
     font-size: 13px;
     min-width: 140px;
@@ -325,8 +395,8 @@ QMainWindow {
 /* ─── 歌单卡片 ──────────────────────────────────────────── */
 #plCover {
     background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
-        stop:0 #C4A7E7, stop:1 #A88BD4);
-    border-radius: 12px;
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
+    border-radius: 14px;
 }
 
 #plName {
@@ -336,111 +406,271 @@ QMainWindow {
 }
 
 /* ─── 播放栏 ────────────────────────────────────────────── */
-#pbCover { border-radius: 8px; }
+#pbCover { border-radius: 10px; }
 
 #pbSong {
     font-size: 13px;
     font-weight: 600;
-    color: #212529;
+    color: #121417;
+    letter-spacing: -0.1px;
 }
 
 #pbArtist {
     font-size: 11px;
-    color: rgba(33, 37, 41, 0.6);
+    color: rgba(33, 37, 41, 0.58);
 }
 
+/* 播放键 48×48：圆角不得超过半边长 */
 #pbPlayBtn {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #C4A7E7, stop:1 #A88BD4);
+    background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
+        stop:0 #E4D6FF, stop:1 #9B7FD4);
     border: none;
-    border-radius: 20px;
-    color: white;
+    border-radius: 24px;
+    color: #16101f;
     font-size: 16px;
 }
 
 #pbPlayBtn:hover {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #D4BFF0, stop:1 #C4A7E7);
+    background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
+        stop:0 #F2EAFF, stop:1 #C4A7E7);
+}
+
+#pbPlayBtn:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
+        stop:0 #C4A7E7, stop:1 #8E72C4);
 }
 
 #pbCtrlBtn {
     background: transparent;
     border: none;
-    border-radius: 16px;
-    color: rgba(33, 37, 41, 0.6);
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
 }
 
 #pbCtrlBtn:hover {
-    background: rgba(196, 167, 231, 0.2);
-    color: #212529;
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
+}
+
+#pbCtrlBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pbPlayModeBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
+}
+
+#pbPlayModeBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
+}
+
+#pbPlayModeBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pbHeartBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
+}
+
+#pbHeartBtn:hover {
+    background: rgba(255, 80, 100, 0.14);
+    color: #121417;
+}
+
+#pbHeartBtn:pressed {
+    background: rgba(255, 80, 100, 0.08);
+}
+
+#pbPlaylistBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
+}
+
+#pbPlaylistBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
+}
+
+#pbPlaylistBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pbVolumeBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
+}
+
+#pbVolumeBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
+}
+
+#pbVolumeBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pbShareBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.58);
+}
+
+#pbShareBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
+}
+
+#pbShareBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pbDesktopLrcBtn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.62);
+    padding: 0;
+}
+
+#pbDesktopLrcBtn:hover {
+    background: rgba(196, 167, 231, 0.22);
+    color: #121417;
+}
+
+#pbDesktopLrcBtn:pressed {
+    background: rgba(196, 167, 231, 0.12);
+}
+
+#pbDesktopLrcBtn:checked {
+    background: rgba(196, 167, 231, 0.38);
+    color: #5a32a8;
+}
+
+#pbVolumePanel {
+    background: rgba(255, 255, 255, 248);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    border-radius: 12px;
+}
+
+#pbVolumeLabel {
+    font-size: 10px;
+    color: rgba(33, 37, 41, 0.65);
+    font-weight: 600;
 }
 
 #pbTime {
     font-size: 11px;
-    color: rgba(33, 37, 41, 0.5);
+    color: rgba(33, 37, 41, 0.48);
 }
 
 /* ─── 滑块 ──────────────────────────────────────────────── */
 QSlider::groove:horizontal {
-    background: rgba(33, 37, 41, 0.15);
-    height: 3px;
-    border-radius: 1.5px;
+    background: rgba(33, 37, 41, 0.12);
+    height: 4px;
+    border-radius: 2px;
 }
 
 QSlider::handle:horizontal {
-    background: #C4A7E7;
-    width: 10px;
-    height: 10px;
-    margin: -3.5px 0;
-    border-radius: 5px;
+    background: #E4D6FF;
+    width: 12px;
+    height: 12px;
+    margin: -4px 0;
+    border-radius: 6px;
+    border: 1px solid rgba(111, 66, 193, 0.35);
 }
 
-QSlider::handle:horizontal:hover { background: #D4BFF0; }
+QSlider::handle:horizontal:hover { background: #FFFFFF; }
+
+QSlider::handle:horizontal:pressed { background: #D4BFF0; }
 
 QSlider::sub-page:horizontal {
     background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-        stop:0 #C4A7E7, stop:1 #A88BD4);
-    border-radius: 1.5px;
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
+    border-radius: 2px;
 }
 
-#pbVolume::groove:horizontal { height: 2px; }
-#pbVolume::handle:horizontal { width: 8px; height: 8px; margin: -3px 0; border-radius: 4px; }
+QSlider::groove:vertical {
+    background: rgba(33, 37, 41, 0.12);
+    width: 4px;
+    border-radius: 2px;
+}
+
+QSlider::handle:vertical {
+    background: #E4D6FF;
+    height: 12px;
+    width: 12px;
+    margin: 0 -4px;
+    border-radius: 6px;
+    border: 1px solid rgba(111, 66, 193, 0.35);
+}
+
+QSlider::handle:vertical:hover { background: #FFFFFF; }
+
+QSlider::handle:vertical:pressed { background: #D4BFF0; }
+
+QSlider::add-page:vertical {
+    background: qlineargradient(x1:0,y1:1,x2:0,y2:0,
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
+    border-radius: 2px;
+}
+
+#pbVolume::groove:horizontal { height: 3px; }
+#pbVolume::handle:horizontal { width: 10px; height: 10px; margin: -3px 0; border-radius: 5px; }
+
+#pbVolumeSlider::groove:vertical { width: 4px; }
+#pbVolumeSlider::handle:vertical { width: 12px; height: 12px; margin: 0 -4px; border-radius: 6px; }
 
 /* ─── 滚动条 ────────────────────────────────────────────── */
 QScrollBar:vertical {
-    background: transparent;
-    width: 5px;
+    background: rgba(33, 37, 41, 0.04);
+    width: 8px;
+    margin: 4px 2px 4px 0;
+    border-radius: 4px;
 }
 
 QScrollBar::handle:vertical {
-    background: rgba(196, 167, 231, 0.4);
-    border-radius: 2.5px;
-    min-height: 30px;
+    background: rgba(196, 167, 231, 0.55);
+    border-radius: 4px;
+    min-height: 36px;
 }
 
-QScrollBar::handle:vertical:hover { background: rgba(196, 167, 231, 0.6); }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::handle:vertical:hover { background: rgba(168, 139, 212, 0.75); }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; border: none; }
 
 QScrollBar:horizontal {
-    background: transparent;
-    height: 5px;
+    background: rgba(33, 37, 41, 0.04);
+    height: 8px;
+    margin: 0 4px 2px 4px;
+    border-radius: 4px;
 }
 
 QScrollBar::handle:horizontal {
-    background: rgba(196, 167, 231, 0.4);
-    border-radius: 2.5px;
-    min-width: 30px;
+    background: rgba(196, 167, 231, 0.55);
+    border-radius: 4px;
+    min-width: 36px;
 }
 
-QScrollBar::handle:horizontal:hover { background: rgba(196, 167, 231, 0.6); }
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
+QScrollBar::handle:horizontal:hover { background: rgba(168, 139, 212, 0.75); }
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; border: none; }
 
 /* ─── 登录对话框 ────────────────────────────────────────── */
 #dialogEdit {
-    background: rgba(33, 37, 41, 0.08);
-    border: 1.5px solid rgba(196, 167, 231, 0.3);
-    border-radius: 8px;
-    padding: 8px 14px;
+    background: rgba(33, 37, 41, 0.05);
+    border: 1px solid rgba(111, 66, 193, 0.22);
+    border-radius: 10px;
+    padding: 9px 14px;
     color: #212529;
     font-size: 13px;
     selection-background-color: #C4A7E7;
@@ -449,28 +679,33 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
 #dialogEdit::placeholder { color: rgba(33, 37, 41, 0.5); }
 
 #dialogEdit:focus {
-    background: rgba(33, 37, 41, 0.12);
-    border-color: rgba(126, 200, 200, 0.6);
+    background: #ffffff;
+    border-color: rgba(12, 166, 120, 0.45);
 }
 
 #dialogBtn {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #C4A7E7, stop:1 #A88BD4);
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #D4BFF0, stop:1 #9B7FD4);
     border: none;
-    border-radius: 8px;
-    color: white;
+    border-radius: 10px;
+    color: #16101f;
     font-size: 14px;
     font-weight: 600;
 }
 
 #dialogBtn:hover {
-    background: qlineargradient(x1:0,y1:0,x2:0.3,y2:1,
-        stop:0 #D4BFF0, stop:1 #C4A7E7);
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #E8DCFF, stop:1 #C4A7E7);
+}
+
+#dialogBtn:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #C4A7E7, stop:1 #8E72C4);
 }
 
 #dialogBtn:disabled {
-    background: rgba(196, 167, 231, 0.5);
-    color: rgba(255, 255, 255, 0.7);
+    background: rgba(196, 167, 231, 0.45);
+    color: rgba(33, 37, 41, 0.45);
 }
 
 #dialogLinkBtn {
@@ -484,15 +719,19 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
 #dialogLinkBtn:hover { color: #E08FA0; }
 
 #dialogCloseBtn {
-    background: rgba(33, 37, 41, 0.1);
+    background: rgba(33, 37, 41, 0.06);
     border: none;
-    border-radius: 16px;
-    color: rgba(33, 37, 41, 0.6);
+    border-radius: 12px;
+    color: rgba(33, 37, 41, 0.55);
     font-size: 20px;
     font-weight: bold;
 }
 
 #dialogCloseBtn:hover {
-    background: rgba(232, 93, 117, 0.5);
-    color: #E85D75;
+    background: rgba(232, 93, 117, 0.4);
+    color: #c43d54;
+}
+
+#dialogCloseBtn:pressed {
+    background: rgba(232, 93, 117, 0.25);
 }
