@@ -20,6 +20,13 @@ if(APPLE)
     set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 endif()
 
+# Qt .qrc must be defined before the cross-compile block: that block runs RCC in a
+# foreach(${RESOURCES}) and needs this list at configure time. If RESOURCES is still
+# empty there, Windows cross-builds link without embedded QSS/icons (styles "gone").
+set(RESOURCES
+        src/resources/resources.qrc
+)
+
 # For cross-compilation, disable AUTOMOC/AUTOUIC/AUTORCC and handle manually
 # because Qt6 CMake hardcodes Windows .exe paths for moc/uic/rcc
 if(CMAKE_CROSSCOMPILING)
@@ -31,8 +38,7 @@ if(CMAKE_CROSSCOMPILING)
     if(DEFINED ENV{QT_HOST_ROOT})
         set(QT_HOST_MOC "$ENV{QT_HOST_ROOT}/libexec/moc")
         set(QT_HOST_RCC "$ENV{QT_HOST_ROOT}/libexec/rcc")
-        set(QT_HOST_UIC "$ENV{QT_HOST_ROOT}
-        /libexec/uic")
+        set(QT_HOST_UIC "$ENV{QT_HOST_ROOT}/libexec/uic")
     else()
         set(QT_HOST_MOC "/usr/lib/qt6/libexec/moc")
         set(QT_HOST_RCC "/usr/lib/qt6/libexec/rcc")
@@ -65,13 +71,16 @@ if(CMAKE_CROSSCOMPILING)
         endif()
     endforeach()
 
-    # Manually compile resources
+    # Manually compile resources (host rcc on Linux; link against Windows Qt).
+    # Official Windows MinGW Qt builds often omit zstd (QT_FEATURE_zstd=OFF); host rcc 6.8+
+    # defaults to zstd and emits qResourceFeatureZstd() → link error. Match qt_add_resources
+    # behaviour: pass --no-zstd when the target stack cannot decompress zstd.
     foreach(qrc ${RESOURCES})
         get_filename_component(name "${qrc}" NAME_WE)
         set(rcc_out "${CMAKE_BINARY_DIR}/qrc_${name}.cpp")
         add_custom_command(
                 OUTPUT "${rcc_out}"
-                COMMAND "${QT_HOST_RCC}" "${CMAKE_SOURCE_DIR}/${qrc}" -o "${rcc_out}"
+                COMMAND "${QT_HOST_RCC}" --no-zstd -o "${rcc_out}" "${CMAKE_SOURCE_DIR}/${qrc}"
                 DEPENDS "${CMAKE_SOURCE_DIR}/${qrc}"
                 COMMENT "RCC ${qrc}"
         )
@@ -204,11 +213,6 @@ else()
     list(APPEND SOURCES src/core/systemmediacontroller_stub.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_stub.cpp)
 endif()
-
-# Resources
-set(RESOURCES
-        src/resources/resources.qrc
-)
 
 if(WIN32)
     add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${HEADERS} ${RESOURCES} ${APP_ICON_RESOURCE_WINDOWS} ${GENERATED_SOURCES})
