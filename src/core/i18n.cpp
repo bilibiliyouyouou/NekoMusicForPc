@@ -313,18 +313,18 @@ static QMap<QString, QString> zhCN()
     m["shareLocalCopied"] = QStringLiteral("分享文案已复制到剪贴板");
     m["shareNothingPlaying"] = QStringLiteral("当前没有可分享的曲目");
     m["shareClipboardHeaderOnline"] = QStringLiteral(
-        "【Neko云音乐】梦幻网络出品 · 免费高品质流媒体与无损音乐平台");
-    m["shareClipboardHeaderLocal"] = QStringLiteral("【Neko云音乐客户端】正在播放本地音乐");
-    m["shareClipboardTrack"] = QStringLiteral("🎵 曲目：%1");
-    m["shareClipboardArtist"] = QStringLiteral("🎤 歌手：%1");
-    m["shareClipboardAlbum"] = QStringLiteral("💿 专辑：%1");
+        "【Neko云音乐】线上曲库 · 流媒体与歌单发现 · 免费高品质播放");
+    m["shareClipboardHeaderLocal"] = QStringLiteral("【Neko云音乐客户端】本地播放中");
+    m["shareClipboardTrack"] = QStringLiteral("曲目：%1");
+    m["shareClipboardArtist"] = QStringLiteral("歌手：%1");
+    m["shareClipboardAlbum"] = QStringLiteral("专辑：%1");
     m["shareClipboardPromo"] = QStringLiteral(
         "海量曲库、歌单与排行榜，支持桌面歌词与云歌单。完全免费；下载 Windows / macOS / Linux / "
         "移动端客户端，体验更完整的播放与个性化功能。欢迎把 Neko云音乐 推荐给朋友一起使用。");
     m["shareClipboardPromoLocal"] = QStringLiteral(
         "本首为本地音频文件。Neko云音乐 同样提供丰富的在线曲库与歌单发现，完全免费；可继续使用客户端管理本地与在线音乐。");
-    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 歌曲详情页链接（在浏览器中打开）：");
-    m["shareClipboardLinkLocal"] = QStringLiteral("🔗 本地文件（可粘贴到支持 file:// 的环境）：");
+    m["shareClipboardLinkOnline"] = QStringLiteral("歌曲详情页链接（在浏览器中打开）：");
+    m["shareClipboardLinkLocal"] = QStringLiteral("本地文件（可粘贴到支持 file:// 的环境）：");
     m["cancelFavoriteSuccess"] = QStringLiteral("已取消收藏");
     m["cancelFavoriteFailed"] = QStringLiteral("取消收藏失败");
     m["deleteConfirmWithPlaylistName"] = QStringLiteral("确定要删除歌单\"{name}\"吗？此操作不可恢复。");
@@ -404,7 +404,7 @@ static QMap<QString, QString> zhCN()
 static QMap<QString, QString> nyaCN()
 {
     QMap<QString, QString> m = zhCN();
-    // 🐾 究极重度喵娘风格：每一行都是爱您的形状喵~
+    // 喵语中文：在 zhCN 基础上替换语气，不含图形符号
     m["search"] = QStringLiteral("搜寻宝藏喵~");
     m["searchPlaceholder"] = QStringLiteral("想听什么歌呢？跟人家说嘛喵~...");
     m["loading"] = QStringLiteral("正在努力搬运中喵~ 加油加油的说！");
@@ -430,17 +430,17 @@ static QMap<QString, QString> nyaCN()
     m["shareOnlineCopied"] = QStringLiteral("嘿嘿，分享咒语已经抓到剪贴板里了喵！");
     m["shareLocalCopied"] = QStringLiteral("本地好歌也想让大家听到喵~ 复制好啦！");
     m["shareNothingPlaying"] = QStringLiteral("现在没有在唱歌，没法分享的说喵...");
-    m["shareClipboardHeaderOnline"] = QStringLiteral("✨【Neko云音乐】梦幻网络出品 · 最好听的歌都给你喵~ ✨");
-    m["shareClipboardHeaderLocal"] = QStringLiteral("🎧【Neko云音乐客户端】正在偷偷听私藏的本地文件喵~");
-    m["shareClipboardTrack"] = QStringLiteral("🎵 幻之曲目：%1");
-    m["shareClipboardArtist"] = QStringLiteral("🎤 灵动歌姬：%1");
-    m["shareClipboardAlbum"] = QStringLiteral("💿 梦境专辑：%1");
+    m["shareClipboardHeaderOnline"] = QStringLiteral("【Neko云音乐】线上曲库 · 把喜欢的歌留在身边喵");
+    m["shareClipboardHeaderLocal"] = QStringLiteral("【Neko云音乐客户端】本地曲库播放中喵");
+    m["shareClipboardTrack"] = QStringLiteral("幻之曲目：%1");
+    m["shareClipboardArtist"] = QStringLiteral("灵动歌姬：%1");
+    m["shareClipboardAlbum"] = QStringLiteral("梦境专辑：%1");
     m["shareClipboardPromo"] = QStringLiteral(
         "曲库超级大，还有好多厉害的排行榜喵~ 桌面歌词什么的也全都有，完全免费的说！如果不嫌弃的话，推荐给朋友一起用也可以喵~");
     m["shareClipboardPromoLocal"] = QStringLiteral(
         "这首是人家的私藏文件喵~ 在线库也完全免费，一直用人家听歌最棒了喵~");
-    m["shareClipboardLinkOnline"] = QStringLiteral("🔗 歌曲详情传送门喵~（用浏览器打开就好喵~）：");
-    m["shareClipboardLinkLocal"] = QStringLiteral("🔗 本地文件暗号：");
+    m["shareClipboardLinkOnline"] = QStringLiteral("歌曲详情传送门喵（用浏览器打开即可）：");
+    m["shareClipboardLinkLocal"] = QStringLiteral("本地文件路径：");
     m["favorite"] = QStringLiteral("心动收藏喵！");
     m["unfavorite"] = QStringLiteral("不喜欢了喵...");
     m["playAll"] = QStringLiteral("全员集合，开始合唱喵！");
