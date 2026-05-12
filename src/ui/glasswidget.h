@@ -54,7 +54,7 @@ private:
     bool m_inBackdropGrab = false;
 
     qreal m_opacity = 0.65;
-    QColor m_base{45, 38, 65};
-    QColor m_border{196, 167, 231, 38};
+    QColor m_base{26, 26, 46};
+    QColor m_border{255, 183, 197, 70};
     int m_radius = 16;
 };

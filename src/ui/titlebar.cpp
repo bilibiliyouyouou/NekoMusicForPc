@@ -216,13 +216,14 @@ void TitleBar::setupUi()
     // ─── 中间搜索框（对齐 old TitleBar.vue：圆角条 + 左图标 + 无边框透明输入）──
     m_searchWrap = new QWidget(this);
     m_searchWrap->setObjectName("tbSearchWrap");
+    m_searchWrap->setAttribute(Qt::WA_StyledBackground, true);
     m_searchWrap->setCursor(Qt::PointingHandCursor);
     m_searchWrap->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_searchWrap->setFixedHeight(32);
-    m_searchWrap->setMinimumWidth(200);
-    m_searchWrap->setMaximumWidth(400);
+    m_searchWrap->setFixedHeight(36);
+    m_searchWrap->setMinimumWidth(220);
+    m_searchWrap->setMaximumWidth(560);
     auto *searchLay = new QHBoxLayout(m_searchWrap);
-    searchLay->setContentsMargins(12, 0, 12, 0);
+    searchLay->setContentsMargins(14, 0, 14, 0);
     searchLay->setSpacing(8);
 
     m_searchGlyph = new QLabel(m_searchWrap);
@@ -234,6 +235,7 @@ void TitleBar::setupUi()
 
     m_search = new QLineEdit(m_searchWrap);
     m_search->setObjectName("tbSearchInner");
+    m_search->setAttribute(Qt::WA_StyledBackground, true);
     m_search->setFrame(false);
     m_search->setAttribute(Qt::WA_MacShowFocusRect, false);
     m_search->setPlaceholderText(I18n::instance().tr("searchPlaceholder"));
@@ -306,8 +308,8 @@ void TitleBar::setupUi()
     lay->addSpacing(6);
 
     // 窗口控制（圆形彩色按钮）
-    const QColor kMinHover = QColor(196, 167, 231);  // 薰衣草紫
-    const QColor kMaxHover = QColor(126, 200, 200);  // 薄荷绿
+    const QColor kMinHover = QColor(230, 57, 80);
+    const QColor kMaxHover = QColor(126, 200, 200);
     const QColor kCloseHover = QColor(232, 93, 117); // 红色
 
     auto *minBtn = new QPushButton(this);

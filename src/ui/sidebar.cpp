@@ -62,8 +62,8 @@ void Sidebar::setupUi()
     auto *container = new QWidget(scroll);
     container->setObjectName("sbContainer");
     auto *lay = new QVBoxLayout(container);
-    lay->setContentsMargins(10, 12, 10, 12);
-    lay->setSpacing(8);
+    lay->setContentsMargins(12, 14, 12, 14);
+    lay->setSpacing(10);
 
     // 主导航（带 PNG 图标）
     lay->addWidget(createNavItem("home", I18n::instance().tr("home"),

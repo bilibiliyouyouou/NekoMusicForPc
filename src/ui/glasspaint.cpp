@@ -60,9 +60,9 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
     /* 与 style.qss / style-light.qss 中 QMainWindow 渐变一致 */
     QLinearGradient bg(r.topLeft(), QPoint(int(r.width() * 0.42), r.height()));
     if (darkMode) {
-        bg.setColorAt(0.0, QColor(20, 16, 28));    /* #14101c */
-        bg.setColorAt(0.38, QColor(26, 22, 38));  /* #1a1626 */
-        bg.setColorAt(1.0, QColor(37, 32, 50));  /* #252032 */
+        bg.setColorAt(0.0, QColor(8, 8, 16));
+        bg.setColorAt(0.38, QColor(14, 14, 28));
+        bg.setColorAt(1.0, QColor(21, 21, 42));
     } else {
         bg.setColorAt(0.0, QColor(251, 251, 252));
         bg.setColorAt(0.45, QColor(241, 243, 246));
@@ -72,11 +72,11 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
 
     QRadialGradient topGlow(QPointF(r.center().x(), r.top() + r.height() * 0.08), r.width() * 0.75);
     if (darkMode) {
-        topGlow.setColorAt(0.0, QColor(196, 167, 231, 34));
-        topGlow.setColorAt(0.42, QColor(126, 200, 200, 14));
+        topGlow.setColorAt(0.0, QColor(255, 107, 139, 38));
+        topGlow.setColorAt(0.42, QColor(135, 206, 235, 18));
         topGlow.setColorAt(1.0, Qt::transparent);
     } else {
-        topGlow.setColorAt(0.0, QColor(196, 167, 231, 48));
+        topGlow.setColorAt(0.0, QColor(255, 140, 160, 42));
         topGlow.setColorAt(0.48, QColor(255, 255, 255, 88));
         topGlow.setColorAt(1.0, Qt::transparent);
     }
@@ -103,9 +103,9 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
 
     QLinearGradient depth(r.topLeft(), r.bottomLeft());
     if (darkMode) {
-        depth.setColorAt(0.0, QColor(40, 34, 56, 238));
-        depth.setColorAt(0.52, QColor(30, 26, 42, 230));
-        depth.setColorAt(1.0, QColor(22, 18, 32, 222));
+        depth.setColorAt(0.0, QColor(22, 22, 42, 242));
+        depth.setColorAt(0.52, QColor(16, 16, 34, 234));
+        depth.setColorAt(1.0, QColor(12, 12, 26, 228));
     } else {
         depth.setColorAt(0.0, QColor(255, 255, 255, 250));
         depth.setColorAt(0.5, QColor(248, 249, 250, 244));
@@ -116,11 +116,11 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
     QRadialGradient hi(QPointF(r.left() + r.width() * 0.08, r.top() + r.height() * 0.12), r.height() * 1.1);
     if (darkMode) {
         hi.setColorAt(0.0, QColor(255, 255, 255, 26));
-        hi.setColorAt(0.35, QColor(196, 167, 231, 22));
+        hi.setColorAt(0.35, QColor(255, 183, 197, 28));
         hi.setColorAt(1.0, Qt::transparent);
     } else {
         hi.setColorAt(0.0, QColor(255, 255, 255, 200));
-        hi.setColorAt(0.4, QColor(196, 167, 231, 45));
+        hi.setColorAt(0.4, QColor(255, 183, 197, 38));
         hi.setColorAt(1.0, Qt::transparent);
     }
     p.fillRect(r, hi);
@@ -160,24 +160,24 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
     switch (kind) {
     case BarKind::TitleBar:
         accent = QLinearGradient(r.topLeft(), r.topRight());
-        accent.setColorAt(0.0, QColor(196, 167, 231, 0));
-        accent.setColorAt(0.5, QColor(196, 167, 231, darkMode ? 42 : 52));
-        accent.setColorAt(1.0, QColor(196, 167, 231, 0));
+        accent.setColorAt(0.0, QColor(255, 107, 139, 0));
+        accent.setColorAt(0.5, QColor(255, 107, 139, darkMode ? 48 : 58));
+        accent.setColorAt(1.0, QColor(255, 107, 139, 0));
         p.setPen(QPen(QBrush(accent), 1));
         p.drawLine(r.bottomLeft(), r.bottomRight());
         break;
     case BarKind::Sidebar:
         accent = QLinearGradient(r.topRight(), r.bottomRight());
-        accent.setColorAt(0.0, QColor(196, 167, 231, darkMode ? 38 : 50));
-        accent.setColorAt(1.0, QColor(196, 167, 231, darkMode ? 12 : 18));
+        accent.setColorAt(0.0, QColor(255, 183, 197, darkMode ? 55 : 65));
+        accent.setColorAt(1.0, QColor(255, 107, 139, darkMode ? 18 : 24));
         p.setPen(QPen(QBrush(accent), 1));
         p.drawLine(r.topRight(), r.bottomRight());
         break;
     case BarKind::PlayerBar:
         accent = QLinearGradient(r.topLeft(), r.topRight());
-        accent.setColorAt(0.0, QColor(196, 167, 231, 0));
-        accent.setColorAt(0.5, QColor(196, 167, 231, darkMode ? 46 : 54));
-        accent.setColorAt(1.0, QColor(196, 167, 231, 0));
+        accent.setColorAt(0.0, QColor(255, 107, 139, 0));
+        accent.setColorAt(0.5, QColor(255, 107, 139, darkMode ? 52 : 62));
+        accent.setColorAt(1.0, QColor(255, 107, 139, 0));
         p.setPen(QPen(QBrush(accent), 1));
         p.drawLine(r.topLeft(), r.topRight());
         break;

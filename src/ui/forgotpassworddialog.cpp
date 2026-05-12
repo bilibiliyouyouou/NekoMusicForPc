@@ -276,6 +276,6 @@ void ForgotPasswordDialog::paintEvent(QPaintEvent *event)
     p.fillPath(path, QColor(36, 31, 49, 245));
 
     // 边框
-    p.setPen(QPen(QColor(196, 167, 231, 60), 1));
+    p.setPen(QPen(QColor(230, 57, 80, 60), 1));
     p.drawPath(path);
 }

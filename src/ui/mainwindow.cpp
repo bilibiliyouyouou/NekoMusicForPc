@@ -223,8 +223,8 @@ void MainWindow::setupUi()
     m_midWidget->setObjectName("midWidget");
     m_midWidget->setAttribute(Qt::WA_StyledBackground, true);
     auto *midH = new QHBoxLayout(m_midWidget);
-    midH->setContentsMargins(0, 0, 0, 0);
-    midH->setSpacing(0);
+    midH->setContentsMargins(0, 8, 16, 8);
+    midH->setSpacing(12);
 
     m_apiClient = new ApiClient(this);
     m_sidebar = new Sidebar(m_apiClient, this);

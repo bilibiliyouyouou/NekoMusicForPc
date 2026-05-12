@@ -521,7 +521,7 @@ void SearchPage::setupUi()
     backBtn->setStyleSheet(
         "QPushButton { background: rgba(245,240,255,15); border: none; border-radius: 18px; "
         "color: " + QString(Theme::kTextMain) + "; font-size: 18px; }"
-        "QPushButton:hover { background: rgba(196,167,231,40); color: " + QString(Theme::kLavender) + "; }"
+        "QPushButton:hover { background: rgba(230,57,80,40); color: " + QString(Theme::kLavender) + "; }"
     );
     connect(backBtn, &QPushButton::clicked, this, &SearchPage::backRequested);
     headerLay->addWidget(backBtn);

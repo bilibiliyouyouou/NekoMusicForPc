@@ -247,21 +247,21 @@ void HomePage::setupUi()
     auto *container = new QWidget(m_scroll);
     container->setObjectName("hpContainer");
     auto *lay = new QVBoxLayout(container);
-    lay->setContentsMargins(24, 24, 24, 24);
-    lay->setSpacing(16);
+    lay->setContentsMargins(28, 16, 28, 32);
+    lay->setSpacing(20);
 
     // ─── 推荐歌单标题 ─────────────────────────────────
     auto *titleLabel = new QLabel(I18n::instance().tr("recommend_playlists"), container);
     titleLabel->setObjectName("hpSectionTitle");
     lay->addWidget(titleLabel);
-    lay->addSpacing(8);
+    lay->addSpacing(4);
 
     // ─── 卡片横向滚动区 ───────────────────────────────
     m_cardContainer = new QWidget(container);
     m_cardContainer->setObjectName("hpCardContainer");
     m_cardLayout = new QHBoxLayout(m_cardContainer);
-    m_cardLayout->setContentsMargins(0, 0, 0, 0);
-    m_cardLayout->setSpacing(20);
+    m_cardLayout->setContentsMargins(0, 4, 0, 0);
+    m_cardLayout->setSpacing(24);
     m_cardLayout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
 
     auto *loadingLabel = new QLabel(I18n::instance().tr("loading"), m_cardContainer);

@@ -185,7 +185,7 @@ void LineInputDialog::setupUi()
     okBtn->setStyleSheet(
         QStringLiteral(
             "QPushButton {"
-            "  background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #C4A7E7, stop:1 #A88BD4);"
+            "  background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #FF8FA3, stop:1 #E63950);"
             "  color: #1a1625;"
             "  border: none;"
             "  border-radius: 8px;"

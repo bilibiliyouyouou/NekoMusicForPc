@@ -18,12 +18,12 @@ AddToPlaylistDialog::AddToPlaylistDialog(const MusicInfo& music, QWidget *parent
     setFixedSize(360, 420);
     setStyleSheet(
         "QDialog { background-color: rgba(36, 31, 49, 0.98); }"
-        "QListWidget { background-color: rgba(45, 38, 65, 100); border: 1px solid rgba(196, 167, 231, 0.2); border-radius: 8px; color: #e0e0e0; font-size: 13px; }"
+        "QListWidget { background-color: rgba(45, 38, 65, 100); border: 1px solid rgba(230, 57, 80, 0.2); border-radius: 8px; color: #e0e0e0; font-size: 13px; }"
         "QListWidget::item { padding: 10px; border-radius: 4px; }"
-        "QListWidget::item:selected { background-color: rgba(196, 167, 231, 0.3); }"
-        "QListWidget::item:hover { background-color: rgba(196, 167, 231, 0.15); }"
-        "QPushButton { background-color: rgba(196, 167, 231, 0.2); border: 1px solid rgba(196, 167, 231, 0.3); border-radius: 8px; color: #e0e0e0; font-size: 13px; padding: 8px 16px; }"
-        "QPushButton:hover { background-color: rgba(196, 167, 231, 0.4); }"
+        "QListWidget::item:selected { background-color: rgba(230, 57, 80, 0.3); }"
+        "QListWidget::item:hover { background-color: rgba(230, 57, 80, 0.15); }"
+        "QPushButton { background-color: rgba(230, 57, 80, 0.2); border: 1px solid rgba(230, 57, 80, 0.3); border-radius: 8px; color: #e0e0e0; font-size: 13px; padding: 8px 16px; }"
+        "QPushButton:hover { background-color: rgba(230, 57, 80, 0.4); }"
     );
     setupUi();
     loadPlaylists();
@@ -61,8 +61,8 @@ void AddToPlaylistDialog::setupUi()
 
     m_okBtn = new QPushButton(I18n::instance().tr("ok"), this);
     m_okBtn->setStyleSheet(
-        "QPushButton { background-color: rgba(196, 167, 231, 0.4); border: 1px solid rgba(196, 167, 231, 0.5); border-radius: 8px; color: #ffffff; font-size: 13px; padding: 8px 16px; }"
-        "QPushButton:hover { background-color: rgba(196, 167, 231, 0.6); }"
+        "QPushButton { background-color: rgba(230, 57, 80, 0.4); border: 1px solid rgba(230, 57, 80, 0.5); border-radius: 8px; color: #ffffff; font-size: 13px; padding: 8px 16px; }"
+        "QPushButton:hover { background-color: rgba(230, 57, 80, 0.6); }"
     );
     connect(m_okBtn, &QPushButton::clicked, this, [this]() {
         auto *selected = m_listWidget->currentItem();

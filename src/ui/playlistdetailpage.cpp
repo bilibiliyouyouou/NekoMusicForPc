@@ -90,10 +90,10 @@ public:
         const bool dark = Theme::ThemeManager::instance().isDarkMode();
         const QString border = dark ? QStringLiteral("rgba(255,255,255,0.10)")
                                     : QStringLiteral("rgba(33,37,41,0.10)");
-        const QString hover = dark ? QStringLiteral("rgba(196,167,231,0.10)")
-                                   : QStringLiteral("rgba(196,167,231,0.14)");
-        const QString playingBg = dark ? QStringLiteral("rgba(196,167,231,0.16)")
-                                       : QStringLiteral("rgba(196,167,231,0.22)");
+        const QString hover = dark ? QStringLiteral("rgba(230,57,80,0.10)")
+                                   : QStringLiteral("rgba(230,57,80,0.14)");
+        const QString playingBg = dark ? QStringLiteral("rgba(230,57,80,0.16)")
+                                       : QStringLiteral("rgba(230,57,80,0.22)");
         setStyleSheet(QStringLiteral(
                           "PlaylistMusicCard { background: transparent; border-bottom: 1px solid %1; }"
                           "PlaylistMusicCard:hover { background: %2; }"
@@ -163,7 +163,7 @@ protected:
         menu.setStyleSheet(
             "QMenu { background-color: rgba(30, 30, 50, 0.98); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px 0; min-width: 180px; }"
             "QMenu::item { color: rgba(255, 255, 255, 0.9); padding: 10px 16px; margin: 0; border-radius: 0; }"
-            "QMenu::item:selected { background-color: rgba(196, 167, 231, 0.18); }"
+            "QMenu::item:selected { background-color: rgba(230, 57, 80, 0.18); }"
             "QMenu::item:disabled { color: rgba(255, 255, 255, 0.4); }"
         );
 
@@ -205,7 +205,7 @@ private:
         p.setRenderHint(QPainter::Antialiasing);
         QPainterPath path;
         path.addRoundedRect(0, 0, 48, 48, 4, 4);
-        p.fillPath(path, QColor(196, 167, 231, 200));
+        p.fillPath(path, QColor(230, 57, 80, 200));
         p.setClipPath(path);
         auto icon = Icons::render(Icons::kMusic, 20, QColor(255, 255, 255, 200));
         p.drawPixmap(14, 14, icon);
@@ -257,7 +257,7 @@ void PlaylistDetailPage::applyPlaylistDetailStyle()
     if (m_headerGlass) {
         if (dark) {
             m_headerGlass->setBaseColor(QColor(45, 38, 65));
-            m_headerGlass->setBorderColor(QColor(196, 167, 231, 58));
+            m_headerGlass->setBorderColor(QColor(230, 57, 80, 58));
             m_headerGlass->setOpacity(0.54);
         } else {
             m_headerGlass->setBaseColor(QColor(255, 255, 255));
@@ -269,7 +269,7 @@ void PlaylistDetailPage::applyPlaylistDetailStyle()
     if (m_listGlass) {
         if (dark) {
             m_listGlass->setBaseColor(QColor(38, 33, 54));
-            m_listGlass->setBorderColor(QColor(196, 167, 231, 45));
+            m_listGlass->setBorderColor(QColor(230, 57, 80, 45));
             m_listGlass->setOpacity(0.50);
         } else {
             m_listGlass->setBaseColor(QColor(255, 255, 255));
@@ -283,8 +283,8 @@ void PlaylistDetailPage::applyPlaylistDetailStyle()
         m_scroll->setStyleSheet(QStringLiteral(
             "QScrollArea#playlistScroll { border: none; background: transparent; }"
             "QScrollBar:vertical { width: 6px; background: transparent; }"
-            "QScrollBar::handle:vertical { background: rgba(196,167,231,%1); border-radius: 3px; min-height: 48px; }"
-            "QScrollBar::handle:vertical:hover { background: rgba(196,167,231,%2); }"
+            "QScrollBar::handle:vertical { background: rgba(230,57,80,%1); border-radius: 3px; min-height: 48px; }"
+            "QScrollBar::handle:vertical:hover { background: rgba(230,57,80,%2); }"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
             "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }")
                                     .arg(dark ? 68 : 82)
@@ -325,7 +325,7 @@ void PlaylistDetailPage::applyPlaylistDetailStyle()
     }
     if (m_creatorAvatarLbl) {
         m_creatorAvatarLbl->setStyleSheet(QStringLiteral(
-            "QLabel { border-radius: 10px; background: rgba(196,167,231,%1); }")
+            "QLabel { border-radius: 10px; background: rgba(230,57,80,%1); }")
                                               .arg(dark ? 42 : 28));
     }
     if (m_creatorNameLbl) {
@@ -340,7 +340,7 @@ void PlaylistDetailPage::applyPlaylistDetailStyle()
     }
     if (m_coverLbl) {
         m_coverLbl->setStyleSheet(QStringLiteral(
-            "QLabel { border-radius: 12px; border: 1px solid rgba(196,167,231,%1); }")
+            "QLabel { border-radius: 12px; border: 1px solid rgba(230,57,80,%1); }")
                                       .arg(dark ? 38 : 48));
     }
     if (m_listHeaderWidget) {
@@ -635,7 +635,7 @@ void PlaylistDetailPage::setPlaceholderCover()
     p.setRenderHint(QPainter::Antialiasing);
     QPainterPath path;
     path.addRoundedRect(0, 0, 200, 200, 8, 8);
-    p.fillPath(path, QColor(196, 167, 231, 200));
+    p.fillPath(path, QColor(230, 57, 80, 200));
     p.setClipPath(path);
     auto icon = Icons::render(Icons::kMusic, 60, QColor(255, 255, 255, 200));
     p.drawPixmap(70, 70, icon);

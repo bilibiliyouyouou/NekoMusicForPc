@@ -2,10 +2,9 @@
 
 /**
  * @file theme.h
- * @brief NekoMusic ACG 二次元现代风主题常量
+ * @brief NekoMusic 桌面端主题常量（与 Android 端玫红主色 + 深夜蓝底对齐，现代 ACG）
  *
- * 薰衣草紫 + 樱花粉 + 薄荷绿，深夜紫黑底；界面以矢量图标与 QSS 层次为主，不使用 emoji。
- * 所有配色、尺寸、动画参数集中管理。
+ * 玫红强调 + 樱花粉描边 + 薄荷/天蓝焦点环；无 emoji。尺寸与动画集中于此。
  */
 
 #include <QColor>
@@ -13,75 +12,70 @@
 namespace Theme
 {
 
-    // ─── 主配色：薰衣草紫 ─────────────────────────────────────
-    constexpr const char *kLavender = "#C4A7E7";   // 主色
-    constexpr const char *kLavenderLt = "#D4BFF0"; // 浅薰衣草
-    constexpr const char *kLavenderDk = "#A88BD4"; // 深薰衣草
+    // ─── 主色：玫红（与 Android Color.kt RoseRed / LightRose 一致）────────
+    constexpr const char *kLavender = "#FF6B8B";   // 主强调（沿用旧名以免全工程改名）
+    constexpr const char *kLavenderLt = "#FF8FA3";
+    constexpr const char *kLavenderDk = "#E63950";
 
-    // ─── 辅色：樱花粉 ──────────────────────────────────────────
-    constexpr const char *kSakura = "#F2ACB9";   // 樱花粉
-    constexpr const char *kSakuraLt = "#F8C8D1"; // 浅粉
-    constexpr const char *kSakuraDk = "#E08FA0"; // 深粉
+    // ─── 辅色：樱花粉（玻璃描边 / 弱高亮）────────────────────────────
+    constexpr const char *kSakura = "#FFB7C5";
+    constexpr const char *kSakuraLt = "#FFD0DA";
+    constexpr const char *kSakuraDk = "#F2ACB9";
 
-    // ─── 点缀：薄荷绿 ──────────────────────────────────────────
-    constexpr const char *kMint = "#7EC8C8";   // 薄荷绿
-    constexpr const char *kMintLt = "#9DD8D8"; // 浅薄荷
-    constexpr const char *kMintDk = "#5EAEAE"; // 深薄荷
+    // ─── 点缀：薄荷绿（焦点 / 侧栏选中条）────────────────────────────
+    constexpr const char *kMint = "#7EC8C8";
+    constexpr const char *kMintLt = "#9DD8D8";
+    constexpr const char *kMintDk = "#5EAEAE";
 
-    // ─── 背景色 ────────────────────────────────────────────────
-    constexpr const char *kBgDeep = "#1A1625";    // 最深紫黑
-    constexpr const char *kBgMid = "#241F31";     // 暗紫灰
-    constexpr const char *kBgSurface = "#2D263F"; // 表面紫灰
+    // ─── 背景（深夜蓝紫，贴近 Android BackgroundDark / Surface）────────
+    constexpr const char *kBgDeep = "#0E0E1C";
+    constexpr const char *kBgMid = "#121228";
+    constexpr const char *kBgSurface = "#1A1A2E";
 
-    // ─── 文字色 ────────────────────────────────────────────────
-    constexpr const char *kTextMain = "#F5F0FF";                   // 暖白
-    constexpr const char *kTextSub = "rgba(245, 240, 255, 166)";   // 65% 暖灰紫
-    constexpr const char *kTextMuted = "rgba(245, 240, 255, 102)"; // 40% 弱紫灰
+    // ─── 文字 ────────────────────────────────────────────────────────
+    constexpr const char *kTextMain = "#F4F6FF";
+    constexpr const char *kTextSub = "rgba(244, 246, 255, 168)";
+    constexpr const char *kTextMuted = "rgba(244, 246, 255, 105)";
 
-    // ─── 毛玻璃 ────────────────────────────────────────────────
-    // 卡片/面板毛玻璃背景 (65% 不透明度)
-    constexpr const char *kGlassBg = "rgba(45, 38, 65, 166)";
-    // 侧边栏毛玻璃 (80% 不透明度)
-    constexpr const char *kGlassSidebar = "rgba(36, 31, 49, 204)";
-    // 播放栏毛玻璃 (85% 不透明度)
-    constexpr const char *kGlassPlayer = "rgba(36, 31, 49, 218)";
-    // 轮播遮罩毛玻璃
-    constexpr const char *kGlassOverlay = "rgba(26, 22, 37, 180)";
+    // ─── 毛玻璃（基于新 surface）────────────────────────────────────
+    constexpr const char *kGlassBg = "rgba(26, 26, 46, 178)";
+    constexpr const char *kGlassSidebar = "rgba(18, 18, 40, 210)";
+    constexpr const char *kGlassPlayer = "rgba(18, 18, 40, 225)";
+    constexpr const char *kGlassOverlay = "rgba(14, 14, 28, 185)";
 
-    // ─── 边框 ──────────────────────────────────────────────────
-    constexpr const char *kBorderGlass = "rgba(196, 167, 231, 38)";  // 薰衣草15%
-    constexpr const char *kBorderFocus = "rgba(126, 200, 200, 166)"; // 薄荷65%
+    // ─── 边框（樱花粉半透明，呼应 Android GlassSurface 描边）──────────
+    constexpr const char *kBorderGlass = "rgba(255, 183, 197, 55)";
+    constexpr const char *kBorderFocus = "rgba(135, 206, 235, 140)";
 
-    // ─── 渐变（QSS 格式） ─────────────────────────────────────
-    constexpr const char *kGradMain = "qlineargradient(x1:0,y1:0,x2:0.3,y2:1,"
-                                      "stop:0 #C4A7E7, stop:1 #A88BD4)";
+    // ─── 渐变（QSS）──────────────────────────────────────────────────
+    constexpr const char *kGradMain = "qlineargradient(x1:0,y1:0,x2:0.28,y2:1,"
+                                      "stop:0 #FF8FA3, stop:1 #E63950)";
     constexpr const char *kGradSakura = "qlineargradient(x1:0,y1:0,x2:0.3,y2:1,"
-                                        "stop:0 #F2ACB9, stop:1 #E08FA0)";
+                                          "stop:0 #FFD0DA, stop:1 #F2ACB9)";
     constexpr const char *kGradMint = "qlineargradient(x1:0,y1:0,x2:0.3,y2:1,"
-                                      "stop:0 #7EC8C8, stop:1 #5EAEAE)";
-    constexpr const char *kGradBg = "qlineargradient(x1:0,y1:0,x2:0.42,y2:1,"
-                                    "stop:0 #14101c, stop:0.38 #1a1626, stop:1 #252032)";
+                                        "stop:0 #7EC8C8, stop:1 #5EAEAE)";
+    constexpr const char *kGradBg = "qlineargradient(x1:0,y1:0,x2:0.45,y2:1,"
+                                    "stop:0 #080810, stop:0.35 #0E0E1C, stop:1 #15152A)";
 
-    // ─── 布局尺寸 ──────────────────────────────────────────────
-    constexpr int kSidebarW = 240;   // 侧边栏宽度
-    constexpr int kTitleBarH = 56;   // 标题栏高度
-    constexpr int kPlayerBarH = 80;  // 播放栏高度
-    constexpr int kCoverSmall = 140; // 网格卡片封面尺寸
-    constexpr int kCoverRadius = 12; // 封面圆角
+    // ─── 布局尺寸 ────────────────────────────────────────────────────
+    constexpr int kSidebarW = 248;
+    constexpr int kTitleBarH = 58;
+    constexpr int kPlayerBarH = 84;
+    constexpr int kCoverSmall = 144;
+    constexpr int kCoverRadius = 14;
 
-    // ─── 圆角 ──────────────────────────────────────────────────
-    constexpr int kRSm = 8;
-    constexpr int kRMd = 12;
-    constexpr int kRLg = 16;
-    constexpr int kRXl = 24;
+    // ─── 圆角 ──────────────────────────────────────────────────────
+    constexpr int kRSm = 10;
+    constexpr int kRMd = 14;
+    constexpr int kRLg = 18;
+    constexpr int kRXl = 22;
 
-    // ─── 动画 (ms) ─────────────────────────────────────────────
+    // ─── 动画 (ms) ─────────────────────────────────────────────────
     constexpr int kAnimFast = 150;
     constexpr int kAnimNormal = 250;
     constexpr int kAnimSlow = 400;
-    constexpr int kCarouselMs = 5000; // 轮播间隔
+    constexpr int kCarouselMs = 5000;
 
-    // ─── API ───────────────────────────────────────────────────
     constexpr const char *kApiBase = "https://music.cnmsb.xin";
 
 } // namespace Theme

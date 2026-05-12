@@ -138,23 +138,23 @@ protected:
         if (dark) {
             if (m_isCurrent) {
                 QLinearGradient g(rect().topLeft(), rect().bottomLeft());
-                g.setColorAt(0.0, QColor(196, 167, 231, 38));
+                g.setColorAt(0.0, QColor(230, 57, 80, 38));
                 g.setColorAt(1.0, QColor(126, 200, 200, 14));
                 p.fillPath(path, g);
-                p.strokePath(path, QPen(QColor(196, 167, 231, 95), 1.0));
+                p.strokePath(path, QPen(QColor(230, 57, 80, 95), 1.0));
             } else if (m_hover) {
-                p.fillPath(path, QColor(196, 167, 231, 18));
-                p.strokePath(path, QPen(QColor(196, 167, 231, 55), 1.0));
+                p.fillPath(path, QColor(230, 57, 80, 18));
+                p.strokePath(path, QPen(QColor(230, 57, 80, 55), 1.0));
             } else {
                 p.fillPath(path, QColor(42, 36, 58, 200));
-                p.strokePath(path, QPen(QColor(196, 167, 231, 32), 1.0));
+                p.strokePath(path, QPen(QColor(230, 57, 80, 32), 1.0));
             }
         } else {
             if (m_isCurrent) {
-                p.fillPath(path, QColor(196, 167, 231, 42));
+                p.fillPath(path, QColor(230, 57, 80, 42));
                 p.strokePath(path, QPen(QColor(111, 66, 193, 85), 1.0));
             } else if (m_hover) {
-                p.fillPath(path, QColor(196, 167, 231, 22));
+                p.fillPath(path, QColor(230, 57, 80, 22));
                 p.strokePath(path, QPen(QColor(111, 66, 193, 45), 1.0));
             } else {
                 p.fillPath(path, QColor(255, 255, 255, 220));
@@ -239,7 +239,7 @@ private:
     void updateIndexDisplay()
     {
         if (m_isCurrent) {
-            const QColor ac = Theme::ThemeManager::instance().isDarkMode() ? QColor(196, 167, 231)
+            const QColor ac = Theme::ThemeManager::instance().isDarkMode() ? QColor(230, 57, 80)
                                                                             : QColor(111, 66, 193);
             auto icon = Icons::render(Icons::kPlay, 14, ac);
             QPixmap pix(26, 26);
@@ -293,7 +293,7 @@ private:
         QPainterPath cp;
         cp.addRoundedRect(0, 0, 48, 48, 10, 10);
         p.fillPath(cp, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
-        p.setPen(dark ? QColor(196, 167, 231, 200) : QColor(111, 66, 193, 180));
+        p.setPen(dark ? QColor(230, 57, 80, 200) : QColor(111, 66, 193, 180));
         QFont f = p.font();
         f.setPixelSize(11);
         f.setWeight(QFont::DemiBold);
@@ -387,8 +387,8 @@ void PlaylistPanel::applyPanelChrome()
     }
     if (m_closeBtn) {
         m_closeBtn->setStyleSheet(QStringLiteral(
-            "QPushButton { background: rgba(196,167,231,%2); border: none; border-radius: 14px; color: %1; font-size: 18px; }"
-            "QPushButton:hover { background: rgba(196,167,231,%3); color: %4; }")
+            "QPushButton { background: rgba(230,57,80,%2); border: none; border-radius: 14px; color: %1; font-size: 18px; }"
+            "QPushButton:hover { background: rgba(230,57,80,%3); color: %4; }")
                                       .arg(dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529"))
                                       .arg(dark ? 14 : 20)
                                       .arg(dark ? 32 : 40)
@@ -397,7 +397,7 @@ void PlaylistPanel::applyPanelChrome()
     if (m_divider) {
         m_divider->setStyleSheet(QStringLiteral(
             "QWidget#ppDivider { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, "
-            "stop:0 transparent, stop:0.15 rgba(196,167,231,%1), stop:0.5 rgba(196,167,231,%2), stop:0.85 rgba(196,167,231,%1), stop:1 transparent); }")
+            "stop:0 transparent, stop:0.15 rgba(230,57,80,%1), stop:0.5 rgba(230,57,80,%2), stop:0.85 rgba(230,57,80,%1), stop:1 transparent); }")
                                      .arg(dark ? 55 : 65)
                                      .arg(dark ? 28 : 38));
     }
@@ -405,8 +405,8 @@ void PlaylistPanel::applyPanelChrome()
         m_scroll->setStyleSheet(QStringLiteral(
             "QScrollArea#ppScroll { border: none; background: transparent; }"
             "QScrollBar:vertical { width: 5px; background: transparent; margin: 2px 0 4px 0; }"
-            "QScrollBar::handle:vertical { background: rgba(196,167,231,%1); border-radius: 3px; min-height: 40px; }"
-            "QScrollBar::handle:vertical:hover { background: rgba(196,167,231,%2); }"
+            "QScrollBar::handle:vertical { background: rgba(230,57,80,%1); border-radius: 3px; min-height: 40px; }"
+            "QScrollBar::handle:vertical:hover { background: rgba(230,57,80,%2); }"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
             "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }")
                                     .arg(dark ? 70 : 82)
@@ -585,6 +585,6 @@ void PlaylistPanel::paintEvent(QPaintEvent *event)
     GlassPaint::paintMainWindowDeepBackdrop(p, rect(), dark);
     p.setClipping(false);
 
-    p.setPen(QPen(dark ? QColor(196, 167, 231, 58) : QColor(111, 66, 193, 72), 1.0));
+    p.setPen(QPen(dark ? QColor(230, 57, 80, 58) : QColor(111, 66, 193, 72), 1.0));
     p.drawPath(clip);
 }

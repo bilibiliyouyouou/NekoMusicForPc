@@ -135,8 +135,8 @@ public:
             localBadge->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
             const bool dark = Theme::ThemeManager::instance().isDarkMode();
             const QString fg = dark ? QString::fromUtf8(Theme::kLavenderLt) : QStringLiteral("#6F42C1");
-            const QString bg = dark ? QStringLiteral("rgba(196,167,231,0.18)") : QStringLiteral("rgba(111,66,193,0.12)");
-            const QString bd = dark ? QStringLiteral("rgba(196,167,231,0.45)") : QStringLiteral("rgba(111,66,193,0.35)");
+            const QString bg = dark ? QStringLiteral("rgba(230,57,80,0.18)") : QStringLiteral("rgba(111,66,193,0.12)");
+            const QString bd = dark ? QStringLiteral("rgba(230,57,80,0.45)") : QStringLiteral("rgba(111,66,193,0.35)");
             localBadge->setStyleSheet(QStringLiteral(
                 "QLabel { font-size: 10px; font-weight: 700; color: %1; padding: 2px 8px; border-radius: 6px; "
                 "background: %2; border: 1px solid %3; }")

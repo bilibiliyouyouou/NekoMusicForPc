@@ -65,7 +65,7 @@ void PlayerPage::applyPlayerPageStyle()
     if (m_leftGlass) {
         if (dark) {
             m_leftGlass->setBaseColor(QColor(45, 38, 65));
-            m_leftGlass->setBorderColor(QColor(196, 167, 231, 58));
+            m_leftGlass->setBorderColor(QColor(230, 57, 80, 58));
             m_leftGlass->setOpacity(0.54);
         } else {
             m_leftGlass->setBaseColor(QColor(255, 255, 255));
@@ -77,7 +77,7 @@ void PlayerPage::applyPlayerPageStyle()
     if (m_rightGlass) {
         if (dark) {
             m_rightGlass->setBaseColor(QColor(40, 34, 58));
-            m_rightGlass->setBorderColor(QColor(196, 167, 231, 48));
+            m_rightGlass->setBorderColor(QColor(230, 57, 80, 48));
             m_rightGlass->setOpacity(0.50);
         } else {
             m_rightGlass->setBaseColor(QColor(255, 255, 255));
@@ -94,7 +94,7 @@ void PlayerPage::applyPlayerPageStyle()
         m_clrLyricDim = QString::fromUtf8(Theme::kTextMuted);
         m_clrLyricHi = QString::fromUtf8(Theme::kLavender);
         m_clrLyricHiTrans = QString::fromUtf8(Theme::kLavenderLt);
-        m_clrLyricHiBg = QStringLiteral("rgba(196,167,231,24)");
+        m_clrLyricHiBg = QStringLiteral("rgba(230,57,80,24)");
     } else {
         m_clrTitle = QStringLiteral("#6F42C1");
         m_clrArtist = QStringLiteral("rgba(33,37,41,0.78)");
@@ -102,11 +102,11 @@ void PlayerPage::applyPlayerPageStyle()
         m_clrLyricDim = QStringLiteral("rgba(33,37,41,0.52)");
         m_clrLyricHi = QStringLiteral("#6F42C1");
         m_clrLyricHiTrans = QStringLiteral("#8B6FC4");
-        m_clrLyricHiBg = QStringLiteral("rgba(196,167,231,0.38)");
+        m_clrLyricHiBg = QStringLiteral("rgba(230,57,80,0.38)");
     }
 
     const QString backFg = dark ? QString::fromUtf8(Theme::kLavender) : QStringLiteral("#6F42C1");
-    const QString coverBorder = dark ? QStringLiteral("rgba(196,167,231,32)")
+    const QString coverBorder = dark ? QStringLiteral("rgba(230,57,80,32)")
                                      : QStringLiteral("rgba(111,66,193,0.32)");
 
     const int backBgA = dark ? 18 : 22;
@@ -121,10 +121,10 @@ void PlayerPage::applyPlayerPageStyle()
                       "#playerPage { background: transparent; }"
 
                       "#playerBackBtn { "
-                      "  background: rgba(196,167,231,%5); color: %1; font-size: 20px; "
-                      "  border: 1px solid rgba(196,167,231,%6); border-radius: 22px; }"
+                      "  background: rgba(230,57,80,%5); color: %1; font-size: 20px; "
+                      "  border: 1px solid rgba(230,57,80,%6); border-radius: 22px; }"
                       "#playerBackBtn:hover { "
-                      "  background: rgba(196,167,231,%7); color: %1; border-color: rgba(196,167,231,%8); }"
+                      "  background: rgba(230,57,80,%7); color: %1; border-color: rgba(230,57,80,%8); }"
 
                       "#playerCoverLabel { "
                       "  background: transparent; "
@@ -149,7 +149,7 @@ void PlayerPage::applyPlayerPageStyle()
 
                       "#lyricsSeparator { "
                       "  background: qlineargradient(x1:0,y1:0,x2:1,y2:0, "
-                      "    stop:0 rgba(196,167,231,%10), stop:1 rgba(196,167,231,0)); }"
+                      "    stop:0 rgba(230,57,80,%10), stop:1 rgba(230,57,80,0)); }"
 
                       "#lyricsScroll { "
                       "  background: transparent; border: none; }"
@@ -157,9 +157,9 @@ void PlayerPage::applyPlayerPageStyle()
 
                       "QScrollBar:vertical { width: 4px; background: transparent; }"
                       "QScrollBar::handle:vertical { "
-                      "  background: rgba(196,167,231,%11); border-radius: 2px; min-height: 50px; }"
+                      "  background: rgba(230,57,80,%11); border-radius: 2px; min-height: 50px; }"
                       "QScrollBar::handle:vertical:hover { "
-                      "  background: rgba(196,167,231,%12); }"
+                      "  background: rgba(230,57,80,%12); }"
                       "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
                       "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }")
                       .arg(backFg)
@@ -455,7 +455,7 @@ void PlayerPage::applyCoverUnknownLarge()
     QPainterPath path;
     path.addRoundedRect(0, 0, 320, 320, 32, 32);
     p.fillPath(path, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
-    p.setPen(dark ? QColor(196, 167, 231, 220) : QColor(111, 66, 193, 200));
+    p.setPen(dark ? QColor(230, 57, 80, 220) : QColor(111, 66, 193, 200));
     QFont f = p.font();
     f.setPixelSize(56);
     f.setWeight(QFont::DemiBold);

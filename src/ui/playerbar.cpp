@@ -53,8 +53,8 @@ QPixmap makeUnknownCover48(bool dark)
     p.setRenderHint(QPainter::Antialiasing, true);
     QPainterPath path;
     path.addRoundedRect(0, 0, 48, 48, 8, 8);
-    p.fillPath(path, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
-    p.setPen(dark ? QColor(196, 167, 231, 200) : QColor(111, 66, 193, 180));
+    p.fillPath(path, dark ? QColor(26, 26, 46) : QColor(255, 240, 244));
+    p.setPen(dark ? QColor(230, 57, 80, 200) : QColor(111, 66, 193, 180));
     QFont f = p.font();
     f.setPixelSize(13);
     f.setWeight(QFont::DemiBold);
@@ -66,8 +66,8 @@ QPixmap makeUnknownCover48(bool dark)
 
 
 // 与 old PlayerBar.vue 的 .control-btn / .play-btn 观感对齐：更大、更亮
-const QColor kPbIconAccent = QColor(212, 196, 255, 255);
-const QColor kPbPlayGlyph = QColor(26, 22, 37, 255);
+const QColor kPbIconAccent = QColor(255, 143, 158, 255);
+const QColor kPbPlayGlyph = QColor(18, 10, 14, 255);
 const QColor kPbHeartOn = QColor(255, 69, 69, 255);
 constexpr int kPbCtrlBtn = 38;
 constexpr int kPbPlayBtn = 48;
@@ -165,13 +165,13 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
         painter.translate(c);
 
         const bool dark = Theme::ThemeManager::instance().isDarkMode();
-        const QColor track = dark ? QColor(196, 167, 231, 72) : QColor(150, 130, 195, 90);
+        const QColor track = dark ? QColor(230, 57, 80, 72) : QColor(214, 90, 108, 90);
         QPen penTrack(track, 2.0, Qt::SolidLine, Qt::RoundCap);
         painter.setPen(penTrack);
         painter.drawArc(-R, -R, 2 * R, 2 * R, 0, 360 * 16);
 
         painter.rotate(ang);
-        const QColor arc = dark ? QColor(250, 245, 255, 238) : QColor(90, 65, 130, 245);
+        const QColor arc = dark ? QColor(255, 230, 235, 240) : QColor(200, 60, 90, 245);
         QPen penArc(arc, 2.8, Qt::SolidLine, Qt::RoundCap);
         painter.setPen(penArc);
         painter.drawArc(-R, -R, 2 * R, 2 * R, -90 * 16, 285 * 16);
@@ -308,8 +308,8 @@ void PlayerBar::setupUi()
     QPainterPath ppp;
     ppp.addRoundedRect(0, 0, 48, 48, 8, 8);
     QLinearGradient g(0, 0, 48, 48);
-    g.setColorAt(0.0, QColor(196, 167, 231));
-    g.setColorAt(1.0, QColor(168, 139, 212));
+    g.setColorAt(0.0, QColor(230, 57, 80));
+    g.setColorAt(1.0, QColor(214, 40, 57));
     pp.fillPath(ppp, g);
     pp.end();
     coverBtn->setIcon(QIcon(ph));
