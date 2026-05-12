@@ -38,8 +38,8 @@ public:
         setAttribute(Qt::WA_StyledBackground, true);
         setStyleSheet(
             "SearchResultCard { background: transparent; border-radius: 8px; }"
-            "SearchResultCard:hover { background: rgba(102, 126, 234, 0.1); }"
-            "SearchResultCard.playing { background: rgba(102, 126, 234, 0.15); }"
+            "SearchResultCard:hover { background: rgba(230, 57, 80, 0.12); }"
+            "SearchResultCard.playing { background: rgba(230, 57, 80, 0.18); }"
         );
 
         auto *lay = new QHBoxLayout(this);
@@ -187,7 +187,7 @@ public:
         setAttribute(Qt::WA_StyledBackground, true);
         setStyleSheet(
             "PlaylistResultCard { background: rgba(45, 38, 65, 100); border-radius: 8px; }"
-            "PlaylistResultCard:hover { background: rgba(102, 126, 234, 0.1); }"
+            "PlaylistResultCard:hover { background: rgba(230, 57, 80, 0.12); }"
         );
 
         auto *lay = new QHBoxLayout(this);
@@ -296,7 +296,7 @@ public:
         setAttribute(Qt::WA_StyledBackground, true);
         setStyleSheet(
             "ArtistMusicItem { background: transparent; }"
-            "ArtistMusicItem:hover { background: rgba(102, 126, 234, 0.08); border-radius: 6px; }"
+            "ArtistMusicItem:hover { background: rgba(230, 57, 80, 0.10); border-radius: 6px; }"
         );
 
         auto *lay = new QHBoxLayout(this);
@@ -401,7 +401,7 @@ public:
         headerWidget->setAttribute(Qt::WA_StyledBackground, true);
         headerWidget->setStyleSheet(
             "QWidget { background: rgba(45, 38, 65, 100); border-radius: 8px; }"
-            "QWidget:hover { background: rgba(102, 126, 234, 0.1); }"
+            "QWidget:hover { background: rgba(230, 57, 80, 0.10); }"
         );
         auto *headerLay = new QHBoxLayout(headerWidget);
         headerLay->setContentsMargins(12, 8, 12, 8);
