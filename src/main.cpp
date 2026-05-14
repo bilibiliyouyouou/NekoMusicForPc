@@ -12,6 +12,8 @@
 #include <QLocalServer>
 #include <QTimer>
 #include <QFileInfo>
+#include <QNetworkProxy>
+#include <QNetworkProxyFactory>
 #include "ui/mainwindow.h"
 #include "core/i18n.h"
 #include "core/playlistdb.h"
@@ -68,6 +70,10 @@ int main(int argc, char *argv[])
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QApplication app(argc, argv);
+
+    // 直连：不读取系统/环境变量代理（如 http_proxy），避免本机代理干扰 API 与流媒体。
+    QNetworkProxyFactory::setUseSystemConfiguration(false);
+    QNetworkProxy::setApplicationProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 
 #ifdef Q_OS_WIN
     /* Windows 默认「windowsvista/11」样式会大量忽略或错误应用 QSS，自定义界面几乎全废。
