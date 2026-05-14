@@ -116,6 +116,23 @@ QString buildShareClipboardText(const MusicInfo &m)
     t += QStringLiteral("\n");
     return t;
 }
+
+static QList<MusicInfo> musicListPageRowsToCore(const QList<MusicListPage::MusicInfo> &rows)
+{
+    QList<MusicInfo> out;
+    out.reserve(rows.size());
+    for (const auto &m : rows) {
+        MusicInfo mi;
+        mi.id = m.id;
+        mi.title = m.title;
+        mi.artist = m.artist;
+        mi.album = m.album;
+        mi.duration = m.duration;
+        mi.coverUrl = m.coverUrl;
+        out.append(mi);
+    }
+    return out;
+}
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
@@ -326,6 +343,14 @@ void MainWindow::setupUi()
         else if (key == "search") switchPage(m_searchPage);
     });
     connect(m_favoritesPage, &FavoritesPage::playRequested, this, &MainWindow::playMusicById);
+    connect(m_favoritesPage, &FavoritesPage::playAllRequested, this, [this](const QList<MusicInfo> &results) {
+        PlaylistManager::instance().clearPlaylist();
+        PlaylistManager::instance().addAllToPlaylist(results);
+        if (!results.isEmpty()) {
+            const auto &first = results.first();
+            playMusicById(first.id, first.title, first.artist, first.coverUrl);
+        }
+    });
     connect(&UserManager::instance(), &UserManager::loginStateChanged, this, [this]() {
         if (m_favoritesPage) m_favoritesPage->refresh();
         loadFavoritesCache();
@@ -337,6 +362,12 @@ void MainWindow::setupUi()
         m_sidebar->loadPlaylists();
     }
     connect(m_recentPage, &RecentPage::playRequested, this, &MainWindow::playMusicFromInfo);
+    connect(m_recentPage, &RecentPage::playAllRequested, this, [this](const QList<MusicInfo> &results) {
+        PlaylistManager::instance().clearPlaylist();
+        PlaylistManager::instance().addAllToPlaylist(results);
+        if (!results.isEmpty())
+            playMusicFromInfo(results.first());
+    });
     connect(m_sidebar, &Sidebar::playlistClicked, this, &MainWindow::showPlaylistDetailPage);
     connect(m_sidebar, &Sidebar::playlistCreateRequested, this, &MainWindow::createPlaylist);
     connect(m_titleBar, &TitleBar::settingsClicked, this, [this]() {
@@ -347,6 +378,8 @@ void MainWindow::setupUi()
     connect(m_settingsPage, &SettingsPage::languageChanged, m_titleBar, &TitleBar::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_playerBar, &PlayerBar::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_playerPage, &PlayerPage::retranslate);
+    connect(m_settingsPage, &SettingsPage::languageChanged, m_favoritesPage, &FavoritesPage::retranslate);
+    connect(m_settingsPage, &SettingsPage::languageChanged, m_recentPage, &RecentPage::retranslate);
 
     // 音乐加载器连接 — 由各播放方法按需单独连接
 
@@ -469,6 +502,18 @@ void MainWindow::setupUi()
     connect(m_latestMusicPage, &MusicListPage::playMusic, this, [this](const MusicListPage::MusicInfo &info) {
         playMusicById(info.id, info.title, info.artist, info.coverUrl);
     });
+
+    const auto onMusicListPlayAll = [this](const QList<MusicListPage::MusicInfo> &results) {
+        const QList<MusicInfo> coreList = musicListPageRowsToCore(results);
+        PlaylistManager::instance().clearPlaylist();
+        PlaylistManager::instance().addAllToPlaylist(coreList);
+        if (!coreList.isEmpty()) {
+            const auto &first = coreList.first();
+            playMusicById(first.id, first.title, first.artist, first.coverUrl);
+        }
+    };
+    connect(m_hotMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
+    connect(m_latestMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
 
     // 音乐列表页添加到播放队列
     connect(m_hotMusicPage, &MusicListPage::addToQueue, this, [this](const MusicListPage::MusicInfo &info) {

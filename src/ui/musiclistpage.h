@@ -14,6 +14,7 @@
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
+class QPushButton;
 class ApiClient;
 
 class MusicListPage : public QWidget
@@ -36,6 +37,7 @@ public:
 
 signals:
     void playMusic(const MusicInfo &info);
+    void playAllRequested(const QList<MusicInfo> &results);
     void addToQueue(const MusicInfo &info);
     void addToPlaylist(const MusicInfo &info);
     void backRequested();
@@ -59,6 +61,7 @@ private:
     QWidget *m_listContainer = nullptr;
     QLabel *m_titleLabel = nullptr;
     QLabel *m_loadingLabel = nullptr;
+    QPushButton *m_playAllBtn = nullptr;
     ApiClient *m_api = nullptr;
 
     QList<MusicInfo> m_musicList;

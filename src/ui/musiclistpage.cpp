@@ -321,6 +321,8 @@ void MusicListPage::fetchData()
 
 void MusicListPage::buildList()
 {
+    m_playAllBtn = nullptr;
+
     // 移除loading和stretch
     QLayoutItem *item;
     while ((item = m_listLayout->takeAt(0)) != nullptr) {
@@ -341,6 +343,27 @@ void MusicListPage::buildList()
         m_listLayout->addStretch(1);
         return;
     }
+
+    // 播放全部（与搜索页样式一致）
+    auto *playAllHeader = new QWidget(m_listContainer);
+    auto *playAllLay = new QHBoxLayout(playAllHeader);
+    playAllLay->setContentsMargins(0, 0, 0, 8);
+
+    m_playAllBtn = new QPushButton(I18n::instance().tr("playAll"), playAllHeader);
+    m_playAllBtn->setFixedHeight(36);
+    m_playAllBtn->setCursor(Qt::PointingHandCursor);
+    m_playAllBtn->setStyleSheet(
+        "QPushButton { background: " + QString(Theme::kMint) + "; border: none; border-radius: 18px; "
+        "color: " + QString(Theme::kBgMid) + "; font-size: 13px; font-weight: 600; padding: 0 20px; }"
+        "QPushButton:hover { background: " + QString(Theme::kMintLt) + "; }"
+    );
+    connect(m_playAllBtn, &QPushButton::clicked, this, [this]() {
+        emit playAllRequested(m_musicList);
+    });
+    playAllLay->addWidget(m_playAllBtn);
+    playAllLay->addStretch();
+
+    m_listLayout->addWidget(playAllHeader);
 
     m_buildIndex = 0;
     m_buildingList = true;
@@ -384,6 +407,8 @@ void MusicListPage::retranslate()
             m_type == Hot ? I18n::instance().tr("hotMusic") : I18n::instance().tr("latestMusic")
         );
     }
+    if (m_playAllBtn)
+        m_playAllBtn->setText(I18n::instance().tr("playAll"));
     // 不再重新设置"加载中"文本，因为加载完成后标签已被移除
 }
 

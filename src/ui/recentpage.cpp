@@ -18,6 +18,7 @@
 #include <QHBoxLayout>
 #include <QScrollArea>
 #include <QLabel>
+#include <QPushButton>
 #include <QPainter>
 #include <QPainterPath>
 #include <QMenu>
@@ -241,7 +242,10 @@ RecentPage::RecentPage(QWidget *parent) : QWidget(parent)
 
 void RecentPage::retranslate()
 {
-    // Update title if needed
+    if (m_titleLabel)
+        m_titleLabel->setText(I18n::instance().tr("recentPlay"));
+    if (m_playAllBtn)
+        m_playAllBtn->setText(I18n::instance().tr("playAll"));
 }
 
 void RecentPage::refresh()
@@ -263,10 +267,34 @@ void RecentPage::setupUi()
     m_mainLay->setContentsMargins(24, 24, 24, 24);
     m_mainLay->setSpacing(16);
 
-    // 标题
-    auto *titleLabel = new QLabel(I18n::instance().tr("recentPlay"), m_container);
-    titleLabel->setObjectName("recentTitle");
-    m_mainLay->addWidget(titleLabel);
+    // 标题行：标题 + 播放全部
+    auto *titleRow = new QWidget(m_container);
+    auto *titleRowLay = new QHBoxLayout(titleRow);
+    titleRowLay->setContentsMargins(0, 0, 0, 0);
+    titleRowLay->setSpacing(12);
+
+    m_titleLabel = new QLabel(I18n::instance().tr("recentPlay"), titleRow);
+    m_titleLabel->setObjectName("recentTitle");
+    titleRowLay->addWidget(m_titleLabel);
+
+    titleRowLay->addStretch();
+
+    m_playAllBtn = new QPushButton(I18n::instance().tr("playAll"), titleRow);
+    m_playAllBtn->setFixedHeight(36);
+    m_playAllBtn->setCursor(Qt::PointingHandCursor);
+    m_playAllBtn->setVisible(false);
+    m_playAllBtn->setStyleSheet(
+        "QPushButton { background: " + QString(Theme::kMint) + "; border: none; border-radius: 18px; "
+        "color: " + QString(Theme::kBgMid) + "; font-size: 13px; font-weight: 600; padding: 0 20px; }"
+        "QPushButton:hover { background: " + QString(Theme::kMintLt) + "; }"
+    );
+    connect(m_playAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_loadedRecent.isEmpty())
+            emit playAllRequested(m_loadedRecent);
+    });
+    titleRowLay->addWidget(m_playAllBtn);
+
+    m_mainLay->addWidget(titleRow);
 
     // 列表区域
     m_listLay = new QVBoxLayout();
@@ -290,6 +318,10 @@ void RecentPage::setupUi()
 
 void RecentPage::loadRecentPlays()
 {
+    m_loadedRecent.clear();
+    if (m_playAllBtn)
+        m_playAllBtn->setVisible(false);
+
     QLayoutItem *item;
     while ((item = m_listLay->takeAt(0)) != nullptr) {
         if (QWidget *w = item->widget())
@@ -308,6 +340,10 @@ void RecentPage::loadRecentPlays()
         m_listLay->addStretch(1);
         return;
     }
+
+    m_loadedRecent = recentPlays;
+    if (m_playAllBtn)
+        m_playAllBtn->setVisible(true);
 
     for (const auto &info : recentPlays) {
         auto *card = new RecentMusicCard(info, m_container);

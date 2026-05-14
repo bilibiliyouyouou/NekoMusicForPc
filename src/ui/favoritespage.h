@@ -6,8 +6,10 @@
 #include "core/musicinfo.h"
 
 class QVBoxLayout;
+class QHBoxLayout;
 class QScrollArea;
 class QLabel;
+class QPushButton;
 class ApiClient;
 
 class FavoritesPage : public QWidget
@@ -22,6 +24,7 @@ public:
 
 signals:
     void playRequested(int musicId, const QString& title, const QString& artist, const QString& coverUrl);
+    void playAllRequested(const QList<MusicInfo> &results);
 
 protected:
     void paintEvent(QPaintEvent *) override;
@@ -34,6 +37,9 @@ private:
     QVBoxLayout *m_mainLay = nullptr;
     QScrollArea *m_scroll = nullptr;
     QWidget *m_container = nullptr;
+    QLabel *m_titleLabel = nullptr;
+    QPushButton *m_playAllBtn = nullptr;
     QVBoxLayout *m_listLay = nullptr;
     QLabel *m_statusLabel = nullptr;
+    QList<MusicInfo> m_loadedFavorites;
 };

@@ -7,6 +7,8 @@
 
 class QVBoxLayout;
 class QScrollArea;
+class QLabel;
+class QPushButton;
 
 class RecentPage : public QWidget
 {
@@ -20,6 +22,7 @@ public:
 
 signals:
     void playRequested(const MusicInfo &info);
+    void playAllRequested(const QList<MusicInfo> &results);
 
 protected:
     void paintEvent(QPaintEvent *) override;
@@ -31,5 +34,8 @@ private:
     QVBoxLayout *m_mainLay = nullptr;
     QScrollArea *m_scroll = nullptr;
     QWidget *m_container = nullptr;
+    QLabel *m_titleLabel = nullptr;
+    QPushButton *m_playAllBtn = nullptr;
     QVBoxLayout *m_listLay = nullptr;
+    QList<MusicInfo> m_loadedRecent;
 };

@@ -16,6 +16,7 @@
 #include <QHBoxLayout>
 #include <QScrollArea>
 #include <QLabel>
+#include <QPushButton>
 #include <QPainter>
 #include <QPainterPath>
 #include <QGraphicsOpacityEffect>
@@ -202,7 +203,10 @@ FavoritesPage::FavoritesPage(ApiClient *apiClient, QWidget *parent)
 
 void FavoritesPage::retranslate()
 {
-    // Update title if needed
+    if (m_titleLabel)
+        m_titleLabel->setText(I18n::instance().tr("myFavorites"));
+    if (m_playAllBtn)
+        m_playAllBtn->setText(I18n::instance().tr("playAll"));
 }
 
 void FavoritesPage::refresh()
@@ -224,10 +228,34 @@ void FavoritesPage::setupUi()
     m_mainLay->setContentsMargins(24, 24, 24, 24);
     m_mainLay->setSpacing(16);
 
-    // 标题
-    auto *titleLabel = new QLabel(I18n::instance().tr("myFavorites"), m_container);
-    titleLabel->setObjectName("favoritesTitle");
-    m_mainLay->addWidget(titleLabel);
+    // 标题行：标题 + 播放全部
+    auto *titleRow = new QWidget(m_container);
+    auto *titleRowLay = new QHBoxLayout(titleRow);
+    titleRowLay->setContentsMargins(0, 0, 0, 0);
+    titleRowLay->setSpacing(12);
+
+    m_titleLabel = new QLabel(I18n::instance().tr("myFavorites"), titleRow);
+    m_titleLabel->setObjectName("favoritesTitle");
+    titleRowLay->addWidget(m_titleLabel);
+
+    titleRowLay->addStretch();
+
+    m_playAllBtn = new QPushButton(I18n::instance().tr("playAll"), titleRow);
+    m_playAllBtn->setFixedHeight(36);
+    m_playAllBtn->setCursor(Qt::PointingHandCursor);
+    m_playAllBtn->setVisible(false);
+    m_playAllBtn->setStyleSheet(
+        "QPushButton { background: " + QString(Theme::kMint) + "; border: none; border-radius: 18px; "
+        "color: " + QString(Theme::kBgMid) + "; font-size: 13px; font-weight: 600; padding: 0 20px; }"
+        "QPushButton:hover { background: " + QString(Theme::kMintLt) + "; }"
+    );
+    connect(m_playAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_loadedFavorites.isEmpty())
+            emit playAllRequested(m_loadedFavorites);
+    });
+    titleRowLay->addWidget(m_playAllBtn);
+
+    m_mainLay->addWidget(titleRow);
 
     // 状态标签（加载中/空状态）
     m_statusLabel = new QLabel(I18n::instance().tr("loading"), m_container);
@@ -258,6 +286,10 @@ void FavoritesPage::setupUi()
 
 void FavoritesPage::loadFavorites()
 {
+    m_loadedFavorites.clear();
+    if (m_playAllBtn)
+        m_playAllBtn->setVisible(false);
+
     QLayoutItem *item;
     while ((item = m_listLay->takeAt(0)) != nullptr) {
         if (QWidget *w = item->widget())
@@ -293,6 +325,8 @@ void FavoritesPage::loadFavorites()
             info.coverUrl = QString::fromUtf8("%1/api/music/cover/%2")
                                 .arg(Theme::kApiBase).arg(info.id);
 
+            m_loadedFavorites.append(info);
+
             auto *card = new FavMusicCard(info, m_container);
             card->onClicked = [this, info](int musicId) {
                 Q_UNUSED(musicId);
@@ -301,6 +335,9 @@ void FavoritesPage::loadFavorites()
             m_listLay->addWidget(card);
         }
         m_listLay->addStretch(1);
+
+        if (m_playAllBtn)
+            m_playAllBtn->setVisible(true);
     });
 }
 
