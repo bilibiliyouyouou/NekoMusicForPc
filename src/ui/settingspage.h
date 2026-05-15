@@ -33,7 +33,10 @@ private:
     QComboBox *m_langCombo = nullptr;
     QComboBox *m_themeCombo = nullptr;
     QLabel *m_langLabel = nullptr;
+    QLabel *m_aboutLabel = nullptr;
     QLabel *m_versionLabel = nullptr;
     QLabel *m_systemLabel = nullptr;
+    QPushButton *m_githubBtn = nullptr;
+    QPushButton *m_apiDocsBtn = nullptr;
     QPushButton *m_checkUpdateBtn = nullptr;
 };

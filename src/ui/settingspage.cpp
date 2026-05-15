@@ -19,6 +19,15 @@
 #include <QScrollArea>
 #include <QFrame>
 #include <QSettings>
+#include <QDesktopServices>
+#include <QUrl>
+
+namespace {
+
+constexpr auto kGithubUrl = "https://github.com/FantasyNetworkCN/NekoMusicForPc";
+constexpr auto kApiDocsUrl = "https://github.com/FantasyNetworkCN/NekoMusicDocs";
+
+} // namespace
 
 SettingsPage::SettingsPage(QWidget *parent) : QWidget(parent)
 {
@@ -121,6 +130,11 @@ void SettingsPage::setupUi()
     lineTheme->setObjectName("settingsDivider");
     cardLay->addWidget(lineTheme);
 
+    // 关于
+    m_aboutLabel = new QLabel(I18n::instance().tr("about"), cardBody);
+    m_aboutLabel->setObjectName("settingsLabel");
+    cardLay->addWidget(m_aboutLabel);
+
     // 版本 & 系统
     m_versionLabel = new QLabel(QString("%1: %2").arg(I18n::instance().version(), QString::fromUtf8(APP_VERSION)), cardBody);
     m_versionLabel->setObjectName("settingsInfo");
@@ -129,6 +143,29 @@ void SettingsPage::setupUi()
     m_systemLabel = new QLabel(QString("%1: %2").arg(I18n::instance().system()).arg(QSysInfo::prettyProductName()), cardBody);
     m_systemLabel->setObjectName("settingsInfo");
     cardLay->addWidget(m_systemLabel);
+
+    auto *linksRow = new QHBoxLayout();
+    linksRow->setSpacing(20);
+
+    m_githubBtn = new QPushButton(I18n::instance().tr("githubRepo"), cardBody);
+    m_githubBtn->setObjectName("settingsLinkBtn");
+    m_githubBtn->setCursor(Qt::PointingHandCursor);
+    m_githubBtn->setFlat(true);
+    connect(m_githubBtn, &QPushButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl(QString::fromUtf8(kGithubUrl)));
+    });
+    linksRow->addWidget(m_githubBtn);
+
+    m_apiDocsBtn = new QPushButton(I18n::instance().tr("apiDocs"), cardBody);
+    m_apiDocsBtn->setObjectName("settingsLinkBtn");
+    m_apiDocsBtn->setCursor(Qt::PointingHandCursor);
+    m_apiDocsBtn->setFlat(true);
+    connect(m_apiDocsBtn, &QPushButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl(QString::fromUtf8(kApiDocsUrl)));
+    });
+    linksRow->addWidget(m_apiDocsBtn);
+    linksRow->addStretch();
+    cardLay->addLayout(linksRow);
 
     // 检查更新按钮
     m_checkUpdateBtn = new QPushButton(I18n::instance().tr("checkForUpdates"), cardBody);
@@ -174,8 +211,16 @@ void SettingsPage::retranslate()
         m_themeCombo->setItemText(1, I18n::instance().tr("themeDark"));
         m_themeCombo->setItemText(2, I18n::instance().tr("themeLight"));
     }
+    if (m_aboutLabel)
+        m_aboutLabel->setText(I18n::instance().tr("about"));
     m_versionLabel->setText(QString("%1: %2").arg(I18n::instance().version(), QString::fromUtf8(APP_VERSION)));
     m_systemLabel->setText(QString("%1: %2").arg(I18n::instance().system()).arg(QSysInfo::prettyProductName()));
+    if (m_githubBtn)
+        m_githubBtn->setText(I18n::instance().tr("githubRepo"));
+    if (m_apiDocsBtn)
+        m_apiDocsBtn->setText(I18n::instance().tr("apiDocs"));
+    if (m_checkUpdateBtn)
+        m_checkUpdateBtn->setText(I18n::instance().tr("checkForUpdates"));
 }
 
 void SettingsPage::paintEvent(QPaintEvent *) {}

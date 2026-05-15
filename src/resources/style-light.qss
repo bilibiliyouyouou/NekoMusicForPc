@@ -551,6 +551,21 @@ QTextEdit:focus {
     color: rgba(33, 37, 41, 0.7);
 }
 
+#settingsLinkBtn {
+    background: transparent;
+    border: none;
+    color: #C94B6A;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    padding: 4px 0;
+    text-decoration: underline;
+}
+
+#settingsLinkBtn:hover {
+    color: #E08FA0;
+}
+
 #settingsDivider {
     background: rgba(230, 57, 80, 0.3);
     max-height: 1px;
