@@ -44,6 +44,8 @@ signals:
 
 public slots:
     void refresh();
+    /** 离开页面时释放列表数据与卡片，降低内存占用 */
+    void releaseCachedData();
     void retranslate();
 
 protected:
@@ -51,6 +53,8 @@ protected:
 
 private:
     void setupUi();
+    void clearListContent();
+    void showLoadingState();
     void fetchData();
     void buildList();
     void buildListBatch();
@@ -65,8 +69,7 @@ private:
     ApiClient *m_api = nullptr;
 
     QList<MusicInfo> m_musicList;
-    bool m_loaded = false;
-    bool m_dataFetched = false;  // 标记是否已经加载过数据
+    int m_fetchGeneration = 0;   // 丢弃过期的网络回调
     int m_buildIndex = 0;        // 分批创建索引
     bool m_buildingList = false; // 分批创建 guard
 };

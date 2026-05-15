@@ -176,7 +176,6 @@ MusicListPage::MusicListPage(Type type, QWidget *parent)
     : QWidget(parent)
     , m_type(type)
     , m_api(new ApiClient(this))
-    , m_dataFetched(false)
 {
     setAttribute(Qt::WA_StyledBackground, false);
     setAutoFillBackground(false);
@@ -249,36 +248,61 @@ void MusicListPage::setupUi()
     mainLay->addWidget(m_scroll, 1);
 }
 
-void MusicListPage::refresh()
+void MusicListPage::clearListContent()
 {
-    // 如果已经加载过数据,不重复加载
-    if (m_dataFetched) return;
+    m_buildingList = false;
+    m_buildIndex = 0;
+    m_playAllBtn = nullptr;
 
-    m_loaded = false;
-    m_musicList.clear();
-
-    // 清空列表,但保留loading label和stretch
     QLayoutItem *item;
     while ((item = m_listLayout->takeAt(0)) != nullptr) {
-        QWidget *w = item->widget();
-        // 保留loading label,其他都删除
-        if (w && w != m_loadingLabel) {
-            delete w;
-        }
+        if (QWidget *w = item->widget())
+            w->deleteLater();
         delete item;
     }
+    m_loadingLabel = nullptr;
+}
 
-    // 确保loading label在布局中
-    m_loadingLabel->show();
+void MusicListPage::showLoadingState()
+{
+    clearListContent();
+
+    m_loadingLabel = new QLabel(I18n::instance().tr("loading"), m_listContainer);
+    m_loadingLabel->setObjectName("hpLoading");
+    m_loadingLabel->setAlignment(Qt::AlignCenter);
+    m_loadingLabel->setStyleSheet(
+        "QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 14px; padding: 40px; }"
+    );
+    m_listLayout->addWidget(m_loadingLabel);
+    m_listLayout->addStretch();
+}
+
+void MusicListPage::releaseCachedData()
+{
+    ++m_fetchGeneration;
+    m_musicList.clear();
+    m_musicList.squeeze();
+    showLoadingState();
+}
+
+void MusicListPage::refresh()
+{
+    ++m_fetchGeneration;
+    m_musicList.clear();
+    showLoadingState();
     fetchData();
-    m_dataFetched = true;
 }
 
 void MusicListPage::fetchData()
 {
+    const int gen = m_fetchGeneration;
+
     if (m_type == Hot) {
-        m_api->fetchRanking([this](bool success, const QList<QVariantMap> &results) {
-            QTimer::singleShot(0, this, [this, success, results]() {
+        m_api->fetchRanking([this, gen](bool success, const QList<QVariantMap> &results) {
+            QTimer::singleShot(0, this, [this, success, results, gen]() {
+                if (gen != m_fetchGeneration)
+                    return;
+                m_musicList.clear();
                 if (success) {
                     for (const auto &item : results) {
                         MusicInfo info;
@@ -292,13 +316,15 @@ void MusicListPage::fetchData()
                         m_musicList.append(info);
                     }
                 }
-                m_loaded = true;
                 buildList();
             });
         });
     } else {
-        m_api->fetchLatest(300, [this](bool success, const QList<QVariantMap> &results) {
-            QTimer::singleShot(0, this, [this, success, results]() {
+        m_api->fetchLatest(300, [this, gen](bool success, const QList<QVariantMap> &results) {
+            QTimer::singleShot(0, this, [this, success, results, gen]() {
+                if (gen != m_fetchGeneration)
+                    return;
+                m_musicList.clear();
                 if (success) {
                     for (const auto &item : results) {
                         MusicInfo info;
@@ -312,7 +338,6 @@ void MusicListPage::fetchData()
                         m_musicList.append(info);
                     }
                 }
-                m_loaded = true;
                 buildList();
             });
         });
@@ -372,6 +397,9 @@ void MusicListPage::buildList()
 
 void MusicListPage::buildListBatch()
 {
+    if (!m_buildingList)
+        return;
+
     const int batchSize = 25;
     int end = qMin(m_buildIndex + batchSize, m_musicList.size());
 

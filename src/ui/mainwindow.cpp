@@ -730,10 +730,16 @@ void MainWindow::paintEvent(QPaintEvent *)
 void MainWindow::switchPage(QWidget *target)
 {
     if (m_switching) return;
-    if (m_stack->currentWidget() == target) return;
+    QWidget *current = m_stack->currentWidget();
+    if (current == target) return;
+
+    // 离开热门/最新列表时释放内存，下次进入 refresh() 会重新请求
+    if (current == m_hotMusicPage)
+        m_hotMusicPage->releaseCachedData();
+    else if (current == m_latestMusicPage)
+        m_latestMusicPage->releaseCachedData();
 
     m_switching = true;
-    QWidget *current = m_stack->currentWidget();
 
     // Make target visible alongside current for cross-fade
     target->show();
