@@ -101,6 +101,19 @@ public:
                      const QString &lyricsFilePath = QString(),
                      UploadCb cb = nullptr);
 
+    // ─── 分享视频渲染 ────────────────────────────────────
+    using VipStatusCb = std::function<void(bool ok, bool isVip)>;
+    void syncSessionVipStatus(VipStatusCb cb);
+
+    using VideoRenderCreateCb = std::function<void(bool, const QString &, const QVariantMap &)>;
+    void createVideoRenderJob(int musicId, double startSec, bool watermarked, VideoRenderCreateCb cb);
+
+    using VideoRenderStatusCb = std::function<void(bool, const QVariantMap &)>;
+    void fetchVideoRenderStatus(const QString &jobId, VideoRenderStatusCb cb);
+
+    using VideoRenderDownloadCb = std::function<void(bool, const QString &)>;
+    void downloadVideoRenderFile(const QString &jobId, const QString &saveFilePath, VideoRenderDownloadCb cb);
+
 private:
     QNetworkAccessManager m_nam;
     QString getAuthToken() const;

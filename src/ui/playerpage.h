@@ -16,6 +16,9 @@
 #include "../core/musicinfo.h"
 #include "../core/playerengine.h"
 
+class ApiClient;
+class QTimer;
+
 struct LyricLine {
     qint64 time;
     QString text;
@@ -27,7 +30,7 @@ class PlayerPage : public QWidget
     Q_OBJECT
 
 public:
-    explicit PlayerPage(PlayerEngine *engine, QWidget *parent = nullptr);
+    explicit PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent = nullptr);
     ~PlayerPage() override;
 
     void setMusicInfo(int id, const QString &title, const QString &artist,
@@ -57,8 +60,15 @@ private:
     /** 将一段 LRC 或纯文本歌词写入 m_lyrics（无时间轴时整段作为 t=0 一行） */
     void applyLyricsRawText(const QString &raw);
     void rebuildLyricLabels();
+    void resetVideoRenderState();
+    void updateVideoRenderUi();
+    void pollVideoRenderStatus();
+    void openVideoRenderDialog();
+    void downloadRenderedVideo();
+    int trackDurationSec() const;
 
     PlayerEngine *m_engine;
+    ApiClient *m_apiClient = nullptr;
 
     GlassWidget *m_leftGlass = nullptr;
     GlassWidget *m_rightGlass = nullptr;
@@ -76,6 +86,10 @@ private:
     QLabel *m_titleLabel;
     QLabel *m_artistLabel;
     QLabel *m_albumLabel;
+    QPushButton *m_videoRenderBtn = nullptr;
+    QPushButton *m_videoDownloadBtn = nullptr;
+    QLabel *m_videoStatusLbl = nullptr;
+    QTimer *m_videoPollTimer = nullptr;
     QString m_fullMetaTitle;
     QString m_fullMetaArtist;
     QString m_fullMetaAlbum;
@@ -86,6 +100,12 @@ private:
     QVBoxLayout *m_lyricsLayout;
 
     int m_musicId = 0;
+    int m_trackDurationSec = 0;
+    QString m_videoJobId;
+    QString m_videoJobStatus;
+    QString m_videoJobError;
+    int m_videoRemainingToday = -1;
+    bool m_videoRenderBusy = false;
     QString m_coverUrl;
     QVector<LyricLine> m_lyrics;
     /** 已解析歌词：在线为正 id；本地为 stableLocalTrackId（负） */

@@ -276,7 +276,7 @@ void MainWindow::setupUi()
     mainV->addWidget(m_playerBar);
 
     // 播放页面 — 全屏覆盖层（覆盖侧边栏和标题栏，不覆盖播放栏）
-    m_playerPage = new PlayerPage(m_engine, m_midWidget);
+    m_playerPage = new PlayerPage(m_engine, m_apiClient, m_midWidget);
     m_playerPage->hide();
 
     // 播放列表面板

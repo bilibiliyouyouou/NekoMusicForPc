@@ -1,6 +1,10 @@
 #include "playerpage.h"
+#include "videorenderdialog.h"
+#include "toast.h"
+#include "../core/apiclient.h"
 #include "../core/playerengine.h"
 #include "../core/i18n.h"
+#include "../core/usermanager.h"
 #include "../core/covercache.h"
 #include "../core/httpprotocollabel.h"
 #include "../core/embeddedlyrics.h"
@@ -30,9 +34,14 @@
 #include <QUrl>
 #include <QFile>
 #include <QFileInfo>
+#include <QTimer>
+#include <QDialog>
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QRegularExpression>
 
-PlayerPage::PlayerPage(PlayerEngine *engine, QWidget *parent)
-    : QWidget(parent), m_engine(engine)
+PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent)
+    : QWidget(parent), m_engine(engine), m_apiClient(apiClient)
 {
     setAttribute(Qt::WA_StyledBackground, true);
     setupUi();
@@ -142,6 +151,18 @@ void PlayerPage::applyPlayerPageStyle()
                       "#playerAlbumLabel { "
                       "  color: %9; font-size: 13px; "
                       "  background: transparent; qproperty-alignment: 'AlignCenter'; }"
+
+                      "#playerVideoRenderBtn, #playerVideoDownloadBtn { "
+                      "  background: rgba(230,57,80,%5); color: %1; font-size: 13px; font-weight: 600; "
+                      "  border: 1px solid rgba(230,57,80,%6); border-radius: 18px; padding: 8px 18px; }"
+                      "#playerVideoRenderBtn:hover, #playerVideoDownloadBtn:hover { "
+                      "  background: rgba(230,57,80,%7); border-color: rgba(230,57,80,%8); }"
+                      "#playerVideoRenderBtn:disabled { "
+                      "  color: rgba(255,255,255,0.35); background: rgba(120,120,120,0.25); border-color: rgba(255,255,255,0.08); }"
+
+                      "#playerVideoStatusLbl { "
+                      "  color: %4; font-size: 12px; background: transparent; "
+                      "  qproperty-alignment: 'AlignCenter'; }"
 
                       "#lyricsTitleLabel { "
                       "  color: %3; font-size: 18px; font-weight: 600; "
@@ -253,6 +274,32 @@ void PlayerPage::setupUi()
     coverCol->addWidget(m_artistLabel);
     coverCol->addSpacing(4);
     coverCol->addWidget(m_albumLabel);
+    coverCol->addSpacing(10);
+
+    m_videoStatusLbl = new QLabel(leftBody);
+    m_videoStatusLbl->setObjectName(QStringLiteral("playerVideoStatusLbl"));
+    m_videoStatusLbl->setWordWrap(true);
+    m_videoStatusLbl->hide();
+
+    m_videoRenderBtn = new QPushButton(I18n::instance().tr(QStringLiteral("videoRenderButton")), leftBody);
+    m_videoRenderBtn->setObjectName(QStringLiteral("playerVideoRenderBtn"));
+    m_videoRenderBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_videoRenderBtn, &QPushButton::clicked, this, &PlayerPage::openVideoRenderDialog);
+
+    m_videoDownloadBtn = new QPushButton(I18n::instance().tr(QStringLiteral("videoRenderDownload")), leftBody);
+    m_videoDownloadBtn->setObjectName(QStringLiteral("playerVideoDownloadBtn"));
+    m_videoDownloadBtn->setCursor(Qt::PointingHandCursor);
+    m_videoDownloadBtn->hide();
+    connect(m_videoDownloadBtn, &QPushButton::clicked, this, &PlayerPage::downloadRenderedVideo);
+
+    coverCol->addWidget(m_videoStatusLbl);
+    coverCol->addWidget(m_videoRenderBtn, 0, Qt::AlignHCenter);
+    coverCol->addWidget(m_videoDownloadBtn, 0, Qt::AlignHCenter);
+
+    m_videoPollTimer = new QTimer(this);
+    m_videoPollTimer->setInterval(8000);
+    connect(m_videoPollTimer, &QTimer::timeout, this, &PlayerPage::pollVideoRenderStatus);
+
     coverCol->addStretch();
 
     m_rightGlass = new GlassWidget(this);
@@ -313,6 +360,9 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     const int prevId = m_musicId;
     const QString prevCoverUrl = m_coverUrl;
     m_musicId = id;
+    if (prevId != id)
+        resetVideoRenderState();
+    m_trackDurationSec = qMax(1, trackDurationSec());
     m_fullMetaTitle = t;
     m_fullMetaArtist = a;
     m_fullMetaAlbum = album;
@@ -335,11 +385,13 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
         } else {
             applyCoverUnknownLarge();
         }
+        updateVideoRenderUi();
         return;
     }
 
     if (m_musicId <= 0) {
         m_coverLabel->clear();
+        updateVideoRenderUi();
         return;
     }
     // 同一首歌且封面 URL 未变：不重复走 CoverCache / 网络
@@ -348,6 +400,7 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
 
     m_coverUrl = coverUrl;
     loadCover(coverUrl);
+    updateVideoRenderUi();
 }
 
 void PlayerPage::retranslate()
@@ -369,6 +422,12 @@ void PlayerPage::retranslate()
     if (noLyricsText) {
         noLyricsText->setText(I18n::instance().tr("noLyrics"));
     }
+
+    if (m_videoRenderBtn)
+        m_videoRenderBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderButton")));
+    if (m_videoDownloadBtn)
+        m_videoDownloadBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderDownload")));
+    updateVideoRenderUi();
 }
 
 void PlayerPage::applyMetaTextElide()
@@ -810,4 +869,165 @@ void PlayerPage::updateLyricHighlight(qint64 positionMs)
             });
         }
     }
+}
+
+int PlayerPage::trackDurationSec() const
+{
+    const qint64 ms = m_engine ? m_engine->duration() : 0;
+    if (ms > 0)
+        return static_cast<int>(ms / 1000);
+    return qMax(1, m_trackDurationSec);
+}
+
+void PlayerPage::resetVideoRenderState()
+{
+    m_videoJobId.clear();
+    m_videoJobStatus.clear();
+    m_videoJobError.clear();
+    m_videoRemainingToday = -1;
+    m_videoRenderBusy = false;
+    if (m_videoPollTimer)
+        m_videoPollTimer->stop();
+    updateVideoRenderUi();
+}
+
+void PlayerPage::updateVideoRenderUi()
+{
+    const bool online = m_musicId > 0;
+    if (m_videoRenderBtn) {
+        m_videoRenderBtn->setVisible(online);
+        m_videoRenderBtn->setEnabled(online && !m_videoRenderBusy
+                                     && m_videoJobStatus != QStringLiteral("pending")
+                                     && m_videoJobStatus != QStringLiteral("processing"));
+        if (m_videoRenderBusy)
+            m_videoRenderBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderButtonBusy")));
+        else
+            m_videoRenderBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderButton")));
+    }
+    if (m_videoDownloadBtn)
+        m_videoDownloadBtn->setVisible(online && m_videoJobStatus == QStringLiteral("done"));
+    if (!m_videoStatusLbl)
+        return;
+    if (!online || m_videoJobStatus.isEmpty()) {
+        m_videoStatusLbl->hide();
+        return;
+    }
+    QString text;
+    if (m_videoJobStatus == QStringLiteral("pending") || m_videoJobStatus == QStringLiteral("processing")) {
+        text = I18n::instance().tr(QStringLiteral("videoRenderStatusProcessing"));
+        if (m_videoRemainingToday >= 0)
+            text += QLatin1Char('\n')
+                    + I18n::instance().tr(QStringLiteral("videoRenderRemainingToday"))
+                          .arg(m_videoRemainingToday);
+    } else if (m_videoJobStatus == QStringLiteral("done")) {
+        text = I18n::instance().tr(QStringLiteral("videoRenderStatusDone"));
+    } else if (m_videoJobStatus == QStringLiteral("failed")) {
+        const QString err = m_videoJobError.isEmpty() ? QStringLiteral("—") : m_videoJobError;
+        text = I18n::instance().tr(QStringLiteral("videoRenderFailed")).arg(err);
+    }
+    if (text.isEmpty()) {
+        m_videoStatusLbl->hide();
+        return;
+    }
+    m_videoStatusLbl->setText(text);
+    m_videoStatusLbl->show();
+}
+
+void PlayerPage::pollVideoRenderStatus()
+{
+    if (!m_apiClient || m_videoJobId.isEmpty() || !UserManager::instance().isLoggedIn())
+        return;
+    m_apiClient->fetchVideoRenderStatus(m_videoJobId, [this](bool ok, const QVariantMap &data) {
+        if (!ok)
+            return;
+        m_videoJobStatus = data.value(QStringLiteral("status")).toString();
+        m_videoJobError = data.value(QStringLiteral("error")).toString();
+        if (m_videoJobStatus == QStringLiteral("done") || m_videoJobStatus == QStringLiteral("failed")) {
+            if (m_videoPollTimer)
+                m_videoPollTimer->stop();
+        }
+        updateVideoRenderUi();
+    });
+}
+
+void PlayerPage::openVideoRenderDialog()
+{
+    if (m_musicId <= 0) {
+        Toast::show(window(), I18n::instance().tr(QStringLiteral("videoRenderLocalUnsupported")), Toast::Info);
+        return;
+    }
+    if (!UserManager::instance().isLoggedIn()) {
+        Toast::show(window(), I18n::instance().tr(QStringLiteral("pleaseLoginFirst")), Toast::Error);
+        return;
+    }
+    if (!m_apiClient)
+        return;
+    if (m_videoJobStatus == QStringLiteral("failed"))
+        resetVideoRenderState();
+
+    VideoRenderDialog dlg(m_apiClient, m_musicId, m_fullMetaTitle, m_fullMetaArtist, trackDurationSec(), this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    m_videoRenderBusy = true;
+    updateVideoRenderUi();
+    m_apiClient->createVideoRenderJob(m_musicId, dlg.startSec(), dlg.watermarked(),
+                                      [this](bool ok, const QString &message, const QVariantMap &data) {
+                                          m_videoRenderBusy = false;
+                                          if (!ok) {
+                                              Toast::show(window(),
+                                                          message.isEmpty()
+                                                              ? I18n::instance().tr(QStringLiteral(
+                                                                    "videoRenderCreateFailed"))
+                                                              : message,
+                                                          Toast::Error);
+                                              updateVideoRenderUi();
+                                              return;
+                                          }
+                                          m_videoJobId = data.value(QStringLiteral("jobId")).toString();
+                                          m_videoJobStatus =
+                                              data.value(QStringLiteral("status")).toString();
+                                          if (m_videoJobStatus.isEmpty())
+                                              m_videoJobStatus = QStringLiteral("pending");
+                                          if (data.contains(QStringLiteral("remainingToday")))
+                                              m_videoRemainingToday =
+                                                  data.value(QStringLiteral("remainingToday")).toInt();
+                                          Toast::show(window(),
+                                                      I18n::instance().tr(QStringLiteral("videoRenderSubmitted")),
+                                                      Toast::Success, 4500);
+                                          updateVideoRenderUi();
+                                          if (m_videoPollTimer && !m_videoJobId.isEmpty())
+                                              m_videoPollTimer->start();
+                                          pollVideoRenderStatus();
+                                      });
+}
+
+void PlayerPage::downloadRenderedVideo()
+{
+    if (m_videoJobId.isEmpty() || !m_apiClient)
+        return;
+    const QString safeTitle = m_fullMetaTitle;
+    QString base = safeTitle;
+    base.replace(QRegularExpression(QStringLiteral(R"([/\\?%*:|"<>])")), QStringLiteral("_"));
+    if (base.isEmpty())
+        base = QStringLiteral("clip");
+    const QString defaultName = base + QStringLiteral(".mp4");
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    const QString path = QFileDialog::getSaveFileName(
+        this, I18n::instance().tr(QStringLiteral("videoRenderDownload")), dir + QLatin1Char('/') + defaultName,
+        QStringLiteral("MP4 (*.mp4)"));
+    if (path.isEmpty())
+        return;
+
+    m_apiClient->downloadVideoRenderFile(m_videoJobId, path, [this, path](bool ok, const QString &err) {
+        if (ok) {
+            Toast::show(window(), I18n::instance().tr(QStringLiteral("videoRenderDownloadDone")).arg(path),
+                      Toast::Success, 5000);
+        } else {
+            Toast::show(window(),
+                        I18n::instance().tr(QStringLiteral("videoRenderFailed"))
+                            .arg(err.isEmpty() ? I18n::instance().tr(QStringLiteral("downloadFailed")) : err),
+                        Toast::Error);
+        }
+    });
 }

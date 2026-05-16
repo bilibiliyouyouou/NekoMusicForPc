@@ -16,6 +16,9 @@
 #include <QHttpMultiPart>
 #include <QHttpPart>
 #include <QFile>
+#include <QDir>
+#include <QStandardPaths>
+#include <QSaveFile>
 
 ApiClient::ApiClient(QObject *parent) : QObject(parent) {}
 
@@ -709,5 +712,128 @@ void ApiClient::uploadMusic(const QString &musicFilePath, const QString &title,
         bool ok = doc.object().value("success").toBool();
         QString message = doc.object().value("message").toString();
         if (cb) cb(ok, message);
+    });
+}
+
+void ApiClient::syncSessionVipStatus(VipStatusCb cb)
+{
+    if (!UserManager::instance().isLoggedIn()) {
+        if (cb)
+            cb(false, false);
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/user/playlists").arg(Theme::kApiBase));
+    QNetworkRequest req(url);
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    auto *reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (cb)
+                cb(false, UserManager::instance().isVip());
+            return;
+        }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        const bool ok = root.value(QStringLiteral("success")).toBool();
+        const bool isVip = root.value(QStringLiteral("isVip")).toBool();
+        if (ok)
+            UserManager::instance().setVipStatus(isVip);
+        if (cb)
+            cb(ok, isVip);
+    });
+}
+
+void ApiClient::createVideoRenderJob(int musicId, double startSec, bool watermarked, VideoRenderCreateCb cb)
+{
+    if (!UserManager::instance().isLoggedIn()) {
+        if (cb)
+            cb(false, QString(), {});
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/video/render/create").arg(Theme::kApiBase));
+    QNetworkRequest req(url);
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    QJsonObject body;
+    body[QStringLiteral("musicId")] = musicId;
+    body[QStringLiteral("startSec")] = startSec;
+    body[QStringLiteral("watermarked")] = watermarked;
+    auto *reply = m_nam.post(req, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (cb)
+                cb(false, reply->errorString(), {});
+            return;
+        }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        const bool ok = root.value(QStringLiteral("success")).toBool();
+        const QString message = root.value(QStringLiteral("message")).toString();
+        const QVariantMap data = root.value(QStringLiteral("data")).toObject().toVariantMap();
+        if (cb)
+            cb(ok, message, data);
+    });
+}
+
+void ApiClient::fetchVideoRenderStatus(const QString &jobId, VideoRenderStatusCb cb)
+{
+    if (!UserManager::instance().isLoggedIn() || jobId.isEmpty()) {
+        if (cb)
+            cb(false, {});
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/video/render/%2").arg(Theme::kApiBase, jobId));
+    QNetworkRequest req(url);
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    auto *reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (cb)
+                cb(false, {});
+            return;
+        }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        const bool ok = root.value(QStringLiteral("success")).toBool();
+        const QVariantMap data = root.value(QStringLiteral("data")).toObject().toVariantMap();
+        if (cb)
+            cb(ok, data);
+    });
+}
+
+void ApiClient::downloadVideoRenderFile(const QString &jobId, const QString &saveFilePath, VideoRenderDownloadCb cb)
+{
+    if (jobId.isEmpty() || saveFilePath.isEmpty()) {
+        if (cb)
+            cb(false, QStringLiteral("invalid path"));
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/video/render/%2/download").arg(Theme::kApiBase, jobId));
+    QNetworkRequest req(url);
+    auto *reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [reply, saveFilePath, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (cb)
+                cb(false, reply->errorString());
+            return;
+        }
+        const QByteArray data = reply->readAll();
+        QSaveFile out(saveFilePath);
+        if (!out.open(QIODevice::WriteOnly)) {
+            if (cb)
+                cb(false, out.errorString());
+            return;
+        }
+        if (out.write(data) != data.size() || !out.commit()) {
+            if (cb)
+                cb(false, out.errorString());
+            return;
+        }
+        if (cb)
+            cb(true, QString());
     });
 }

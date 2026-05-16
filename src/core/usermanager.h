@@ -31,6 +31,9 @@ public:
     /// 获取用户信息
     QVariantMap userInfo() const { return m_userInfo; }
 
+    bool isVip() const { return m_isVip; }
+    void setVipStatus(bool isVip);
+
     /// 设置登录信息
     void setLoginInfo(const QString &token, const QVariantMap &userInfo);
 
@@ -46,5 +49,6 @@ private:
 
     QString m_token;
     QVariantMap m_userInfo;
+    bool m_isVip = false;
     QSettings *m_settings = nullptr;
 };

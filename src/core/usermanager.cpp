@@ -23,14 +23,25 @@ void UserManager::setLoginInfo(const QString &token, const QVariantMap &userInfo
 {
     m_token = token;
     m_userInfo = userInfo;
+    m_isVip = userInfo.value(QStringLiteral("isVip")).toBool();
     saveToSettings();
     emit loginStateChanged();
+}
+
+void UserManager::setVipStatus(bool isVip)
+{
+    if (m_isVip == isVip)
+        return;
+    m_isVip = isVip;
+    m_userInfo[QStringLiteral("isVip")] = isVip;
+    saveToSettings();
 }
 
 void UserManager::logout()
 {
     m_token.clear();
     m_userInfo.clear();
+    m_isVip = false;
     saveToSettings();
     emit loginStateChanged();
 }
@@ -46,6 +57,7 @@ void UserManager::loadFromSettings()
 {
     m_token = m_settings->value("auth/token").toString();
     m_userInfo = m_settings->value("auth/userInfo").toMap();
+    m_isVip = m_userInfo.value(QStringLiteral("isVip")).toBool();
     if (!m_token.isEmpty()) {
         emit loginStateChanged();
     }
