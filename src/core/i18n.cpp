@@ -426,6 +426,19 @@ static QMap<QString, QString> zhCN()
     m["vipLoginRequired"] = QStringLiteral("请先登录后再购买会员");
     m["vipPillTooltipActive"] = QStringLiteral("会员已开通 · 点击查看会员中心");
     m["vipPillTooltipInactive"] = QStringLiteral("非会员 · 点击查看会员中心");
+    m["vipTagline"] = QStringLiteral("开通会员，畅享高品质音乐与更多权益");
+    m["vipTerms"] = QStringLiteral("支付成功后会员时长将按套餐叠加；请在常用网络环境下完成支付。");
+    m["vipCheckoutCurrentPlan"] = QStringLiteral("当前套餐");
+    m["vipCheckoutSelectPlan"] = QStringLiteral("请先在左侧选择套餐");
+    m["vipCheckoutPayHint"] = QStringLiteral("选择支付方式");
+    m["vipQrScanTip"] = QStringLiteral("请使用相机或对应 App 扫描完成支付");
+    m["vipQrPayTitle"] = QStringLiteral("%1扫码支付");
+    m["vipOpenInBrowser"] = QStringLiteral("浏览器打开支付");
+    m["vipPaidDone"] = QStringLiteral("我已完成支付");
+    m["vipPaidDoneHint"] = QStringLiteral("已刷新会员状态");
+    m["vipChangePayMethod"] = QStringLiteral("更换支付方式");
+    m["vipQrGenerateFailed"] = QStringLiteral("二维码生成失败，请稍后再试");
+    m["vipQrImageLoadFailed"] = QStringLiteral("二维码图片加载失败");
     m["basicInfo"] = QStringLiteral("基本信息");
     m["uploadNote"] = QStringLiteral("上传的音乐会进入待审核状态，审核通过后发布");
 
@@ -1076,6 +1089,19 @@ static QMap<QString, QString> enUS()
     m["vipLoginRequired"] = "Please sign in before purchasing VIP";
     m["vipPillTooltipActive"] = "VIP active · Open VIP center";
     m["vipPillTooltipInactive"] = "Not VIP · Open VIP center";
+    m["vipTagline"] = "Unlock high-quality music and member benefits";
+    m["vipTerms"] = "Membership time stacks after payment. Use a stable network when paying.";
+    m["vipCheckoutCurrentPlan"] = "Selected plan";
+    m["vipCheckoutSelectPlan"] = "Choose a plan on the left";
+    m["vipCheckoutPayHint"] = "Choose payment method";
+    m["vipQrScanTip"] = "Scan with your camera or payment app";
+    m["vipQrPayTitle"] = "%1 scan to pay";
+    m["vipOpenInBrowser"] = "Open in browser";
+    m["vipPaidDone"] = "I have paid";
+    m["vipPaidDoneHint"] = "Membership status refreshed";
+    m["vipChangePayMethod"] = "Change method";
+    m["vipQrGenerateFailed"] = "Failed to generate QR code";
+    m["vipQrImageLoadFailed"] = "Failed to load QR image";
     m["basicInfo"] = "Basic Info";
     m["uploadNote"] = "Uploaded music will be pending review, published after approval";
 

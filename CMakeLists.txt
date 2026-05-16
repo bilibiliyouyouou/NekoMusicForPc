@@ -139,6 +139,8 @@ set(SOURCES
         src/core/i18n.cpp
         src/core/covercache.cpp
         src/core/usermanager.cpp
+        src/core/qrcodegen.cpp
+        src/core/vipqrcode.cpp
         src/core/musicdownloader.cpp
         src/core/playlistdb.cpp
         src/core/localmusicmeta.cpp
@@ -186,6 +188,7 @@ set(HEADERS
         src/core/i18n.h
         src/core/covercache.h
         src/core/usermanager.h
+        src/core/vipqrcode.h
         src/theme/theme.h
         src/theme/thememanager.h
         src/core/musicinfo.h
