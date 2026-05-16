@@ -27,17 +27,17 @@ MimeType=audio/flac;audio/mpeg;audio/ogg;audio/x-wav;audio/aac;audio/mp4;audio/m
 # 这会让用户在图标上点右键时，直接出现功能菜单喵！
 Actions=PlayPause;Next;Previous;
 
-[DesktopAction PlayPause]
+[Desktop Action PlayPause]
 Name=播放/暂停
 Name[en]=Play/Pause
 Exec=/opt/Neko云音乐/NekoMusic --toggle-play
 
-[DesktopAction Next]
+[Desktop Action Next]
 Name=下一首
 Name[en]=Next Track
 Exec=/opt/Neko云音乐/NekoMusic --next
 
-[DesktopAction Previous]
+[Desktop Action Previous]
 Name=上一首
 Name[en]=Previous Track
 Exec=/opt/Neko云音乐/NekoMusic --previous
