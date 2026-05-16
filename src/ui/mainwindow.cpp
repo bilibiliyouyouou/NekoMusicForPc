@@ -20,6 +20,7 @@
 #include "ui/playerpage.h"
 #include "ui/playlistdetailpage.h"
 #include "ui/searchpage.h"
+#include "ui/vippage.h"
 #include "ui/addtoplaylistdialog.h"
 #include "ui/playlistpanel.h"
 #include "ui/toast.h"
@@ -258,6 +259,7 @@ void MainWindow::setupUi()
     m_uploadPage = new UploadPage(this);
     m_playlistDetailPage = new PlaylistDetailPage(m_apiClient, this);
     m_searchPage = new SearchPage(m_apiClient, this);
+    m_vipPage = new VipPage(m_apiClient, this);
     m_stack->addWidget(m_homePage);
     m_stack->addWidget(m_settingsPage);
     m_stack->addWidget(m_favoritesPage);
@@ -267,6 +269,7 @@ void MainWindow::setupUi()
     m_stack->addWidget(m_uploadPage);
     m_stack->addWidget(m_playlistDetailPage);
     m_stack->addWidget(m_searchPage);
+    m_stack->addWidget(m_vipPage);
     midH->addWidget(m_stack, 1);
 
     mainV->addWidget(m_midWidget, 1);
@@ -373,6 +376,12 @@ void MainWindow::setupUi()
     connect(m_titleBar, &TitleBar::settingsClicked, this, [this]() {
         switchPage(m_settingsPage);
     });
+    connect(m_titleBar, &TitleBar::vipClicked, this, [this]() {
+        if (!UserManager::instance().isLoggedIn())
+            return;
+        m_vipPage->refresh();
+        switchPage(m_vipPage);
+    });
     connect(m_settingsPage, &SettingsPage::languageChanged, m_homePage, &HomePage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_sidebar, &Sidebar::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_titleBar, &TitleBar::retranslate);
@@ -437,6 +446,12 @@ void MainWindow::setupUi()
             auto *favAction = menu->addAction(tr("My Favorites"));
             connect(favAction, &QAction::triggered, this, [this]() {
                 switchPage(m_favoritesPage);
+            });
+
+            auto *vipAction = menu->addAction(I18n::instance().tr(QStringLiteral("vipNav")));
+            connect(vipAction, &QAction::triggered, this, [this]() {
+                m_vipPage->refresh();
+                switchPage(m_vipPage);
             });
 
             menu->addSeparator();
@@ -645,6 +660,7 @@ void MainWindow::setupUi()
 
     // 语言切换
     connect(m_settingsPage, &SettingsPage::languageChanged, m_searchPage, &SearchPage::retranslate);
+    connect(m_settingsPage, &SettingsPage::languageChanged, m_vipPage, &VipPage::retranslate);
 
     // 播放列表页面刷新侧边栏
     connect(m_playlistDetailPage, &PlaylistDetailPage::refreshSidebarPlaylists, this, [this]() {
@@ -662,6 +678,12 @@ void MainWindow::setupUi()
     // 登录状态变化 - 控制上传导航项可见性
     connect(&UserManager::instance(), &UserManager::loginStateChanged, this, [this]() {
         m_sidebar->setUploadVisible(UserManager::instance().isLoggedIn());
+    });
+
+    connect(m_vipPage, &VipPage::loginRequested, this, [this]() {
+        LoginDialog dlg(this);
+        if (dlg.exec() == QDialog::Accepted)
+            m_vipPage->refresh();
     });
 
     // 创建桌面歌词窗口

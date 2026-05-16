@@ -32,7 +32,9 @@ public:
     QVariantMap userInfo() const { return m_userInfo; }
 
     bool isVip() const { return m_isVip; }
+    QString vipExpiresAt() const { return m_vipExpiresAt; }
     void setVipStatus(bool isVip);
+    void updateVipStatus(bool isVip, const QString &vipExpiresAt = QString());
 
     /// 设置登录信息
     void setLoginInfo(const QString &token, const QVariantMap &userInfo);
@@ -42,6 +44,7 @@ public:
 
 signals:
     void loginStateChanged();
+    void vipStatusChanged();
 
 private:
     void saveToSettings();
@@ -50,5 +53,6 @@ private:
     QString m_token;
     QVariantMap m_userInfo;
     bool m_isVip = false;
+    QString m_vipExpiresAt;
     QSettings *m_settings = nullptr;
 };

@@ -15,6 +15,7 @@ class QLabel;
 class QResizeEvent;
 class QNetworkAccessManager;
 class QNetworkReply;
+class VipPillButton;
 
 class TitleBar : public QWidget
 {
@@ -30,6 +31,7 @@ signals:
     void searchRequested(const QString &query);
     void settingsClicked();
     void avatarClicked();
+    void vipClicked();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -40,6 +42,7 @@ protected:
 private:
     void setupUi();
     void updateAvatar();
+    void updateVipPill();
     void elideUsername();
     void updateChevronPixmap();
     void refreshSearchGlyph();
@@ -56,4 +59,5 @@ private:
     QLabel *m_avatarIcon = nullptr;
     QLabel *m_usernameLabel = nullptr;
     QLabel *m_dropdownIcon = nullptr;
+    VipPillButton *m_vipPill = nullptr;
 };

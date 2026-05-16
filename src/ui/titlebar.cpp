@@ -10,6 +10,7 @@
 #include "theme/thememanager.h"
 #include "ui/glasspaint.h"
 #include "ui/svgicon.h"
+#include "ui/vippillbutton.h"
 #include "core/i18n.h"
 #include "core/usermanager.h"
 
@@ -84,6 +85,8 @@ TitleBar::TitleBar(QWidget *parent) : QWidget(parent)
     // 监听用户状态变化
     connect(&UserManager::instance(), &UserManager::loginStateChanged,
             this, &TitleBar::updateAvatar);
+    connect(&UserManager::instance(), &UserManager::vipStatusChanged,
+            this, &TitleBar::updateVipPill);
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged,
             this, [this](Theme::ThemeMode) {
                 updateChevronPixmap();
@@ -258,6 +261,11 @@ void TitleBar::setupUi()
     lay->addSpacing(8);
 
     // ─── 右侧控制 ────────────────────────────────────
+    m_vipPill = new VipPillButton(this);
+    connect(m_vipPill, &QPushButton::clicked, this, &TitleBar::vipClicked);
+    lay->addWidget(m_vipPill, 0, Qt::AlignVCenter);
+    lay->addSpacing(8);
+
     // 账号胶囊：头像 + 用户名 + 下拉提示
     m_avatarWidget = new QWidget(this);
     m_avatarWidget->setObjectName("tbAvatarWidget");
@@ -292,6 +300,7 @@ void TitleBar::setupUi()
     avatarLay->addWidget(m_dropdownIcon, 0, Qt::AlignVCenter);
 
     updateAvatar();
+    updateVipPill();
     lay->addWidget(m_avatarWidget, 0, Qt::AlignVCenter);
 
     lay->addSpacing(10);
@@ -351,6 +360,7 @@ void TitleBar::retranslate()
     if (settingsBtn) settingsBtn->setToolTip(I18n::instance().tr("settings"));
 
     updateAvatar();
+    updateVipPill();
 }
 
 void TitleBar::resizeEvent(QResizeEvent *event)
@@ -442,6 +452,23 @@ void TitleBar::updateAvatar()
     }
 
     updateChevronPixmap();
+    updateVipPill();
+}
+
+void TitleBar::updateVipPill()
+{
+    if (!m_vipPill)
+        return;
+
+    const bool loggedIn = UserManager::instance().isLoggedIn();
+    m_vipPill->setVisible(loggedIn);
+    if (!loggedIn)
+        return;
+
+    const bool isVip = UserManager::instance().isVip();
+    m_vipPill->setVipActive(isVip);
+    m_vipPill->setToolTip(isVip ? I18n::instance().tr(QStringLiteral("vipPillTooltipActive"))
+                                : I18n::instance().tr(QStringLiteral("vipPillTooltipInactive")));
 }
 
 void TitleBar::loadAvatarAsync(const QString &url, int userId)

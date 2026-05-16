@@ -35,6 +35,7 @@ class PlaylistDetailPage;
 class AddToPlaylistDialog;
 class PlaylistPanel;
 class SearchPage;
+class VipPage;
 class ApiClient;
 class UpdateChecker;
 class UpdateDialog;
@@ -120,6 +121,7 @@ private:
     PlayerPage *m_playerPage = nullptr;
     PlaylistDetailPage *m_playlistDetailPage = nullptr;
     SearchPage *m_searchPage = nullptr;
+    VipPage *m_vipPage = nullptr;
     PlaylistPanel *m_playlistPanel = nullptr;
     PlayerBar *m_playerBar = nullptr;
     QWidget *m_midWidget = nullptr;

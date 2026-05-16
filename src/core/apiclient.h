@@ -101,6 +101,13 @@ public:
                      const QString &lyricsFilePath = QString(),
                      UploadCb cb = nullptr);
 
+    // ─── 会员中心 ────────────────────────────────────
+    using VipPricingCb = std::function<void(bool, const QString &, const QList<QVariantMap> &)>;
+    void fetchVipPricing(VipPricingCb cb);
+
+    using VipPayCreateCb = std::function<void(bool, const QString &, const QVariantMap &)>;
+    void createVipPayOrder(int pricingId, const QString &payType, VipPayCreateCb cb);
+
     // ─── 分享视频渲染 ────────────────────────────────────
     using VipStatusCb = std::function<void(bool ok, bool isVip)>;
     void syncSessionVipStatus(VipStatusCb cb);

@@ -715,6 +715,63 @@ void ApiClient::uploadMusic(const QString &musicFilePath, const QString &title,
     });
 }
 
+void ApiClient::fetchVipPricing(VipPricingCb cb)
+{
+    QUrl url(QString::fromUtf8("%1/api/vip/pricing").arg(QString::fromUtf8(Theme::kApiBase)));
+    auto *reply = m_nam.get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (cb)
+                cb(false, reply->errorString(), {});
+            return;
+        }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        const bool ok = root.value(QStringLiteral("success")).toBool();
+        const QString message = root.value(QStringLiteral("message")).toString();
+        QList<QVariantMap> items;
+        if (ok) {
+            for (const auto &v : root.value(QStringLiteral("data")).toArray())
+                items.append(v.toObject().toVariantMap());
+        }
+        if (cb)
+            cb(ok, message, items);
+    });
+}
+
+void ApiClient::createVipPayOrder(int pricingId, const QString &payType, VipPayCreateCb cb)
+{
+    if (!UserManager::instance().isLoggedIn()) {
+        if (cb)
+            cb(false, QString(), {});
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/vip/pay/create").arg(QString::fromUtf8(Theme::kApiBase)));
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    QJsonObject body;
+    body.insert(QStringLiteral("pricingId"), pricingId);
+    body.insert(QStringLiteral("payType"), payType);
+    auto *reply = m_nam.post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            if (cb)
+                cb(false, reply->errorString(), {});
+            return;
+        }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        const bool ok = root.value(QStringLiteral("success")).toBool();
+        const QString message = root.value(QStringLiteral("message")).toString();
+        const QVariantMap data = root.value(QStringLiteral("data")).toObject().toVariantMap();
+        if (cb)
+            cb(ok, message, data);
+    });
+}
+
 void ApiClient::syncSessionVipStatus(VipStatusCb cb)
 {
     if (!UserManager::instance().isLoggedIn()) {
@@ -737,8 +794,9 @@ void ApiClient::syncSessionVipStatus(VipStatusCb cb)
         const auto root = doc.object();
         const bool ok = root.value(QStringLiteral("success")).toBool();
         const bool isVip = root.value(QStringLiteral("isVip")).toBool();
+        const QString vipExpiresAt = root.value(QStringLiteral("vipExpiresAt")).toString();
         if (ok)
-            UserManager::instance().setVipStatus(isVip);
+            UserManager::instance().updateVipStatus(isVip, vipExpiresAt);
         if (cb)
             cb(ok, isVip);
     });

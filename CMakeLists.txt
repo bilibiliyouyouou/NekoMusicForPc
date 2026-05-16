@@ -130,6 +130,8 @@ set(SOURCES
         src/ui/uploadpage.cpp
         src/ui/playerpage.cpp
         src/ui/videorenderdialog.cpp
+        src/ui/vippage.cpp
+        src/ui/vippillbutton.cpp
         src/ui/desktoplrc.cpp
         src/ui/favoritespage.cpp
         src/core/playerengine.cpp
@@ -174,6 +176,8 @@ set(HEADERS
         src/ui/uploadpage.h
         src/ui/playerpage.h
         src/ui/videorenderdialog.h
+        src/ui/vippage.h
+        src/ui/vippillbutton.h
         src/ui/desktoplrc.h
         src/ui/favoritespage.h
         src/core/playerengine.h
