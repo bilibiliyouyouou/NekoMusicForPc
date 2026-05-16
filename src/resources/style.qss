@@ -71,7 +71,8 @@ QScrollArea#ppScroll,
 QScrollArea#lyricsScroll,
 QScrollArea#settingsScroll,
 QScrollArea#uploadScroll,
-QScrollArea#searchScroll {
+QScrollArea#searchScroll,
+QScrollArea#vipScroll {
     background: transparent;
     border: none;
 }
@@ -85,8 +86,35 @@ QScrollArea#ppScroll > QWidget > QWidget,
 QScrollArea#lyricsScroll > QWidget > QWidget,
 QScrollArea#settingsScroll > QWidget > QWidget,
 QScrollArea#uploadScroll > QWidget > QWidget,
-QScrollArea#searchScroll > QWidget > QWidget {
+QScrollArea#searchScroll > QWidget > QWidget,
+QScrollArea#vipScroll > QWidget > QWidget {
     background: transparent;
+}
+
+QWidget#vipContainer {
+    background: transparent;
+}
+
+/* 会员中心「刷新状态」：圆角不得超过高度一半，否则 Fusion 会画成方角 */
+#vipRefreshBtn {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #FF8FA3, stop:1 #D62839);
+    border: none;
+    border-radius: 17px;
+    color: #16101f;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 18px;
+}
+
+#vipRefreshBtn:hover {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #FFE5EA, stop:1 #FF6B8B);
+}
+
+#vipRefreshBtn:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:0.32,y2:1,
+        stop:0 #FF6B8B, stop:1 #B82238);
 }
 
 /* 未命名行编辑（#dialogEdit、#settingsInput、#tbSearchInner 等用更高优先级覆盖） */

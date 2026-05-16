@@ -32,24 +32,30 @@ namespace {
 QString heroCardStyle(bool isVip)
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    const QString labelChild = QStringLiteral(
+        "QWidget#vipHeroCard QLabel { border: none; background: transparent; }");
     if (isVip) {
         return dark
             ? QStringLiteral(
-                  "QWidget { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+                  "QWidget#vipHeroCard { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
                   "stop:0 rgba(255,248,225,0.18), stop:1 rgba(255,183,77,0.12));"
                   "border: 1px solid rgba(255, 179, 0, 0.35); border-radius: 16px; }")
+                  + labelChild
             : QStringLiteral(
-                  "QWidget { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+                  "QWidget#vipHeroCard { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
                   "stop:0 rgba(255,248,225,0.92), stop:1 rgba(255,236,179,0.88));"
-                  "border: 1px solid rgba(255, 179, 0, 0.28); border-radius: 16px; }");
+                  "border: 1px solid rgba(255, 179, 0, 0.28); border-radius: 16px; }")
+                  + labelChild;
     }
     return dark
         ? QStringLiteral(
-              "QWidget { background: rgba(255,255,255,0.06);"
+              "QWidget#vipHeroCard { background: rgba(255,255,255,0.06);"
               "border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; }")
+              + labelChild
         : QStringLiteral(
-              "QWidget { background: rgba(255,255,255,0.55);"
-              "border: 1px solid rgba(0,0,0,0.08); border-radius: 16px; }");
+              "QWidget#vipHeroCard { background: rgba(255,255,255,0.55);"
+              "border: 1px solid rgba(0,0,0,0.08); border-radius: 16px; }")
+              + labelChild;
 }
 
 QString checkoutAsideStyle()
@@ -145,8 +151,10 @@ void VipPage::setupUi()
     m_leftScroll->setWidgetResizable(true);
     m_leftScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_leftScroll->setFrameShape(QFrame::NoFrame);
+    m_leftScroll->setObjectName(QStringLiteral("vipScroll"));
 
     m_leftContainer = new QWidget(m_leftScroll);
+    m_leftContainer->setObjectName(QStringLiteral("vipContainer"));
     auto *leftLay = new QVBoxLayout(m_leftContainer);
     leftLay->setContentsMargins(4, 4, 12, 4);
     leftLay->setSpacing(16);
@@ -159,14 +167,20 @@ void VipPage::setupUi()
     titleRowLay->addWidget(m_titleLabel);
     titleRowLay->addStretch();
     m_refreshBtn = new QPushButton(I18n::instance().tr(QStringLiteral("vipRefresh")), titleRow);
+    m_refreshBtn->setObjectName(QStringLiteral("vipRefreshBtn"));
     m_refreshBtn->setFixedHeight(34);
+    m_refreshBtn->setMinimumWidth(96);
     m_refreshBtn->setCursor(Qt::PointingHandCursor);
-    m_refreshBtn->setStyleSheet(payBtnStyle(QString(Theme::kLavender)));
+    m_refreshBtn->setAutoDefault(false);
+    m_refreshBtn->setDefault(false);
+    m_refreshBtn->setFocusPolicy(Qt::NoFocus);
     connect(m_refreshBtn, &QPushButton::clicked, this, [this]() { refresh(); });
     titleRowLay->addWidget(m_refreshBtn);
     leftLay->addWidget(titleRow);
 
     m_heroCard = new QWidget(m_leftContainer);
+    m_heroCard->setObjectName(QStringLiteral("vipHeroCard"));
+    m_heroCard->setAttribute(Qt::WA_StyledBackground, true);
     auto *heroLay = new QVBoxLayout(m_heroCard);
     heroLay->setContentsMargins(20, 18, 20, 18);
     heroLay->setSpacing(6);
@@ -214,6 +228,7 @@ void VipPage::setupUi()
     // ─── 右栏：结算 + 二维码 ───────────────────────────
     m_checkoutAside = new QWidget(this);
     m_checkoutAside->setObjectName(QStringLiteral("vipCheckout"));
+    m_checkoutAside->setAttribute(Qt::WA_StyledBackground, true);
     m_checkoutAside->setFixedWidth(300);
     m_checkoutAside->setStyleSheet(checkoutAsideStyle());
     auto *checkoutLay = new QVBoxLayout(m_checkoutAside);
