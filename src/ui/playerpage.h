@@ -51,8 +51,10 @@ signals:
 private:
     void setupUi();
     void applyPlayerPageStyle();
+    void applyMetaLabelFonts();
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
     void applyMetaTextElide();
+    void relayoutLeftInfoColumn();
     void loadCover(const QString &url);
     void applyCoverPixmap(const QPixmap &sourcePixmap);
     void applyCoverUnknownLarge();
@@ -72,6 +74,8 @@ private:
 
     GlassWidget *m_leftGlass = nullptr;
     GlassWidget *m_rightGlass = nullptr;
+    QWidget *m_leftInfoColumn = nullptr;
+    QWidget *m_metaPanel = nullptr;
 
     QString m_clrTitle;
     QString m_clrArtist;

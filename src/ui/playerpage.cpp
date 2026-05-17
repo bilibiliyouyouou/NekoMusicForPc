@@ -195,6 +195,30 @@ void PlayerPage::applyPlayerPageStyle()
                       .arg(sepA)
                       .arg(sbA)
                       .arg(sbHiA));
+
+    applyMetaLabelFonts();
+    applyMetaTextElide();
+}
+
+void PlayerPage::applyMetaLabelFonts()
+{
+    if (!m_titleLabel || !m_artistLabel || !m_albumLabel)
+        return;
+
+    QFont titleFont = m_titleLabel->font();
+    titleFont.setPixelSize(22);
+    titleFont.setWeight(QFont::DemiBold);
+    m_titleLabel->setFont(titleFont);
+
+    QFont artistFont = m_artistLabel->font();
+    artistFont.setPixelSize(15);
+    artistFont.setWeight(QFont::Normal);
+    m_artistLabel->setFont(artistFont);
+
+    QFont albumFont = m_albumLabel->font();
+    albumFont.setPixelSize(13);
+    albumFont.setWeight(QFont::Normal);
+    m_albumLabel->setFont(albumFont);
 }
 
 void PlayerPage::setupUi()
@@ -234,50 +258,54 @@ void PlayerPage::setupUi()
 
     QWidget *leftBody = m_leftGlass->contentWidget();
     auto *coverCol = new QVBoxLayout(leftBody);
-    coverCol->setSpacing(20);
+    coverCol->setSpacing(0);
     coverCol->setContentsMargins(24, 28, 24, 28);
     coverCol->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+    coverCol->setSizeConstraint(QLayout::SetMinimumSize);
 
-    auto *coverPanel = new QWidget(leftBody);
-    coverPanel->setObjectName(QStringLiteral("playerCoverPanel"));
-    coverPanel->setFixedSize(320, 320);
-    coverPanel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    auto *coverPanelLay = new QVBoxLayout(coverPanel);
-    coverPanelLay->setContentsMargins(0, 0, 0, 0);
-    coverPanelLay->setSpacing(0);
+    m_leftInfoColumn = new QWidget(leftBody);
+    m_leftInfoColumn->setObjectName(QStringLiteral("playerLeftInfoColumn"));
+    m_leftInfoColumn->setFixedWidth(320);
+    m_leftInfoColumn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
 
-    m_coverLabel = new QLabel(coverPanel);
+    auto *infoLay = new QVBoxLayout(m_leftInfoColumn);
+    infoLay->setContentsMargins(0, 0, 0, 0);
+    infoLay->setSpacing(12);
+
+    m_coverLabel = new QLabel(m_leftInfoColumn);
     m_coverLabel->setFixedSize(320, 320);
+    m_coverLabel->setMinimumSize(320, 320);
+    m_coverLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_coverLabel->setScaledContents(false);
     m_coverLabel->setAlignment(Qt::AlignCenter);
     m_coverLabel->setObjectName("playerCoverLabel");
-    coverPanelLay->addWidget(m_coverLabel);
+    infoLay->addWidget(m_coverLabel, 0, Qt::AlignHCenter);
 
-    auto *metaPanel = new QWidget(leftBody);
-    metaPanel->setObjectName(QStringLiteral("playerMetaPanel"));
-    metaPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    metaPanel->setMaximumWidth(320);
-    auto *metaLay = new QVBoxLayout(metaPanel);
+    m_metaPanel = new QWidget(m_leftInfoColumn);
+    m_metaPanel->setObjectName(QStringLiteral("playerMetaPanel"));
+    m_metaPanel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_metaPanel->setFixedWidth(320);
+    auto *metaLay = new QVBoxLayout(m_metaPanel);
     metaLay->setContentsMargins(0, 0, 0, 0);
     metaLay->setSpacing(0);
 
-    m_titleLabel = new QLabel(I18n::instance().tr("unknown"), metaPanel);
+    m_titleLabel = new QLabel(I18n::instance().tr("unknown"), m_metaPanel);
     m_titleLabel->setObjectName("playerSongTitleLabel");
     m_titleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_titleLabel->setWordWrap(false);
-    m_titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_titleLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), metaPanel);
+    m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), m_metaPanel);
     m_artistLabel->setObjectName("playerArtistLabel");
     m_artistLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_artistLabel->setWordWrap(false);
-    m_artistLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_artistLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    m_albumLabel = new QLabel(metaPanel);
+    m_albumLabel = new QLabel(m_metaPanel);
     m_albumLabel->setObjectName("playerAlbumLabel");
     m_albumLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_albumLabel->setWordWrap(false);
-    m_albumLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_albumLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     m_fullMetaTitle = m_titleLabel->text();
     m_fullMetaArtist = m_artistLabel->text();
@@ -288,37 +316,33 @@ void PlayerPage::setupUi()
     metaLay->addWidget(m_artistLabel);
     metaLay->addSpacing(4);
     metaLay->addWidget(m_albumLabel);
+    infoLay->addWidget(m_metaPanel);
 
-    coverCol->addSpacing(16);
-    coverCol->addWidget(coverPanel, 0, Qt::AlignHCenter);
-    coverCol->addSpacing(12);
-    coverCol->addWidget(metaPanel, 0, Qt::AlignHCenter);
-    coverCol->addSpacing(10);
-
-    m_videoStatusLbl = new QLabel(leftBody);
+    m_videoStatusLbl = new QLabel(m_leftInfoColumn);
     m_videoStatusLbl->setObjectName(QStringLiteral("playerVideoStatusLbl"));
     m_videoStatusLbl->setWordWrap(true);
     m_videoStatusLbl->hide();
 
-    m_videoRenderBtn = new QPushButton(I18n::instance().tr(QStringLiteral("videoRenderButton")), leftBody);
+    m_videoRenderBtn = new QPushButton(I18n::instance().tr(QStringLiteral("videoRenderButton")), m_leftInfoColumn);
     m_videoRenderBtn->setObjectName(QStringLiteral("playerVideoRenderBtn"));
     m_videoRenderBtn->setCursor(Qt::PointingHandCursor);
     connect(m_videoRenderBtn, &QPushButton::clicked, this, &PlayerPage::openVideoRenderDialog);
 
-    m_videoDownloadBtn = new QPushButton(I18n::instance().tr(QStringLiteral("videoRenderDownload")), leftBody);
+    m_videoDownloadBtn = new QPushButton(I18n::instance().tr(QStringLiteral("videoRenderDownload")), m_leftInfoColumn);
     m_videoDownloadBtn->setObjectName(QStringLiteral("playerVideoDownloadBtn"));
     m_videoDownloadBtn->setCursor(Qt::PointingHandCursor);
     m_videoDownloadBtn->hide();
     connect(m_videoDownloadBtn, &QPushButton::clicked, this, &PlayerPage::downloadRenderedVideo);
 
-    coverCol->addWidget(m_videoStatusLbl);
-    coverCol->addWidget(m_videoRenderBtn, 0, Qt::AlignHCenter);
-    coverCol->addWidget(m_videoDownloadBtn, 0, Qt::AlignHCenter);
+    infoLay->addWidget(m_videoStatusLbl);
+    infoLay->addWidget(m_videoRenderBtn, 0, Qt::AlignHCenter);
+    infoLay->addWidget(m_videoDownloadBtn, 0, Qt::AlignHCenter);
 
     m_videoPollTimer = new QTimer(this);
     m_videoPollTimer->setInterval(8000);
     connect(m_videoPollTimer, &QTimer::timeout, this, &PlayerPage::pollVideoRenderStatus);
 
+    coverCol->addWidget(m_leftInfoColumn, 0, Qt::AlignHCenter | Qt::AlignTop);
     coverCol->addStretch();
 
     m_rightGlass = new GlassWidget(this);
@@ -370,6 +394,7 @@ void PlayerPage::setupUi()
 
     applyPlayerPageStyle();
     applyMetaTextElide();
+    relayoutLeftInfoColumn();
 }
 
 void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artist,
@@ -450,20 +475,27 @@ void PlayerPage::retranslate()
     updateVideoRenderUi();
 }
 
+static int labelLineHeight(const QLabel *label, const QString &text, int width)
+{
+    if (!label)
+        return 0;
+    label->ensurePolished();
+    const QFontMetrics fm(label->font());
+    const QRect bound = fm.boundingRect(0, 0, width, 512, Qt::TextSingleLine | Qt::AlignHCenter, text);
+    return qMax(fm.height(), bound.height());
+}
+
 void PlayerPage::applyMetaTextElide()
 {
-    if (!m_leftGlass || !m_titleLabel || !m_artistLabel || !m_albumLabel)
+    if (!m_titleLabel || !m_artistLabel || !m_albumLabel)
         return;
 
-    constexpr int kCoverColSideMargin = 24 * 2;
-    constexpr int kCoverSide = 320;
-    QWidget *leftBody = m_leftGlass->contentWidget();
-    const int bodyW = leftBody && leftBody->width() > 0 ? leftBody->width() : m_leftGlass->width();
-    const int w = qMin(kCoverSide, qMax(1, bodyW - kCoverColSideMargin));
+    constexpr int kMetaWidth = 320;
+    const int w = kMetaWidth;
 
-    m_titleLabel->setMaximumWidth(w);
-    m_artistLabel->setMaximumWidth(w);
-    m_albumLabel->setMaximumWidth(w);
+    m_titleLabel->ensurePolished();
+    m_artistLabel->ensurePolished();
+    m_albumLabel->ensurePolished();
 
     const QFontMetrics fmTitle(m_titleLabel->font());
     const QFontMetrics fmArtist(m_artistLabel->font());
@@ -477,9 +509,9 @@ void PlayerPage::applyMetaTextElide()
     m_artistLabel->setText(elidedArtist);
     m_albumLabel->setText(elidedAlbum);
 
-    const int titleH = fmTitle.height();
-    const int artistH = fmArtist.height();
-    const int albumH = m_fullMetaAlbum.isEmpty() ? 0 : fmAlbum.height();
+    const int titleH = labelLineHeight(m_titleLabel, elidedTitle, w);
+    const int artistH = labelLineHeight(m_artistLabel, elidedArtist, w);
+    const int albumH = m_fullMetaAlbum.isEmpty() ? 0 : labelLineHeight(m_albumLabel, elidedAlbum, w);
 
     m_titleLabel->setFixedSize(w, titleH);
     m_artistLabel->setFixedSize(w, artistH);
@@ -494,13 +526,30 @@ void PlayerPage::applyMetaTextElide()
     m_artistLabel->setToolTip(m_fullMetaArtist != elidedArtist ? m_fullMetaArtist : QString());
     m_albumLabel->setToolTip(m_fullMetaAlbum != elidedAlbum ? m_fullMetaAlbum : QString());
 
-    if (QWidget *metaPanel = m_titleLabel->parentWidget()) {
-        const int metaH = titleH + artistH + albumH + (albumH > 0 ? 10 : 6);
-        metaPanel->setFixedHeight(metaH);
-        metaPanel->updateGeometry();
+    relayoutLeftInfoColumn();
+}
+
+void PlayerPage::relayoutLeftInfoColumn()
+{
+    if (!m_metaPanel || !m_leftInfoColumn)
+        return;
+
+    const int titleH = m_titleLabel ? m_titleLabel->height() : 0;
+    const int artistH = m_artistLabel ? m_artistLabel->height() : 0;
+    const int albumH = (m_albumLabel && m_albumLabel->isVisible()) ? m_albumLabel->height() : 0;
+    const int metaH = titleH + artistH + albumH + (albumH > 0 ? 10 : 6);
+    m_metaPanel->setFixedSize(320, metaH);
+
+    m_leftInfoColumn->adjustSize();
+    m_leftInfoColumn->updateGeometry();
+    if (m_leftGlass) {
+        if (QWidget *leftBody = m_leftGlass->contentWidget()) {
+            leftBody->updateGeometry();
+            if (QLayout *lay = leftBody->layout())
+                lay->activate();
+        }
+        m_leftGlass->updateGeometry();
     }
-    if (leftBody)
-        leftBody->updateGeometry();
 }
 
 void PlayerPage::resizeEvent(QResizeEvent *event)
@@ -513,6 +562,10 @@ void PlayerPage::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     applyMetaTextElide();
+    QTimer::singleShot(0, this, [this]() {
+        applyMetaTextElide();
+        relayoutLeftInfoColumn();
+    });
 
     // 入场动画：淡入 + 内容上移
     auto *opacity = new QGraphicsOpacityEffect(this);
