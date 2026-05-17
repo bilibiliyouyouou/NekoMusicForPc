@@ -142,15 +142,15 @@ void PlayerPage::applyPlayerPageStyle()
 
                       "#playerSongTitleLabel { "
                       "  color: %3; font-size: 22px; font-weight: 600; "
-                      "  background: transparent; qproperty-alignment: 'AlignCenter'; }"
+                      "  background: transparent; }"
 
                       "#playerArtistLabel { "
                       "  color: %4; font-size: 15px; font-weight: 400; "
-                      "  background: transparent; qproperty-alignment: 'AlignCenter'; }"
+                      "  background: transparent; }"
 
                       "#playerAlbumLabel { "
                       "  color: %9; font-size: 13px; "
-                      "  background: transparent; qproperty-alignment: 'AlignCenter'; }"
+                      "  background: transparent; }"
 
                       "#playerVideoRenderBtn, #playerVideoDownloadBtn { "
                       "  background: rgba(230,57,80,%5); color: %1; font-size: 13px; font-weight: 600; "
@@ -238,42 +238,61 @@ void PlayerPage::setupUi()
     coverCol->setContentsMargins(24, 28, 24, 28);
     coverCol->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
 
-    m_coverLabel = new QLabel(leftBody);
+    auto *coverPanel = new QWidget(leftBody);
+    coverPanel->setObjectName(QStringLiteral("playerCoverPanel"));
+    coverPanel->setFixedSize(320, 320);
+    coverPanel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    auto *coverPanelLay = new QVBoxLayout(coverPanel);
+    coverPanelLay->setContentsMargins(0, 0, 0, 0);
+    coverPanelLay->setSpacing(0);
+
+    m_coverLabel = new QLabel(coverPanel);
     m_coverLabel->setFixedSize(320, 320);
     m_coverLabel->setScaledContents(false);
     m_coverLabel->setAlignment(Qt::AlignCenter);
     m_coverLabel->setObjectName("playerCoverLabel");
+    coverPanelLay->addWidget(m_coverLabel);
 
-    m_titleLabel = new QLabel(I18n::instance().tr("unknown"), leftBody);
+    auto *metaPanel = new QWidget(leftBody);
+    metaPanel->setObjectName(QStringLiteral("playerMetaPanel"));
+    metaPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    metaPanel->setMaximumWidth(320);
+    auto *metaLay = new QVBoxLayout(metaPanel);
+    metaLay->setContentsMargins(0, 0, 0, 0);
+    metaLay->setSpacing(0);
+
+    m_titleLabel = new QLabel(I18n::instance().tr("unknown"), metaPanel);
     m_titleLabel->setObjectName("playerSongTitleLabel");
-    m_titleLabel->setAlignment(Qt::AlignCenter);
+    m_titleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_titleLabel->setWordWrap(false);
-    m_titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), leftBody);
+    m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), metaPanel);
     m_artistLabel->setObjectName("playerArtistLabel");
-    m_artistLabel->setAlignment(Qt::AlignCenter);
+    m_artistLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_artistLabel->setWordWrap(false);
-    m_artistLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_artistLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    m_albumLabel = new QLabel(leftBody);
+    m_albumLabel = new QLabel(metaPanel);
     m_albumLabel->setObjectName("playerAlbumLabel");
-    m_albumLabel->setAlignment(Qt::AlignCenter);
+    m_albumLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     m_albumLabel->setWordWrap(false);
-    m_albumLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_albumLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     m_fullMetaTitle = m_titleLabel->text();
     m_fullMetaArtist = m_artistLabel->text();
     m_fullMetaAlbum.clear();
 
+    metaLay->addWidget(m_titleLabel);
+    metaLay->addSpacing(6);
+    metaLay->addWidget(m_artistLabel);
+    metaLay->addSpacing(4);
+    metaLay->addWidget(m_albumLabel);
+
     coverCol->addSpacing(16);
-    coverCol->addWidget(m_coverLabel);
+    coverCol->addWidget(coverPanel, 0, Qt::AlignHCenter);
     coverCol->addSpacing(12);
-    coverCol->addWidget(m_titleLabel);
-    coverCol->addSpacing(6);
-    coverCol->addWidget(m_artistLabel);
-    coverCol->addSpacing(4);
-    coverCol->addWidget(m_albumLabel);
+    coverCol->addWidget(metaPanel, 0, Qt::AlignHCenter);
     coverCol->addSpacing(10);
 
     m_videoStatusLbl = new QLabel(leftBody);
@@ -350,6 +369,7 @@ void PlayerPage::setupUi()
     mainLayout->addLayout(contentRow, 1);
 
     applyPlayerPageStyle();
+    applyMetaTextElide();
 }
 
 void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artist,
@@ -436,9 +456,10 @@ void PlayerPage::applyMetaTextElide()
         return;
 
     constexpr int kCoverColSideMargin = 24 * 2;
-    const int w = m_leftGlass->width() - kCoverColSideMargin;
-    if (w <= 1)
-        return;
+    constexpr int kCoverSide = 320;
+    QWidget *leftBody = m_leftGlass->contentWidget();
+    const int bodyW = leftBody && leftBody->width() > 0 ? leftBody->width() : m_leftGlass->width();
+    const int w = qMin(kCoverSide, qMax(1, bodyW - kCoverColSideMargin));
 
     m_titleLabel->setMaximumWidth(w);
     m_artistLabel->setMaximumWidth(w);
@@ -456,9 +477,30 @@ void PlayerPage::applyMetaTextElide()
     m_artistLabel->setText(elidedArtist);
     m_albumLabel->setText(elidedAlbum);
 
+    const int titleH = fmTitle.height();
+    const int artistH = fmArtist.height();
+    const int albumH = m_fullMetaAlbum.isEmpty() ? 0 : fmAlbum.height();
+
+    m_titleLabel->setFixedSize(w, titleH);
+    m_artistLabel->setFixedSize(w, artistH);
+    if (albumH > 0) {
+        m_albumLabel->setFixedSize(w, albumH);
+        m_albumLabel->show();
+    } else {
+        m_albumLabel->hide();
+    }
+
     m_titleLabel->setToolTip(m_fullMetaTitle != elidedTitle ? m_fullMetaTitle : QString());
     m_artistLabel->setToolTip(m_fullMetaArtist != elidedArtist ? m_fullMetaArtist : QString());
     m_albumLabel->setToolTip(m_fullMetaAlbum != elidedAlbum ? m_fullMetaAlbum : QString());
+
+    if (QWidget *metaPanel = m_titleLabel->parentWidget()) {
+        const int metaH = titleH + artistH + albumH + (albumH > 0 ? 10 : 6);
+        metaPanel->setFixedHeight(metaH);
+        metaPanel->updateGeometry();
+    }
+    if (leftBody)
+        leftBody->updateGeometry();
 }
 
 void PlayerPage::resizeEvent(QResizeEvent *event)
