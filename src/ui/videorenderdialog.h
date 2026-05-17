@@ -38,7 +38,7 @@ private:
     QString m_songArtist;
     int m_trackDurationSec = 0;
     bool m_isVip = false;
-    int m_clipSec = 15;
+    int m_clipSec = 30;
 
     QLabel *m_hintLbl = nullptr;
     QLabel *m_rangeLbl = nullptr;

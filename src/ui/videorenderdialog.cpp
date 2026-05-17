@@ -170,7 +170,7 @@ void VideoRenderDialog::refreshRangeLabel()
 void VideoRenderDialog::syncVipAndApply()
 {
     m_isVip = UserManager::instance().isVip();
-    m_clipSec = m_isVip ? m_trackDurationSec : 15;
+    m_clipSec = m_isVip ? m_trackDurationSec : 30;
     const int maxStart = qMax(0, m_trackDurationSec - m_clipSec);
 
     if (m_hintLbl) {
@@ -196,7 +196,7 @@ void VideoRenderDialog::syncVipAndApply()
         if (!ok)
             return;
         m_isVip = isVip;
-        m_clipSec = m_isVip ? m_trackDurationSec : 15;
+        m_clipSec = m_isVip ? m_trackDurationSec : 30;
         const int maxStart = qMax(0, m_trackDurationSec - m_clipSec);
         if (m_hintLbl) {
             m_hintLbl->setText(m_isVip

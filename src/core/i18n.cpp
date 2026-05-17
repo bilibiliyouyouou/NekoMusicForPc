@@ -391,7 +391,7 @@ static QMap<QString, QString> zhCN()
     m["videoRenderStartLabel"] = QStringLiteral("成片起始");
     m["videoRenderRangeValue"] = QStringLiteral("%1 → %2");
     m["videoRenderVipHint"] = QStringLiteral("会员：从所选位置渲染至歌曲结束，可选水印");
-    m["videoRenderFreeHint"] = QStringLiteral("免费：15 秒横屏成片（含水印），每日 10 次");
+    m["videoRenderFreeHint"] = QStringLiteral("免费：30 秒横屏成片（含水印），每日 10 次");
     m["videoRenderEmailNotice"] = QStringLiteral("提交后后台渲染，完成后将邮件通知并附下载链接");
     m["videoRenderSubmit"] = QStringLiteral("开始生成");
     m["videoRenderSubmitted"] = QStringLiteral("已提交渲染，完成后将邮件通知");
@@ -635,7 +635,7 @@ static QMap<QString, QString> nyaCN()
     m["videoRenderStartLabel"] = QStringLiteral("成片起始喵");
     m["videoRenderRangeValue"] = QStringLiteral("%1 → %2");
     m["videoRenderVipHint"] = QStringLiteral("会员：从所选位置渲染至歌曲结束，可选水印喵");
-    m["videoRenderFreeHint"] = QStringLiteral("免费：15 秒横屏成片（含水印），每日 10 次喵");
+    m["videoRenderFreeHint"] = QStringLiteral("免费：30 秒横屏成片（含水印），每日 10 次喵");
     m["videoRenderEmailNotice"] = QStringLiteral("提交后后台渲染，完成后将邮件通知并附下载链接喵");
     m["videoRenderSubmit"] = QStringLiteral("开始生成喵");
     m["videoRenderSubmitted"] = QStringLiteral("已提交渲染，完成后将邮件通知喵");
@@ -1054,7 +1054,7 @@ static QMap<QString, QString> enUS()
     m["videoRenderStartLabel"] = "Clip start";
     m["videoRenderRangeValue"] = "%1 → %2";
     m["videoRenderVipHint"] = "VIP: render from selection to end of track; optional watermark";
-    m["videoRenderFreeHint"] = "Free: 15s landscape clip with watermark, 10 per day";
+    m["videoRenderFreeHint"] = "Free: 30s landscape clip with watermark, 10 per day";
     m["videoRenderEmailNotice"] = "Renders in background; email with download link when done";
     m["videoRenderSubmit"] = "Start";
     m["videoRenderSubmitted"] = "Job submitted; you will be emailed when ready";
