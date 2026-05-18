@@ -478,7 +478,7 @@ void PlayerBar::setupUi()
     m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     {
         QSettings lrcSettings;
-        m_desktopLrcBtn->setChecked(lrcSettings.value(QStringLiteral("desktopLyrics"), true).toBool());
+        m_desktopLrcBtn->setChecked(lrcSettings.value(QStringLiteral("desktopLyrics"), false).toBool());
     }
     connect(m_desktopLrcBtn, &QPushButton::toggled, this, [this](bool on) {
         QSettings s;

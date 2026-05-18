@@ -717,7 +717,7 @@ void MainWindow::setupUi()
     
     // 初始加载桌面歌词设置
     QSettings settings;
-    bool lyricsEnabled = settings.value("desktopLyrics", true).toBool();
+    bool lyricsEnabled = settings.value("desktopLyrics", false).toBool();
     if (m_desktopLrc) {
         if (lyricsEnabled) {
             m_desktopLrc->showWindow();
