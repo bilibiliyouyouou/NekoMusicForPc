@@ -4,9 +4,11 @@
  */
 
 #include "forgotpassworddialog.h"
+#include "authdialogchrome.h"
 #include "core/apiclient.h"
 #include "core/i18n.h"
 #include "theme/theme.h"
+#include "theme/thememanager.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -14,8 +16,6 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedWidget>
-#include <QPainter>
-#include <QPainterPath>
 #include <QGraphicsDropShadowEffect>
 #include <QTimer>
 
@@ -23,15 +23,16 @@ ForgotPasswordDialog::ForgotPasswordDialog(QWidget *parent)
     : QDialog(parent)
     , m_api(new ApiClient(this))
 {
+    setStyleSheet(Theme::ThemeManager::instance().currentStyleSheet());
     setupUi();
+    applyDialogTheme();
 
     setModal(true);
-    setMinimumSize(400, 350);
-    setMaximumSize(400, 420);
+    setFixedWidth(AuthDialogChrome::kDialogWidth);
+    updateDialogSize();
     setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground);
 
-    // 阴影效果
     auto *shadow = new QGraphicsDropShadowEffect(this);
     shadow->setBlurRadius(30);
     shadow->setOffset(0, 4);
@@ -41,146 +42,185 @@ ForgotPasswordDialog::ForgotPasswordDialog(QWidget *parent)
 
 ForgotPasswordDialog::~ForgotPasswordDialog() = default;
 
+void ForgotPasswordDialog::applyDialogTheme()
+{
+    const AuthDialogChrome::Palette p = AuthDialogChrome::currentPalette();
+
+    if (m_card)
+        m_card->setStyleSheet(AuthDialogChrome::cardStyleSheet(p));
+    if (m_titleLabel)
+        m_titleLabel->setStyleSheet(AuthDialogChrome::titleStyleSheet(p));
+    if (m_emailHintLabel)
+        m_emailHintLabel->setStyleSheet(AuthDialogChrome::bodyStyleSheet(p));
+    if (m_codeHintLabel)
+        m_codeHintLabel->setStyleSheet(AuthDialogChrome::bodyStyleSheet(p));
+    if (m_msgLabel) {
+        if (m_msgLabel->text().isEmpty()) {
+            m_msgLabel->hide();
+            m_msgLabel->setStyleSheet(AuthDialogChrome::msgStyleSheet(p.msgColor));
+        } else {
+            m_msgLabel->show();
+        }
+    }
+}
+
+void ForgotPasswordDialog::updateDialogSize()
+{
+    const int minH = m_stack && m_stack->currentIndex() == 1 ? 500 : 400;
+    adjustSize();
+    const int h = qMax(minH, sizeHint().height());
+    setMinimumHeight(minH);
+    resize(AuthDialogChrome::kDialogWidth, h);
+}
+
 void ForgotPasswordDialog::setupUi()
 {
-    auto *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(20, 20, 20, 20);
-    mainLayout->setSpacing(16);
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(AuthDialogChrome::kOuterPad, AuthDialogChrome::kOuterPad,
+                            AuthDialogChrome::kOuterPad, AuthDialogChrome::kOuterPad);
+    outer->setSpacing(0);
 
-    // 标题
-    auto *titleLabel = new QLabel(QStringLiteral("找回密码"), this);
-    titleLabel->setStyleSheet(
-        "QLabel { color: " + QString(Theme::kLavender) + "; font-size: 22px; "
-        "font-weight: bold; padding: 8px 0; }"
-    );
-    titleLabel->setAlignment(Qt::AlignCenter);
-    mainLayout->addWidget(titleLabel);
+    m_card = new QWidget(this);
+    m_card->setObjectName(QStringLiteral("authDialogCard"));
+    auto *mainLayout = new QVBoxLayout(m_card);
+    mainLayout->setContentsMargins(AuthDialogChrome::kCardPadH, AuthDialogChrome::kCardPadV,
+                                   AuthDialogChrome::kCardPadH, AuthDialogChrome::kCardPadV);
+    mainLayout->setSpacing(AuthDialogChrome::kSectionSpacing);
 
-    // 消息提示
-    m_msgLabel = new QLabel(this);
+    auto *closeBtn = new QPushButton(QStringLiteral("×"), m_card);
+    closeBtn->setObjectName("dialogCloseBtn");
+    closeBtn->setFixedSize(34, 34);
+    closeBtn->setCursor(Qt::PointingHandCursor);
+    connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
+
+    auto *headerRow = new QHBoxLayout();
+    headerRow->setContentsMargins(0, 0, 0, 0);
+    headerRow->addStretch();
+    headerRow->addWidget(closeBtn);
+    mainLayout->addLayout(headerRow);
+
+    m_titleLabel = new QLabel(QStringLiteral("找回密码"), m_card);
+    m_titleLabel->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(m_titleLabel);
+
+    m_msgLabel = new QLabel(m_card);
     m_msgLabel->setAlignment(Qt::AlignCenter);
-    m_msgLabel->setStyleSheet(
-        "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; "
-        "min-height: 20px; }"
-    );
+    m_msgLabel->setWordWrap(true);
+    m_msgLabel->hide();
     mainLayout->addWidget(m_msgLabel);
 
-    // Stacked 两步流程
-    m_stack = new QStackedWidget(this);
+    m_stack = new QStackedWidget(m_card);
 
-    // 步骤1: 输入邮箱
-    auto *step1Widget = new QWidget(this);
+    auto *step1Widget = new QWidget(m_card);
     auto *step1Layout = new QVBoxLayout(step1Widget);
     step1Layout->setContentsMargins(0, 0, 0, 0);
-    step1Layout->setSpacing(12);
+    step1Layout->setSpacing(AuthDialogChrome::kFieldSpacing);
 
-    auto *emailLabel = new QLabel(QStringLiteral("请输入注册时的邮箱地址"), step1Widget);
-    emailLabel->setStyleSheet("QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 13px; }");
-    step1Layout->addWidget(emailLabel);
+    m_emailHintLabel = new QLabel(QStringLiteral("请输入注册时的邮箱地址"), step1Widget);
+    m_emailHintLabel->setWordWrap(true);
+    step1Layout->addWidget(m_emailHintLabel);
+    step1Layout->addSpacing(4);
 
     m_emailEdit = new QLineEdit(step1Widget);
     m_emailEdit->setPlaceholderText(I18n::instance().tr("email"));
     m_emailEdit->setObjectName("dialogEdit");
-    m_emailEdit->setFixedHeight(40);
+    m_emailEdit->setFixedHeight(AuthDialogChrome::kFieldHeight);
     step1Layout->addWidget(m_emailEdit);
+
+    step1Layout->addSpacing(6);
 
     m_sendCodeBtn = new QPushButton(I18n::instance().tr("sendCode"), step1Widget);
     m_sendCodeBtn->setObjectName("dialogBtn");
-    m_sendCodeBtn->setFixedHeight(44);
+    m_sendCodeBtn->setFixedHeight(AuthDialogChrome::kPrimaryBtnHeight);
     connect(m_sendCodeBtn, &QPushButton::clicked, this, &ForgotPasswordDialog::doSendResetCode);
     step1Layout->addWidget(m_sendCodeBtn);
 
-    step1Layout->addStretch();
     m_stack->addWidget(step1Widget);
 
-    // 步骤2: 输入验证码和新密码
-    auto *step2Widget = new QWidget(this);
+    auto *step2Widget = new QWidget(m_card);
     auto *step2Layout = new QVBoxLayout(step2Widget);
     step2Layout->setContentsMargins(0, 0, 0, 0);
-    step2Layout->setSpacing(12);
+    step2Layout->setSpacing(AuthDialogChrome::kFieldSpacing);
 
-    auto *codeLabel = new QLabel(QStringLiteral("请输入邮箱中的验证码"), step2Widget);
-    codeLabel->setStyleSheet("QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 13px; }");
-    step2Layout->addWidget(codeLabel);
+    m_codeHintLabel = new QLabel(QStringLiteral("请输入邮箱中的验证码"), step2Widget);
+    m_codeHintLabel->setWordWrap(true);
+    step2Layout->addWidget(m_codeHintLabel);
+    step2Layout->addSpacing(4);
 
     m_codeEdit = new QLineEdit(step2Widget);
     m_codeEdit->setPlaceholderText(I18n::instance().tr("verificationCode"));
     m_codeEdit->setObjectName("dialogEdit");
-    m_codeEdit->setFixedHeight(40);
+    m_codeEdit->setFixedHeight(AuthDialogChrome::kFieldHeight);
     step2Layout->addWidget(m_codeEdit);
 
     m_newPassEdit = new QLineEdit(step2Widget);
     m_newPassEdit->setPlaceholderText(QStringLiteral("新密码(6-30位)"));
     m_newPassEdit->setObjectName("dialogEdit");
-    m_newPassEdit->setFixedHeight(40);
+    m_newPassEdit->setFixedHeight(AuthDialogChrome::kFieldHeight);
     m_newPassEdit->setEchoMode(QLineEdit::Password);
     step2Layout->addWidget(m_newPassEdit);
 
     m_confirmPassEdit = new QLineEdit(step2Widget);
     m_confirmPassEdit->setPlaceholderText(QStringLiteral("确认新密码"));
     m_confirmPassEdit->setObjectName("dialogEdit");
-    m_confirmPassEdit->setFixedHeight(40);
+    m_confirmPassEdit->setFixedHeight(AuthDialogChrome::kFieldHeight);
     m_confirmPassEdit->setEchoMode(QLineEdit::Password);
     step2Layout->addWidget(m_confirmPassEdit);
 
+    step2Layout->addSpacing(6);
+
     m_submitBtn = new QPushButton(QStringLiteral("重置密码"), step2Widget);
     m_submitBtn->setObjectName("dialogBtn");
-    m_submitBtn->setFixedHeight(44);
+    m_submitBtn->setFixedHeight(AuthDialogChrome::kPrimaryBtnHeight);
     connect(m_submitBtn, &QPushButton::clicked, this, &ForgotPasswordDialog::doResetPassword);
     step2Layout->addWidget(m_submitBtn);
 
-    step2Layout->addStretch();
     m_stack->addWidget(step2Widget);
 
     m_stack->setCurrentIndex(0);
     mainLayout->addWidget(m_stack);
 
-    // 返回按钮
-    auto *backBtn = new QPushButton(QStringLiteral("返回登录"), this);
+    auto *backBtn = new QPushButton(QStringLiteral("返回登录"), m_card);
     backBtn->setObjectName("dialogLinkBtn");
-    backBtn->setFixedHeight(36);
+    backBtn->setFixedHeight(AuthDialogChrome::kLinkBtnHeight);
     backBtn->setCursor(Qt::PointingHandCursor);
     connect(backBtn, &QPushButton::clicked, this, &QDialog::reject);
     mainLayout->addWidget(backBtn);
 
-    // 关闭按钮
-    auto *closeBtn = new QPushButton(QStringLiteral("×"), this);
-    closeBtn->setObjectName("dialogCloseBtn");
-    closeBtn->setFixedSize(32, 32);
-    closeBtn->setCursor(Qt::PointingHandCursor);
-    connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
+    outer->addWidget(m_card);
+}
 
-    auto *closeLayout = new QHBoxLayout();
-    closeLayout->addStretch();
-    closeLayout->addWidget(closeBtn);
-    closeLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->addLayout(closeLayout);
+void ForgotPasswordDialog::setMsg(const QString &text, const QColor &color)
+{
+    m_msgLabel->setText(text);
+    if (text.isEmpty()) {
+        m_msgLabel->hide();
+        applyDialogTheme();
+        updateDialogSize();
+        return;
+    }
+    m_msgLabel->show();
+    m_msgLabel->setStyleSheet(AuthDialogChrome::msgStyleSheet(color.name()));
+    updateDialogSize();
 }
 
 void ForgotPasswordDialog::doSendResetCode()
 {
     QString email = m_emailEdit->text().trimmed();
     if (email.isEmpty()) {
-        m_msgLabel->setText(I18n::instance().tr("pleaseEnterEmail"));
-        m_msgLabel->setStyleSheet(
-            "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; min-height: 20px; }"
-        );
+        setMsg(I18n::instance().tr("pleaseEnterEmail"), Theme::kSakura);
         return;
     }
 
-    m_msgLabel->clear();
+    setMsg("", Qt::transparent);
     m_sendCodeBtn->setEnabled(false);
 
     m_api->sendResetCode(email, [this](bool success, const QString &message) {
         QTimer::singleShot(0, this, [this, success, message]() {
             if (success) {
-                m_msgLabel->setText(message);
-                m_msgLabel->setStyleSheet(
-                    "QLabel { color: " + QString(Theme::kMint) + "; font-size: 13px; min-height: 20px; }"
-                );
-                // 进入第二步
+                setMsg(message, Theme::kMint);
                 m_stack->setCurrentIndex(1);
-                // 60秒倒计时
+                updateDialogSize();
                 m_countdown = 60;
                 auto *timer = new QTimer(this);
                 connect(timer, &QTimer::timeout, this, [this, timer]() {
@@ -196,10 +236,7 @@ void ForgotPasswordDialog::doSendResetCode()
                 });
                 timer->start(1000);
             } else {
-                m_msgLabel->setText(message);
-                m_msgLabel->setStyleSheet(
-                    "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; min-height: 20px; }"
-                );
+                setMsg(message, Theme::kSakura);
                 m_sendCodeBtn->setEnabled(true);
             }
         });
@@ -214,30 +251,21 @@ void ForgotPasswordDialog::doResetPassword()
     QString confirmPass = m_confirmPassEdit->text();
 
     if (email.isEmpty() || code.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
-        m_msgLabel->setText(I18n::instance().tr("fillAllFields"));
-        m_msgLabel->setStyleSheet(
-            "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; min-height: 20px; }"
-        );
+        setMsg(I18n::instance().tr("fillAllFields"), Theme::kSakura);
         return;
     }
 
     if (newPass.length() < 6 || newPass.length() > 30) {
-        m_msgLabel->setText(QStringLiteral("密码长度必须在6-30位之间"));
-        m_msgLabel->setStyleSheet(
-            "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; min-height: 20px; }"
-        );
+        setMsg(QStringLiteral("密码长度必须在6-30位之间"), Theme::kSakura);
         return;
     }
 
     if (newPass != confirmPass) {
-        m_msgLabel->setText(QStringLiteral("两次输入的密码不一致"));
-        m_msgLabel->setStyleSheet(
-            "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; min-height: 20px; }"
-        );
+        setMsg(QStringLiteral("两次输入的密码不一致"), Theme::kSakura);
         return;
     }
 
-    m_msgLabel->clear();
+    setMsg("", Qt::transparent);
     m_submitBtn->setEnabled(false);
     m_submitBtn->setText("...");
 
@@ -247,35 +275,11 @@ void ForgotPasswordDialog::doResetPassword()
             m_submitBtn->setText(QStringLiteral("重置密码"));
 
             if (success) {
-                m_msgLabel->setText(QStringLiteral("密码重置成功,请登录"));
-                m_msgLabel->setStyleSheet(
-                    "QLabel { color: " + QString(Theme::kMint) + "; font-size: 13px; min-height: 20px; }"
-                );
-                // 延迟关闭,让用户看到成功消息
+                setMsg(QStringLiteral("密码重置成功,请登录"), Theme::kMint);
                 QTimer::singleShot(1500, this, &QDialog::accept);
             } else {
-                m_msgLabel->setText(message);
-                m_msgLabel->setStyleSheet(
-                    "QLabel { color: " + QString(Theme::kSakura) + "; font-size: 13px; min-height: 20px; }"
-                );
+                setMsg(message, Theme::kSakura);
             }
         });
     });
-}
-
-void ForgotPasswordDialog::paintEvent(QPaintEvent *event)
-{
-    QDialog::paintEvent(event);
-
-    QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
-
-    // 圆角背景
-    QPainterPath path;
-    path.addRoundedRect(rect().adjusted(2, 2, -2, -2), 16, 16);
-    p.fillPath(path, QColor(36, 31, 49, 245));
-
-    // 边框
-    p.setPen(QPen(QColor(230, 57, 80, 60), 1));
-    p.drawPath(path);
 }

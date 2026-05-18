@@ -3,10 +3,6 @@
 /**
  * @file forgotpassworddialog.h
  * @brief 忘记密码对话框
- *
- * 两步流程:
- * 1. 验证邮箱并发送验证码
- * 2. 输入验证码和新密码,重置密码
  */
 
 #include <QDialog>
@@ -15,6 +11,7 @@ class QLineEdit;
 class QLabel;
 class QPushButton;
 class QStackedWidget;
+class QWidget;
 class ApiClient;
 
 class ForgotPasswordDialog : public QDialog
@@ -25,15 +22,18 @@ public:
     explicit ForgotPasswordDialog(QWidget *parent = nullptr);
     ~ForgotPasswordDialog() override;
 
-protected:
-    void paintEvent(QPaintEvent *event) override;
-
 private:
     void setupUi();
+    void applyDialogTheme();
+    void updateDialogSize();
+    void setMsg(const QString &text, const QColor &color);
     void doSendResetCode();
     void doResetPassword();
-    void updateStep();
 
+    QWidget *m_card = nullptr;
+    QLabel *m_titleLabel = nullptr;
+    QLabel *m_emailHintLabel = nullptr;
+    QLabel *m_codeHintLabel = nullptr;
     QStackedWidget *m_stack = nullptr;
     QLineEdit *m_emailEdit = nullptr;
     QLineEdit *m_codeEdit = nullptr;

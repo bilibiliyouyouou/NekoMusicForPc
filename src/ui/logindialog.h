@@ -3,9 +3,6 @@
 /**
  * @file logindialog.h
  * @brief 登录/注册对话框
- *
- * 支持登录和注册两种模式,包含用户名、密码、邮箱(注册)、验证码(注册)。
- * 采用与主窗口一致的日系动漫风主题。
  */
 
 #include <QDialog>
@@ -14,7 +11,9 @@ class QLineEdit;
 class QLabel;
 class QPushButton;
 class QStackedWidget;
+class QWidget;
 class ApiClient;
+class QTimer;
 
 class LoginDialog : public QDialog
 {
@@ -24,11 +23,10 @@ public:
     explicit LoginDialog(QWidget *parent = nullptr);
     ~LoginDialog() override;
 
-protected:
-    void paintEvent(QPaintEvent *event) override;
-
 private:
     void setupUi();
+    void applyDialogTheme();
+    void updateDialogSize();
     void switchMode();
     void doLogin();
     void doRegister();
@@ -38,6 +36,8 @@ private:
     void showForgotPassword();
     void setMsg(const QString &text, const QColor &color);
 
+    QWidget *m_card = nullptr;
+    QLabel *m_titleLabel = nullptr;
     QTimer *m_countdownTimer = nullptr;
     QStackedWidget *m_stack = nullptr;
     QLineEdit *m_loginUserEdit = nullptr;

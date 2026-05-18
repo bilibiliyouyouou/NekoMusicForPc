@@ -960,12 +960,12 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; bor
 #dialogLinkBtn {
     background: transparent;
     border: none;
-    color: #F2ACB9;
+    color: #D62839;
     font-size: 13px;
     text-decoration: underline;
 }
 
-#dialogLinkBtn:hover { color: #E08FA0; }
+#dialogLinkBtn:hover { color: #B82238; }
 
 #dialogCloseBtn {
     background: rgba(33, 37, 41, 0.06);
