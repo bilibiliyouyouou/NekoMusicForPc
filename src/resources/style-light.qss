@@ -447,10 +447,15 @@ QTextEdit:focus {
     background: rgba(230, 57, 80, 0.12);
 }
 
-#sbEmpty {
+#sbEmpty, #sbEmptyPlaylist {
     font-size: 12px;
     color: rgba(33, 37, 41, 0.5);
     padding: 16px;
+}
+
+#playlistListItemName {
+    font-size: 13px;
+    color: rgba(33, 37, 41, 0.82);
 }
 
 /* ─── 轮播 ──────────────────────────────────────────────── */

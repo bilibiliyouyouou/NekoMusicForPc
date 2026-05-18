@@ -1,5 +1,6 @@
 #include "ui/playlistlistitem.h"
 #include "core/i18n.h"
+#include "theme/thememanager.h"
 
 #include <QMouseEvent>
 #include <QPainter>
@@ -15,6 +16,7 @@ PlaylistListItem::PlaylistListItem(int playlistId, const QString& name, int musi
 {
     setCursor(Qt::PointingHandCursor);
     setFixedHeight(56);  // padding 10+36+10 = 56
+    setObjectName(QStringLiteral("playlistListItem"));
 
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(16, 10, 16, 10);
@@ -54,13 +56,17 @@ PlaylistListItem::PlaylistListItem(int playlistId, const QString& name, int musi
         setPlaceholderCover();
     }
 
-    // Name
+    // Name（颜色由全局 QSS #playlistListItemName 按主题提供）
     m_nameLbl = new QLabel(this);
+    m_nameLbl->setObjectName(QStringLiteral("playlistListItemName"));
     m_nameLbl->setText(m_name);
-    m_nameLbl->setStyleSheet("QLabel { font-size: 13px; color: rgba(255, 255, 255, 0.7); }");
     m_nameLbl->setAlignment(Qt::AlignVCenter);
     m_nameLbl->setWordWrap(false);
     lay->addWidget(m_nameLbl, 1);
+
+    connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this, [this]() {
+        update();
+    });
 }
 
 void PlaylistListItem::setMusicCount(int count) {
@@ -87,11 +93,20 @@ void PlaylistListItem::mousePressEvent(QMouseEvent *event) {
 
 void PlaylistListItem::contextMenuEvent(QContextMenuEvent *event) {
     QMenu menu(this);
-    menu.setStyleSheet(
-        "QMenu { background-color: rgba(40, 40, 50, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 4px; }"
-        "QMenu::item { color: #e0e0e0; padding: 8px 24px; border-radius: 4px; }"
-        "QMenu::item:selected { background-color: rgba(255, 255, 255, 0.1); }"
-    );
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (dark) {
+        menu.setStyleSheet(
+            "QMenu { background-color: rgba(40, 40, 50, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); "
+            "border-radius: 8px; padding: 4px; }"
+            "QMenu::item { color: #e0e0e0; padding: 8px 24px; border-radius: 4px; }"
+            "QMenu::item:selected { background-color: rgba(255, 255, 255, 0.1); }");
+    } else {
+        menu.setStyleSheet(
+            "QMenu { background-color: rgba(255, 255, 255, 0.98); border: 1px solid rgba(111, 66, 193, 0.25); "
+            "border-radius: 8px; padding: 4px; }"
+            "QMenu::item { color: #212529; padding: 8px 24px; border-radius: 4px; }"
+            "QMenu::item:selected { background-color: rgba(230, 57, 80, 0.18); }");
+    }
 
     if (m_mode == UserPlaylist) {
         QAction *renameAction = menu.addAction(QStringLiteral("重命名"));
@@ -122,11 +137,12 @@ void PlaylistListItem::paintEvent(QPaintEvent *event) {
     painter.setRenderHint(QPainter::Antialiasing);
 
     // Background + border-left
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
     QRect r = rect();
     if (m_hovered) {
         QPainterPath path;
         path.addRoundedRect(r.adjusted(2, 2, -2, -2), 8, 8);
-        painter.fillPath(path, QColor(255, 255, 255, 20));  // rgba(255,255,255,0.08) ~ 20/255
+        painter.fillPath(path, dark ? QColor(255, 255, 255, 20) : QColor(230, 57, 80, 36));
     }
     // border-left 3px transparent (visible on hover/active in future)
     painter.fillRect(0, r.height() / 2 - 10, 3, 20, QColor(0, 0, 0, 1));
