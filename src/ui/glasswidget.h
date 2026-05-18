@@ -43,6 +43,10 @@ public:
      */
     void setBackdropSource(QWidget *source) { m_backdropSource = source; }
 
+    /** 为 false 时不抓取背后像素，仅用 baseColor 实心填充（亮色卡片置于深色底上时使用） */
+    void setBackdropCaptureEnabled(bool enabled);
+    bool backdropCaptureEnabled() const { return m_backdropCaptureEnabled; }
+
 private:
     void captureBackdrop(QImage &out);
 
@@ -52,6 +56,7 @@ private:
 
     bool m_needCapture = true;
     bool m_inBackdropGrab = false;
+    bool m_backdropCaptureEnabled = true;
 
     qreal m_opacity = 0.65;
     QColor m_base{26, 26, 46};

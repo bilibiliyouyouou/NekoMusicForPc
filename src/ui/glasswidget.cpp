@@ -51,16 +51,24 @@ protected:
         clip.addRoundedRect(QRectF(r), rad, rad);
         p.setClipPath(clip);
 
-        if (!m_grab.isNull())
-            p.drawPixmap(r, m_grab);
-        else
-            p.fillRect(r, m_owner->m_base);
-
         const bool dark = Theme::ThemeManager::instance().isDarkMode();
         const qreal op = qBound(0.0, m_owner->m_opacity, 1.0);
-        QColor tint = m_owner->m_base;
-        tint.setAlphaF(op * (dark ? 0.42 : 0.38));
-        p.fillRect(r, tint);
+        const bool solidLight = !dark && !m_owner->m_backdropCaptureEnabled;
+
+        if (!m_grab.isNull())
+            p.drawPixmap(r, m_grab);
+        else {
+            QColor fill = m_owner->m_base;
+            if (solidLight && fill.alpha() < 250)
+                fill.setAlpha(255);
+            p.fillRect(r, fill);
+        }
+
+        if (!solidLight) {
+            QColor tint = m_owner->m_base;
+            tint.setAlphaF(op * (dark ? 0.42 : 0.38));
+            p.fillRect(r, tint);
+        }
 
         // 内缘高光（简化版折射感）
         QLinearGradient hi(r.topLeft(), QPoint(r.left(), r.top() + qMin(r.height() / 3, 120)));
@@ -83,6 +91,14 @@ private:
     {
         if (!m_owner->parentWidget())
             return;
+
+        if (!m_owner->m_backdropCaptureEnabled) {
+            m_grab = QPixmap();
+            m_cachedLogical = m_owner->size();
+            m_cachedDpr = qMax(1.0, m_owner->devicePixelRatioF());
+            m_owner->m_needCapture = false;
+            return;
+        }
 
         const QSize logical = m_owner->size();
         const qreal dpr = qMax(1.0, m_owner->devicePixelRatioF());
@@ -184,6 +200,14 @@ void GlassWidget::setBorderRadius(int r)
     if (m_plate)
         m_plate->update();
     update();
+}
+
+void GlassWidget::setBackdropCaptureEnabled(bool enabled)
+{
+    if (m_backdropCaptureEnabled == enabled)
+        return;
+    m_backdropCaptureEnabled = enabled;
+    refreshBackdrop();
 }
 
 void GlassWidget::refreshBackdrop()

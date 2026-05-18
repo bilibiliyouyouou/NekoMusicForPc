@@ -11,6 +11,7 @@
 #include "core/i18n.h"
 #include "core/covercache.h"
 #include "theme/theme.h"
+#include "theme/thememanager.h"
 #include "ui/playlistcard.h"
 #include "ui/glasswidget.h"
 #include "ui/scrollareafix.h"
@@ -33,6 +34,30 @@
 #include <QNetworkReply>
 #include <QtConcurrent>
 
+namespace {
+
+void applyAggregateGlass(GlassWidget *glass)
+{
+    if (!glass)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (dark) {
+        glass->setBackdropCaptureEnabled(true);
+        glass->setBaseColor(QColor(45, 38, 65));
+        glass->setBorderColor(QColor(230, 57, 80, 58));
+        glass->setOpacity(0.60);
+    } else {
+        // 亮色主窗口仍是深色渐变底，抓取背后像素会让卡片发灰；改用实心浅底
+        glass->setBackdropCaptureEnabled(false);
+        glass->setBaseColor(QColor(252, 250, 255));
+        glass->setBorderColor(QColor(111, 66, 193, 70));
+        glass->setOpacity(0.98);
+    }
+    glass->refreshBackdrop();
+}
+
+} // namespace
+
 // ─── 单曲封面标签（圆角 6px + 异步加载）─────────────────
 class CoverLabel : public QLabel
 {
@@ -46,14 +71,16 @@ public:
 
     void setPlaceholder()
     {
+        const bool dark = Theme::ThemeManager::instance().isDarkMode();
         m_pixmap = QPixmap(m_size, m_size);
         m_pixmap.fill(Qt::transparent);
         QPainter p(&m_pixmap);
         QPainterPath pp;
         pp.addRoundedRect(0, 0, m_size, m_size, 6, 6);
-        p.fillPath(pp, QColor(128, 128, 128, 40));
+        p.fillPath(pp, dark ? QColor(128, 128, 128, 40) : QColor(111, 66, 193, 38));
         p.setClipPath(pp);
-        auto iconPx = Icons::render(Icons::kMusic, 28, QColor(255, 255, 255, 100));
+        const QColor iconColor = dark ? QColor(255, 255, 255, 100) : QColor(111, 66, 193, 140);
+        auto iconPx = Icons::render(Icons::kMusic, 28, iconColor);
         p.drawPixmap((m_size - 28) / 2, (m_size - 28) / 2, iconPx);
         update();
     }
@@ -119,12 +146,13 @@ public:
         setCursor(Qt::PointingHandCursor);
         setAttribute(Qt::WA_StyledBackground, false);
 
-        auto *glass = new GlassWidget(this);
-        glass->setBorderRadius(Theme::kRXl);
-        glass->setOpacity(0.60);
-        glass->setObjectName(type == Hot ? "hpHotMusicCard" : "hpLatestMusicCard");
+        m_glass = new GlassWidget(this);
+        m_glass->setBorderRadius(Theme::kRXl);
+        m_glass->setObjectName(type == Hot ? "hpHotMusicCard" : "hpLatestMusicCard");
+        applyAggregateGlass(m_glass);
 
-        QWidget *glassBody = glass->contentWidget();
+        QWidget *glassBody = m_glass->contentWidget();
+
         auto *vlay = new QVBoxLayout(glassBody);
         vlay->setContentsMargins(12, 12, 12, 12);
         vlay->setSpacing(8);
@@ -157,7 +185,14 @@ public:
 
         auto *outer = new QVBoxLayout(this);
         outer->setContentsMargins(0, 0, 0, 0);
-        outer->addWidget(glass);
+        outer->addWidget(m_glass);
+    }
+
+    void applyTheme()
+    {
+        applyAggregateGlass(m_glass);
+        for (auto *cover : m_covers)
+            cover->setPlaceholder();
     }
 
     void retranslate() {
@@ -204,6 +239,7 @@ private:
     int m_type;
     int m_firstId;
     int m_totalCount;
+    GlassWidget *m_glass = nullptr;
     QList<CoverLabel *> m_covers;
 };
 
@@ -217,6 +253,12 @@ HomePage::HomePage(QWidget *parent) : QWidget(parent)
     setAttribute(Qt::WA_StyledBackground, false);
     setAutoFillBackground(false);
     setupUi();
+
+    connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
+            [this](Theme::ThemeMode) {
+                for (auto *card : m_aggCards)
+                    card->applyTheme();
+            });
 
     // 延迟加载数据，先显示UI
     QTimer::singleShot(100, this, &HomePage::refreshData);
@@ -301,9 +343,9 @@ void HomePage::retranslate()
     auto *ll = findChild<QLabel *>("hpLoading");
     if (ll) ll->setText(I18n::instance().tr("loading"));
 
-    // Update all MusicAggregateCard instances
     for (auto *card : m_aggCards) {
         card->retranslate();
+        card->applyTheme();
     }
 }
 
