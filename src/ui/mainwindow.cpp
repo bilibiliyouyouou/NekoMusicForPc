@@ -214,7 +214,13 @@ MainWindow::~MainWindow()
 {
     // 清理下载器连接
     disconnectDownloader();
-    
+
+    if (m_desktopLrc) {
+        m_desktopLrc->hide();
+        delete m_desktopLrc;
+        m_desktopLrc = nullptr;
+    }
+
     // 清理托盘图标
     if (m_trayIcon) {
         m_trayIcon->hide();
@@ -686,35 +692,30 @@ void MainWindow::setupUi()
             m_vipPage->refresh();
     });
 
-    // 创建桌面歌词窗口
-    m_desktopLrc = new DesktopLrc(this);
-    
-    // 连接播放器位置更新到桌面歌词
-    connect(m_engine, &PlayerEngine::positionChanged, this, [this](qint64 position) {
-        if (m_desktopLrc) {
-            m_desktopLrc->updatePosition(position);
-        }
-    });
-    
-    // 连接歌曲开始播放时更新桌面歌词
-    connect(m_engine, &PlayerEngine::musicStarted, this, [this](const MusicInfo& music) {
-        if (m_desktopLrc) {
+    // 创建桌面歌词窗口（独立顶层窗口，不随主窗口最小化）
+    m_desktopLrc = new DesktopLrc(nullptr);
+
+    connect(m_engine, &PlayerEngine::positionChanged, m_desktopLrc, &DesktopLrc::updatePosition);
+
+    connect(m_engine, &PlayerEngine::musicStarted, m_desktopLrc, [this](const MusicInfo &music) {
+        if (m_desktopLrc)
             m_desktopLrc->setCurrentSong(music.title, music.artist);
-            // 这里可以添加歌词文件加载逻辑
-            // m_desktopLrc->loadLyricsFile("path/to/lyrics.lrc");
-        }
     });
-    
-    // 连接桌面歌词开关（播放栏「词」按钮）
+
+    connect(m_playerPage, &PlayerPage::lyricsPayloadReady, m_desktopLrc, &DesktopLrc::loadLrcText);
+
     connect(m_playerBar, &PlayerBar::desktopLyricsToggled, this, [this](bool enabled) {
-        if (m_desktopLrc) {
-            if (enabled)
-                m_desktopLrc->showWindow();
-            else
-                m_desktopLrc->hideWindow();
+        if (!m_desktopLrc)
+            return;
+        if (enabled) {
+            m_desktopLrc->showWindow();
+            Toast::show(this, I18n::instance().tr("desktopLyricsEnabled"));
+        } else {
+            m_desktopLrc->hideWindow();
+            Toast::show(this, I18n::instance().tr("desktopLyricsDisabled"));
         }
     });
-    
+
     // 初始加载桌面歌词设置
     QSettings settings;
     bool lyricsEnabled = settings.value("desktopLyrics", false).toBool();

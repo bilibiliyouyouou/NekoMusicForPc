@@ -47,6 +47,8 @@ protected:
 
 signals:
     void backRequested();
+    /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
+    void lyricsPayloadReady(const QString &lrcText);
 
 private:
     void setupUi();
@@ -62,6 +64,8 @@ private:
     /** 将一段 LRC 或纯文本歌词写入 m_lyrics（无时间轴时整段作为 t=0 一行） */
     void applyLyricsRawText(const QString &raw);
     void rebuildLyricLabels();
+    QString serializeLyricsForDesktop() const;
+    void emitDesktopLyricsPayload();
     void resetVideoRenderState();
     void updateVideoRenderUi();
     void pollVideoRenderStatus();

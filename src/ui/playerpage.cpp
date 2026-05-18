@@ -855,6 +855,7 @@ void PlayerPage::rebuildLyricLabels()
         ).arg(m_clrLyricDim));
         m_lyricsLayout->addWidget(noDataLabel);
         m_lyricsLayout->addStretch();
+        emitDesktopLyricsPayload();
         return;
     }
 
@@ -892,6 +893,32 @@ void PlayerPage::rebuildLyricLabels()
         m_lyricsLayout->addWidget(lineWidget);
     }
     m_lyricsLayout->addStretch();
+    emitDesktopLyricsPayload();
+}
+
+QString PlayerPage::serializeLyricsForDesktop() const
+{
+    if (m_lyrics.isEmpty())
+        return {};
+
+    QString out;
+    for (const LyricLine &line : m_lyrics) {
+        const qint64 t = line.time;
+        const int min = static_cast<int>(t / 60000);
+        const int sec = static_cast<int>((t / 1000) % 60);
+        const int cs = static_cast<int>((t % 1000) / 10);
+        out += QStringLiteral("[%1:%2.%3]%4\n")
+                   .arg(min)
+                   .arg(sec, 2, 10, QChar('0'))
+                   .arg(cs, 2, 10, QChar('0'))
+                   .arg(line.text);
+    }
+    return out;
+}
+
+void PlayerPage::emitDesktopLyricsPayload()
+{
+    emit lyricsPayloadReady(serializeLyricsForDesktop());
 }
 
 void PlayerPage::updateLyricHighlight(qint64 positionMs)
