@@ -692,7 +692,7 @@ void MainWindow::setupUi()
             m_vipPage->refresh();
     });
 
-    // 创建桌面歌词窗口（独立顶层窗口，不随主窗口最小化）
+    // 桌面歌词：同进程内的独立顶层窗口（parent=nullptr 避免随主窗口最小化）
     m_desktopLrc = new DesktopLrc(nullptr);
 
     connect(m_engine, &PlayerEngine::positionChanged, m_desktopLrc, &DesktopLrc::updatePosition);

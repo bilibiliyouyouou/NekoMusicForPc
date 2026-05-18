@@ -5,20 +5,34 @@
 
 #include "desktoplrc.h"
 #include "core/i18n.h"
+#include "desktoplrcplatform.h"
 
+#include <QFont>
 #include <QGuiApplication>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPaintEvent>
 #include <QRegularExpression>
 #include <QScreen>
 #include <QSettings>
+#include <QShowEvent>
 
-DesktopLrc::DesktopLrc(QWidget *parent)
-    : QWidget(parent)
+#if defined(NEKO_HAS_LAYERSHELL_QT)
+#include <LayerShellQt/Window>
+#endif
+
+DesktopLrc::DesktopLrc(QWindow *parent)
+    : QRasterWindow(parent)
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
-    setAttribute(Qt::WA_TranslucentBackground);
-    setAttribute(Qt::WA_ShowWithoutActivating);
-    setContextMenuPolicy(Qt::NoContextMenu);
+    m_layerShellActive = useLayerShellPath();
+    desktopLrcConfigureWindow(this, m_layerShellActive);
 
+    QSurfaceFormat fmt = format();
+    fmt.setAlphaBufferSize(8);
+    setFormat(fmt);
+
+    setTitle(QStringLiteral("NekoMusic — %1")
+                 .arg(I18n::instance().tr(QStringLiteral("desktopLyrics"))));
     resize(600, 80);
 
     m_font = QFont(QStringLiteral("Microsoft YaHei"), 20, QFont::Bold);
@@ -28,8 +42,122 @@ DesktopLrc::DesktopLrc(QWidget *parent)
     m_updateTimer = new QTimer(this);
     connect(m_updateTimer, &QTimer::timeout, this, &DesktopLrc::updateLyricDisplay);
 
-    restoreGeometry();
+    m_stayOnTopTimer = new QTimer(this);
+    m_stayOnTopTimer->setInterval(800);
+    connect(m_stayOnTopTimer, &QTimer::timeout, this, &DesktopLrc::refreshStayOnTop);
+
+    if (!m_layerShellActive)
+        restoreGeometry();
     applyFallbackText();
+}
+
+bool DesktopLrc::useLayerShellPath() const
+{
+#if defined(NEKO_HAS_LAYERSHELL_QT)
+    return desktopLrcIsKdePlasmaSession() && desktopLrcIsWaylandSession();
+#else
+    Q_UNUSED(this);
+    return false;
+#endif
+}
+
+#if defined(NEKO_HAS_LAYERSHELL_QT)
+void DesktopLrc::ensureLayerShellConfigured()
+{
+    if (m_layerShellConfigured)
+        return;
+
+    // 必须在首次 show/map 之前绑定 layer-shell，否则会与 xdg_toplevel 冲突导致 Wayland 崩溃
+    if (LayerShellQt::Window *layer = LayerShellQt::Window::get(this)) {
+        using LSWindow = LayerShellQt::Window;
+        layer->setLayer(LSWindow::LayerOverlay);
+        layer->setKeyboardInteractivity(LSWindow::KeyboardInteractivityNone);
+        layer->setActivateOnShow(false);
+        layer->setCloseOnDismissed(false);
+        layer->setScope(QStringLiteral("nekomusic-desktop-lrc"));
+        layer->setAnchors(LSWindow::Anchors(LSWindow::AnchorBottom | LSWindow::AnchorLeft));
+        layer->setDesiredSize(size());
+    }
+
+    m_layerShellConfigured = true;
+}
+
+void DesktopLrc::applyLayerShellGeometry()
+{
+    LayerShellQt::Window *layer = LayerShellQt::Window::get(this);
+    if (!layer)
+        return;
+
+    QSettings settings;
+    const int w = qMax(320, settings.value(QStringLiteral("desktopLyricsW"), width()).toInt());
+    const int h = qMax(56, settings.value(QStringLiteral("desktopLyricsH"), height()).toInt());
+    resize(w, h);
+    layer->setDesiredSize(size());
+
+    QScreen *screen = QGuiApplication::primaryScreen();
+    if (!screen)
+        return;
+
+    const QRect area = screen->availableGeometry();
+    int left = (area.width() - width()) / 2 + area.left();
+    int top = area.bottom() - height() - 48;
+
+    if (settings.contains(QStringLiteral("desktopLyricsX"))
+        && settings.contains(QStringLiteral("desktopLyricsY"))) {
+        left = settings.value(QStringLiteral("desktopLyricsX")).toInt();
+        top = settings.value(QStringLiteral("desktopLyricsY")).toInt();
+    }
+
+    left = qBound(area.left(), left, area.right() - width() + 1);
+    top = qBound(area.top(), top, area.bottom() - height() + 1);
+
+    const int bottom = area.bottom() - top - height() + 1;
+    layer->setAnchors(
+        LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom | LayerShellQt::Window::AnchorLeft));
+    layer->setMargins(QMargins(left - area.left(), 0, 0, qMax(0, bottom)));
+}
+
+void DesktopLrc::saveLayerShellGeometry()
+{
+    LayerShellQt::Window *layer = LayerShellQt::Window::get(this);
+    if (!layer)
+        return;
+
+    QScreen *screen = QGuiApplication::screenAt(geometry().center());
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    if (!screen)
+        return;
+
+    const QRect area = screen->availableGeometry();
+    const QMargins m = layer->margins();
+    const int left = area.left() + m.left();
+    const int top = area.bottom() - m.bottom() - height() + 1;
+
+    QSettings settings;
+    settings.setValue(QStringLiteral("desktopLyricsX"), left);
+    settings.setValue(QStringLiteral("desktopLyricsY"), top);
+    settings.setValue(QStringLiteral("desktopLyricsW"), width());
+    settings.setValue(QStringLiteral("desktopLyricsH"), height());
+}
+#else
+void DesktopLrc::ensureLayerShellConfigured() {}
+void DesktopLrc::applyLayerShellGeometry() {}
+void DesktopLrc::saveLayerShellGeometry() {}
+#endif
+
+void DesktopLrc::showEvent(QShowEvent *event)
+{
+    QRasterWindow::showEvent(event);
+    if (!m_layerShellActive)
+        desktopLrcKeepOnTop(this);
+}
+
+void DesktopLrc::refreshStayOnTop()
+{
+    if (!m_isVisible || m_layerShellActive)
+        return;
+    desktopLrcKeepOnTop(this);
 }
 
 DesktopLrc::~DesktopLrc() = default;
@@ -39,20 +167,32 @@ void DesktopLrc::restoreGeometry()
     QSettings settings;
     const bool hasPos = settings.contains(QStringLiteral("desktopLyricsX"))
         && settings.contains(QStringLiteral("desktopLyricsY"));
-    if (hasPos) {
-        const int x = settings.value(QStringLiteral("desktopLyricsX")).toInt();
-        const int y = settings.value(QStringLiteral("desktopLyricsY")).toInt();
-        const int w = settings.value(QStringLiteral("desktopLyricsW"), width()).toInt();
-        const int h = settings.value(QStringLiteral("desktopLyricsH"), height()).toInt();
-        resize(qMax(320, w), qMax(56, h));
-        move(x, y);
+
+    auto placeDefault = [this]() {
+        if (QScreen *screen = QGuiApplication::primaryScreen()) {
+            const QRect g = screen->availableGeometry();
+            setPosition(QPoint((g.width() - width()) / 2 + g.x(), g.bottom() - height() - 48));
+        }
+    };
+
+    if (!hasPos) {
+        placeDefault();
         return;
     }
 
-    if (QScreen *screen = QGuiApplication::primaryScreen()) {
-        const QRect g = screen->availableGeometry();
-        move((g.width() - width()) / 2 + g.x(), g.bottom() - height() - 48);
+    const int x = settings.value(QStringLiteral("desktopLyricsX")).toInt();
+    const int y = settings.value(QStringLiteral("desktopLyricsY")).toInt();
+    const int w = settings.value(QStringLiteral("desktopLyricsW"), width()).toInt();
+    const int h = settings.value(QStringLiteral("desktopLyricsH"), height()).toInt();
+    resize(qMax(320, w), qMax(56, h));
+    setPosition(QPoint(x, y));
+
+    const QRect frame = geometry();
+    for (QScreen *screen : QGuiApplication::screens()) {
+        if (screen && screen->availableGeometry().intersects(frame))
+            return;
     }
+    placeDefault();
 }
 
 void DesktopLrc::saveGeometry()
@@ -184,9 +324,21 @@ void DesktopLrc::updateLyricDisplay()
 void DesktopLrc::showWindow()
 {
     m_isVisible = true;
+
+    if (m_layerShellActive) {
+        ensureLayerShellConfigured();
+        applyLayerShellGeometry();
+        show();
+        m_updateTimer->start(100);
+        updateLyricDisplay();
+        return;
+    }
+
+    restoreGeometry();
     show();
-    raise();
+    desktopLrcKeepOnTop(this);
     m_updateTimer->start(100);
+    m_stayOnTopTimer->start();
     updateLyricDisplay();
 }
 
@@ -194,6 +346,7 @@ void DesktopLrc::hideWindow()
 {
     m_isVisible = false;
     m_updateTimer->stop();
+    m_stayOnTopTimer->stop();
     hide();
 }
 
@@ -203,7 +356,7 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.fillRect(rect(), m_backgroundColor);
+    painter.fillRect(0, 0, width(), height(), m_backgroundColor);
 
     const QString currentLyric = getLyricAtTime(m_currentPosition);
     QString nextLyric;
@@ -221,11 +374,10 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
     if (nextTime > 0 && !m_lyricsMap.isEmpty()) {
         qint64 currentTime = 0;
         for (auto it = m_lyricsMap.constBegin(); it != m_lyricsMap.constEnd(); ++it) {
-            if (it.key() <= m_currentPosition) {
+            if (it.key() <= m_currentPosition)
                 currentTime = it.key();
-            } else {
+            else
                 break;
-            }
         }
         if (currentTime >= 0 && nextTime > currentTime) {
             progress = static_cast<float>(m_currentPosition - currentTime)
@@ -236,14 +388,12 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
 
     painter.setPen(QColor(255, 200, 0));
     painter.setFont(m_font);
-    QRect lyricRect = rect();
-    lyricRect.setHeight(height() / 2);
+    QRect lyricRect(0, 0, width(), height() / 2);
     painter.drawText(lyricRect, Qt::AlignCenter, currentLyric);
 
     if (!nextLyric.isEmpty()) {
         painter.setPen(QColor(255, 255, 255, 150));
-        QRect nextRect = rect();
-        nextRect.setTop(height() / 2);
+        QRect nextRect(0, height() / 2, width(), height() / 2);
         painter.drawText(nextRect, Qt::AlignCenter, nextLyric);
     }
 
@@ -257,7 +407,7 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
         painter.setFont(QFont(QStringLiteral("Microsoft YaHei"), 14, QFont::Normal));
         const QString songInfo =
             QStringLiteral("%1 - %2").arg(m_currentSongTitle, m_currentSongArtist);
-        painter.drawText(rect(), Qt::AlignCenter | Qt::AlignBottom, songInfo);
+        painter.drawText(QRect(0, 0, width(), height()), Qt::AlignCenter | Qt::AlignBottom, songInfo);
     }
 }
 
@@ -265,24 +415,48 @@ void DesktopLrc::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         m_dragging = true;
-        m_dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
+        m_dragPosition = event->globalPosition().toPoint() - position();
         event->accept();
     }
 }
 
 void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_dragging && (event->buttons() & Qt::LeftButton)) {
-        move(event->globalPosition().toPoint() - m_dragPosition);
+    if (!m_dragging || !(event->buttons() & Qt::LeftButton))
+        return;
+
+#if defined(NEKO_HAS_LAYERSHELL_QT)
+    if (m_layerShellActive) {
+        LayerShellQt::Window *layer = LayerShellQt::Window::get(this);
+        QScreen *screen = QGuiApplication::screenAt(event->globalPosition().toPoint());
+        if (layer && screen) {
+            const QRect area = screen->availableGeometry();
+            const QPoint topLeft = event->globalPosition().toPoint() - m_dragPosition;
+            const int left = qBound(area.left(), topLeft.x(), area.right() - width() + 1);
+            const int top = qBound(area.top(), topLeft.y(), area.bottom() - height() + 1);
+            const int bottom = area.bottom() - top - height() + 1;
+            layer->setAnchors(
+                LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom
+                                              | LayerShellQt::Window::AnchorLeft));
+            layer->setMargins(QMargins(left - area.left(), 0, 0, qMax(0, bottom)));
+        }
         event->accept();
+        return;
     }
+#endif
+
+    setPosition(event->globalPosition().toPoint() - m_dragPosition);
+    event->accept();
 }
 
 void DesktopLrc::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         m_dragging = false;
-        saveGeometry();
+        if (m_layerShellActive)
+            saveLayerShellGeometry();
+        else
+            saveGeometry();
         event->accept();
     }
 }

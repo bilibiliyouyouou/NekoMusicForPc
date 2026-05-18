@@ -1,17 +1,21 @@
 #pragma once
 
-#include <QWidget>
-#include <QPainter>
-#include <QMouseEvent>
+#include <QRasterWindow>
+#include <QColor>
+#include <QFont>
 #include <QMap>
 #include <QTimer>
 
-class DesktopLrc : public QWidget
+class QPaintEvent;
+class QMouseEvent;
+class QShowEvent;
+
+class DesktopLrc : public QRasterWindow
 {
     Q_OBJECT
 
 public:
-    explicit DesktopLrc(QWidget *parent = nullptr);
+    explicit DesktopLrc(QWindow *parent = nullptr);
     ~DesktopLrc() override;
 
     void loadLrcText(const QString &lrcText);
@@ -23,18 +27,25 @@ public slots:
     void hideWindow();
 
 protected:
+    void showEvent(QShowEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
+    bool useLayerShellPath() const;
+    void ensureLayerShellConfigured();
+    void applyLayerShellGeometry();
+    void saveLayerShellGeometry();
+
     void parseLyrics(const QString &lyricsText);
     QString getLyricAtTime(qint64 timeMs) const;
     void updateLyricDisplay();
     void restoreGeometry();
     void saveGeometry();
     void applyFallbackText();
+    void refreshStayOnTop();
 
     QString m_currentLyrics;
     bool m_dragging = false;
@@ -50,5 +61,9 @@ private:
     QColor m_backgroundColor;
     bool m_isVisible = false;
 
+    bool m_layerShellActive = false;
+    bool m_layerShellConfigured = false;
+
     QTimer *m_updateTimer = nullptr;
+    QTimer *m_stayOnTopTimer = nullptr;
 };

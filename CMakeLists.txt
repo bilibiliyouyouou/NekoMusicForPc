@@ -133,6 +133,7 @@ set(SOURCES
         src/ui/vippage.cpp
         src/ui/vippillbutton.cpp
         src/ui/desktoplrc.cpp
+        src/ui/desktoplrcplatform.cpp
         src/ui/favoritespage.cpp
         src/core/playerengine.cpp
         src/core/apiclient.cpp
@@ -181,6 +182,7 @@ set(HEADERS
         src/ui/vippage.h
         src/ui/vippillbutton.h
         src/ui/desktoplrc.h
+        src/ui/desktoplrcplatform.h
         src/ui/favoritespage.h
         src/core/playerengine.h
         src/core/apiclient.h
@@ -251,6 +253,36 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 if(UNIX AND NOT APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::DBus)
+    find_package(X11)
+    if(X11_FOUND)
+        target_link_libraries(${PROJECT_NAME} PRIVATE X11::X11)
+    endif()
+    # KDE Plasma：Wayland 下通过 KWin 请求 KeepAbove（构建需 libkf6windowsystem-dev）
+    find_package(KF6WindowSystem CONFIG QUIET)
+    if(NOT TARGET KF6::WindowSystem)
+        find_package(KF6WindowSystem CONFIG QUIET
+            PATHS "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/KF6WindowSystem")
+    endif()
+    if(TARGET KF6::WindowSystem)
+        message(STATUS "KF6::WindowSystem found — KDE Plasma desktop lyrics keep-above enabled")
+        target_link_libraries(${PROJECT_NAME} PRIVATE KF6::WindowSystem)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE NEKO_HAS_KDE_WINDOWSYSTEM=1)
+    else()
+        message(STATUS "KF6::WindowSystem not found — build without KDE Plasma keep-above")
+    endif()
+    # KDE Plasma Wayland：layer-shell 置顶（需 liblayershellqtinterface-dev）
+    find_package(LayerShellQt CONFIG QUIET)
+    if(NOT TARGET LayerShellQt::Interface)
+        find_package(LayerShellQt CONFIG QUIET
+            PATHS "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/LayerShellQt")
+    endif()
+    if(TARGET LayerShellQt::Interface)
+        message(STATUS "LayerShellQt found — KDE Wayland desktop lyrics overlay enabled")
+        target_link_libraries(${PROJECT_NAME} PRIVATE LayerShellQt::Interface)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE NEKO_HAS_LAYERSHELL_QT=1)
+    else()
+        message(STATUS "LayerShellQt not found — build without KDE Wayland layer-shell")
+    endif()
 endif()
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE
