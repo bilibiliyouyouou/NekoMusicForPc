@@ -21,6 +21,51 @@
 #include <LayerShellQt/Window>
 #endif
 
+namespace {
+
+constexpr int kDefaultDesktopLyricsW = 600;
+constexpr int kDefaultDesktopLyricsH = 80;
+constexpr int kDesktopLyricsGeomVersion = 6;
+
+bool isReasonableDesktopLyricsSize(int w, int h, const QScreen *screen)
+{
+    if (w < 320 || h < 56)
+        return false;
+    if (!screen)
+        return w <= 1400 && h <= 400;
+    const QRect area = screen->availableGeometry();
+    return w <= area.width() * 3 / 4 && h <= area.height() / 3;
+}
+
+QSize normalizedDesktopLyricsSize(int w, int h, const QScreen *screen)
+{
+    if (isReasonableDesktopLyricsSize(w, h, screen))
+        return QSize(w, h);
+    return QSize(kDefaultDesktopLyricsW, kDefaultDesktopLyricsH);
+}
+
+/** 全屏 bug 会把 1920×1080 写入配置；撤销代码后仍会读出，必须校验并迁移 */
+void migrateDesktopLyricsGeometry(QSettings &settings)
+{
+    QScreen *screen = QGuiApplication::primaryScreen();
+    const int w = settings.value(QStringLiteral("desktopLyricsW"), kDefaultDesktopLyricsW).toInt();
+    const int h = settings.value(QStringLiteral("desktopLyricsH"), kDefaultDesktopLyricsH).toInt();
+    const int version = settings.value(QStringLiteral("desktopLyricsGeomVersion"), 0).toInt();
+
+    if (version >= kDesktopLyricsGeomVersion && isReasonableDesktopLyricsSize(w, h, screen))
+        return;
+
+    if (!isReasonableDesktopLyricsSize(w, h, screen)) {
+        settings.remove(QStringLiteral("desktopLyricsX"));
+        settings.remove(QStringLiteral("desktopLyricsY"));
+        settings.setValue(QStringLiteral("desktopLyricsW"), kDefaultDesktopLyricsW);
+        settings.setValue(QStringLiteral("desktopLyricsH"), kDefaultDesktopLyricsH);
+    }
+    settings.setValue(QStringLiteral("desktopLyricsGeomVersion"), kDesktopLyricsGeomVersion);
+}
+
+} // namespace
+
 DesktopLrc::DesktopLrc(QWindow *parent)
     : QRasterWindow(parent)
 {
@@ -89,12 +134,15 @@ void DesktopLrc::applyLayerShellGeometry()
         return;
 
     QSettings settings;
-    const int w = qMax(320, settings.value(QStringLiteral("desktopLyricsW"), width()).toInt());
-    const int h = qMax(56, settings.value(QStringLiteral("desktopLyricsH"), height()).toInt());
-    resize(w, h);
-    layer->setDesiredSize(size());
+    migrateDesktopLyricsGeometry(settings);
 
     QScreen *screen = QGuiApplication::primaryScreen();
+    const QSize sz = normalizedDesktopLyricsSize(
+        settings.value(QStringLiteral("desktopLyricsW"), kDefaultDesktopLyricsW).toInt(),
+        settings.value(QStringLiteral("desktopLyricsH"), kDefaultDesktopLyricsH).toInt(),
+        screen);
+    resize(sz);
+    layer->setDesiredSize(size());
     if (!screen)
         return;
 
@@ -126,7 +174,7 @@ void DesktopLrc::saveLayerShellGeometry()
     QScreen *screen = QGuiApplication::screenAt(geometry().center());
     if (!screen)
         screen = QGuiApplication::primaryScreen();
-    if (!screen)
+    if (!screen || !isReasonableDesktopLyricsSize(width(), height(), screen))
         return;
 
     const QRect area = screen->availableGeometry();
@@ -139,6 +187,7 @@ void DesktopLrc::saveLayerShellGeometry()
     settings.setValue(QStringLiteral("desktopLyricsY"), top);
     settings.setValue(QStringLiteral("desktopLyricsW"), width());
     settings.setValue(QStringLiteral("desktopLyricsH"), height());
+    settings.setValue(QStringLiteral("desktopLyricsGeomVersion"), kDesktopLyricsGeomVersion);
 }
 #else
 void DesktopLrc::ensureLayerShellConfigured() {}
@@ -165,6 +214,15 @@ DesktopLrc::~DesktopLrc() = default;
 void DesktopLrc::restoreGeometry()
 {
     QSettings settings;
+    migrateDesktopLyricsGeometry(settings);
+
+    QScreen *primary = QGuiApplication::primaryScreen();
+    const QSize sz = normalizedDesktopLyricsSize(
+        settings.value(QStringLiteral("desktopLyricsW"), kDefaultDesktopLyricsW).toInt(),
+        settings.value(QStringLiteral("desktopLyricsH"), kDefaultDesktopLyricsH).toInt(),
+        primary);
+    resize(sz);
+
     const bool hasPos = settings.contains(QStringLiteral("desktopLyricsX"))
         && settings.contains(QStringLiteral("desktopLyricsY"));
 
@@ -182,9 +240,6 @@ void DesktopLrc::restoreGeometry()
 
     const int x = settings.value(QStringLiteral("desktopLyricsX")).toInt();
     const int y = settings.value(QStringLiteral("desktopLyricsY")).toInt();
-    const int w = settings.value(QStringLiteral("desktopLyricsW"), width()).toInt();
-    const int h = settings.value(QStringLiteral("desktopLyricsH"), height()).toInt();
-    resize(qMax(320, w), qMax(56, h));
     setPosition(QPoint(x, y));
 
     const QRect frame = geometry();
@@ -197,11 +252,18 @@ void DesktopLrc::restoreGeometry()
 
 void DesktopLrc::saveGeometry()
 {
+    QScreen *screen = QGuiApplication::screenAt(geometry().center());
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    if (!screen || !isReasonableDesktopLyricsSize(width(), height(), screen))
+        return;
+
     QSettings settings;
     settings.setValue(QStringLiteral("desktopLyricsX"), x());
     settings.setValue(QStringLiteral("desktopLyricsY"), y());
     settings.setValue(QStringLiteral("desktopLyricsW"), width());
     settings.setValue(QStringLiteral("desktopLyricsH"), height());
+    settings.setValue(QStringLiteral("desktopLyricsGeomVersion"), kDesktopLyricsGeomVersion);
 }
 
 void DesktopLrc::applyFallbackText()
@@ -415,7 +477,7 @@ void DesktopLrc::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         m_dragging = true;
-        m_dragPosition = event->globalPosition().toPoint() - position();
+        m_dragPosition = event->position().toPoint();
         event->accept();
     }
 }
@@ -431,7 +493,7 @@ void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
         QScreen *screen = QGuiApplication::screenAt(event->globalPosition().toPoint());
         if (layer && screen) {
             const QRect area = screen->availableGeometry();
-            const QPoint topLeft = event->globalPosition().toPoint() - m_dragPosition;
+            const QPoint topLeft = (event->globalPosition() - QPointF(m_dragPosition)).toPoint();
             const int left = qBound(area.left(), topLeft.x(), area.right() - width() + 1);
             const int top = qBound(area.top(), topLeft.y(), area.bottom() - height() + 1);
             const int bottom = area.bottom() - top - height() + 1;
@@ -445,7 +507,7 @@ void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
     }
 #endif
 
-    setPosition(event->globalPosition().toPoint() - m_dragPosition);
+    setPosition((event->globalPosition() - QPointF(m_dragPosition)).toPoint());
     event->accept();
 }
 
