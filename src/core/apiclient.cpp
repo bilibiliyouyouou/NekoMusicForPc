@@ -134,23 +134,73 @@ void ApiClient::registerUser(const QString &username, const QString &password,
     });
 }
 
-void ApiClient::sendVerificationCode(const QString &email, std::function<void(bool, const QString&)> cb) {
+void ApiClient::sendVerificationCode(const QString &email, const QString &username,
+                                     const QString &captchaPassToken,
+                                     std::function<void(bool, const QString &)> cb) {
     QUrl url(QString::fromUtf8("%1/api/user/send-verification").arg(Theme::kApiBase));
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QJsonObject body;
     body["email"] = email;
+    body["username"] = username;
+    body["captchaPassToken"] = captchaPassToken;
     auto *reply = m_nam.post(req, QJsonDocument(body).toJson());
     connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
         reply->deleteLater();
+        const QByteArray raw = reply->readAll();
+        auto doc = QJsonDocument::fromJson(raw);
+        const QString message = doc.object().value("message").toString();
         if (reply->error() != QNetworkReply::NoError) {
-            cb(false, reply->errorString());
+            cb(false, message.isEmpty() ? reply->errorString() : message);
             return;
         }
-        auto doc = QJsonDocument::fromJson(reply->readAll());
-        bool ok = doc.object().value("success").toBool();
-        QString message = doc.object().value("message").toString();
+        const bool ok = doc.object().value("success").toBool();
         cb(ok, message);
+    });
+}
+
+void ApiClient::fetchSliderCaptchaChallenge(SliderCaptchaChallengeCb cb) {
+    QUrl url(QString::fromUtf8("%1/api/captcha/slider").arg(Theme::kApiBase));
+    auto *reply = m_nam.get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        const QByteArray raw = reply->readAll();
+        auto doc = QJsonDocument::fromJson(raw);
+        const QString msg = doc.object().value("message").toString();
+        if (reply->error() != QNetworkReply::NoError) {
+            cb(false, msg.isEmpty() ? reply->errorString() : msg, {});
+            return;
+        }
+        const bool ok = doc.object().value("success").toBool();
+        const QVariantMap data = doc.object().value("data").toObject().toVariantMap();
+        cb(ok, msg, data);
+    });
+}
+
+void ApiClient::verifySliderCaptcha(const QString &captchaToken, int captchaOffsetX, SliderCaptchaVerifyCb cb) {
+    QUrl url(QString::fromUtf8("%1/api/captcha/slider/verify").arg(Theme::kApiBase));
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QJsonObject body;
+    body["captchaToken"] = captchaToken;
+    body["captchaOffsetX"] = captchaOffsetX;
+    auto *reply = m_nam.post(req, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        const QByteArray raw = reply->readAll();
+        auto doc = QJsonDocument::fromJson(raw);
+        const QString msg = doc.object().value("message").toString();
+        if (reply->error() != QNetworkReply::NoError) {
+            cb(false, msg.isEmpty() ? reply->errorString() : msg, {});
+            return;
+        }
+        const bool ok = doc.object().value("success").toBool();
+        QString pass;
+        if (ok) {
+            const auto data = doc.object().value("data").toObject();
+            pass = data.value("captchaPassToken").toString();
+        }
+        cb(ok, msg, pass);
     });
 }
 

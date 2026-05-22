@@ -6,6 +6,7 @@
 #include "logindialog.h"
 #include "authdialogchrome.h"
 #include "forgotpassworddialog.h"
+#include "slidercaptchadialog.h"
 #include "core/apiclient.h"
 #include "core/usermanager.h"
 #include "core/i18n.h"
@@ -290,9 +291,27 @@ void LoginDialog::doSendVerificationCode()
         setMsg(I18n::instance().tr("pleaseEnterEmail"), Theme::kSakura);
         return;
     }
+    const QString username = m_regUserEdit->text().trimmed();
+    if (username.isEmpty()) {
+        setMsg(I18n::instance().tr(QStringLiteral("registerNeedUsernameForCode")), Theme::kSakura);
+        return;
+    }
 
     m_sendCodeBtn->setEnabled(false);
-    m_api->sendVerificationCode(email, [this](bool success, const QString &message) {
+
+    SliderCaptchaDialog captchaDlg(m_api, this);
+    const int captchaResult = captchaDlg.exec();
+    if (captchaResult != QDialog::Accepted) {
+        m_sendCodeBtn->setEnabled(true);
+        return;
+    }
+    const QString passToken = captchaDlg.captchaPassToken();
+    if (passToken.isEmpty()) {
+        m_sendCodeBtn->setEnabled(true);
+        return;
+    }
+
+    m_api->sendVerificationCode(email, username, passToken, [this](bool success, const QString &message) {
         QTimer::singleShot(0, this, [this, success, message]() {
             if (success) {
                 setMsg(message, Theme::kMint);

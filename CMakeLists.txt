@@ -125,6 +125,8 @@ set(SOURCES
         src/ui/toast.cpp
         src/ui/recentpage.cpp
         src/ui/logindialog.cpp
+        src/ui/slidercaptchadialog.cpp
+        src/ui/captchasliderrail.cpp
         src/ui/forgotpassworddialog.cpp
         src/ui/musiclistpage.cpp
         src/ui/uploadpage.cpp
@@ -174,6 +176,8 @@ set(HEADERS
         src/ui/settingspage.h
         src/ui/recentpage.h
         src/ui/logindialog.h
+        src/ui/slidercaptchadialog.h
+        src/ui/captchasliderrail.h
         src/ui/forgotpassworddialog.h
         src/ui/musiclistpage.h
         src/ui/uploadpage.h

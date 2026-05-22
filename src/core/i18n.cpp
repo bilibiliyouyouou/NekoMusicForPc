@@ -148,6 +148,16 @@ static QMap<QString, QString> zhCN()
     m["getCode"] = QStringLiteral("获取验证码");
     m["sendCode"] = QStringLiteral("发送验证码");
     m["resendCode"] = QStringLiteral("重新发送");
+    m["registerNeedUsernameForCode"] = QStringLiteral("发送验证码前请先填写用户名");
+    m["captchaSecurityTitle"] = QStringLiteral("安全验证");
+    m["captchaSecurityDesc"] =
+        QStringLiteral("拖动下方滑块对齐拼图，松开后自动校验；验证通过后将向你的邮箱发送验证码。");
+    m["captchaLoading"] = QStringLiteral("正在加载拼图…");
+    m["captchaVerifying"] = QStringLiteral("校验中…");
+    m["captchaRefresh"] = QStringLiteral("换一张");
+    m["captchaImageError"] = QStringLiteral("拼图图片解析失败");
+    m["captchaLoadFailed"] = QStringLiteral("加载安全验证失败");
+    m["captchaVerifyFail"] = QStringLiteral("位置不正确或已失效，请换一张重试");
     m["registerTime"] = QStringLiteral("注册时间");
     m["accountInfo"] = QStringLiteral("账号信息");
     m["accountSettings"] = QStringLiteral("账号设置");
@@ -563,6 +573,16 @@ static QMap<QString, QString> nyaCN()
     m["forgotPassword"] = QStringLiteral("弄丢暗号了吗喵？");
     m["fillAllFields"] = QStringLiteral("指挥官笨蛋！要把空位填满才行喵~");
     m["pleaseEnterEmail"] = QStringLiteral("不告诉人家邮箱的话，没法继续了喵~");
+    m["registerNeedUsernameForCode"] = QStringLiteral("发验证码前先把用户名填好喵，不然邮件里不知道喊你什么喵~");
+    m["captchaSecurityTitle"] = QStringLiteral("安全小考验喵~");
+    m["captchaSecurityDesc"] =
+        QStringLiteral("把滑块拖到拼图刚好对上，松手就会自动检查喵~ 过了就给邮箱发验证码喵~");
+    m["captchaLoading"] = QStringLiteral("正在变出拼图喵…");
+    m["captchaVerifying"] = QStringLiteral("正在偷偷核对喵…");
+    m["captchaRefresh"] = QStringLiteral("换一张图喵~");
+    m["captchaImageError"] = QStringLiteral("拼图数据坏掉了喵，换一张试试喵~");
+    m["captchaLoadFailed"] = QStringLiteral("加载安全验证失败了喵…");
+    m["captchaVerifyFail"] = QStringLiteral("没对准或者过期了喵，点换一张再来喵~");
     m["unknown"] = QStringLiteral("迷之物喵...");
     m["defaultMusicPlayerTitle"] = QStringLiteral("默认音乐助理喵~");
     m["defaultMusicPlayerMessage"] = QStringLiteral(
@@ -798,6 +818,17 @@ static QMap<QString, QString> enUS()
     m["getCode"] = "Get Code";
     m["sendCode"] = "Send Code";
     m["resendCode"] = "Resend";
+    m["registerNeedUsernameForCode"] = "Please enter a username before requesting the verification code";
+    m["captchaSecurityTitle"] = "Security check";
+    m["captchaSecurityDesc"] =
+        "Drag the slider to align the puzzle piece, then release to verify. After success, a code will be sent to "
+        "your email.";
+    m["captchaLoading"] = "Loading puzzle…";
+    m["captchaVerifying"] = "Verifying…";
+    m["captchaRefresh"] = "New image";
+    m["captchaImageError"] = "Failed to decode puzzle images";
+    m["captchaLoadFailed"] = "Failed to load security check";
+    m["captchaVerifyFail"] = "Incorrect position or expired challenge; try a new image";
     m["registerTime"] = "Registration Time";
     m["accountInfo"] = "Account Info";
     m["accountSettings"] = "Account Settings";

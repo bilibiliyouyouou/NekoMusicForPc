@@ -84,7 +84,18 @@ public:
     void login(const QString &username, const QString &password, AuthCb cb);
     void registerUser(const QString &username, const QString &password,
                       const QString &email, const QString &verificationCode, AuthCb cb);
-    void sendVerificationCode(const QString &email, std::function<void(bool, const QString&)> cb);
+    /** 注册发邮箱验证码前：须先完成滑块并取得 captchaPassToken */
+    void sendVerificationCode(const QString &email, const QString &username,
+                              const QString &captchaPassToken,
+                              std::function<void(bool, const QString &)> cb);
+
+    using SliderCaptchaChallengeCb =
+        std::function<void(bool ok, const QString &message, const QVariantMap &data)>;
+    void fetchSliderCaptchaChallenge(SliderCaptchaChallengeCb cb);
+
+    using SliderCaptchaVerifyCb =
+        std::function<void(bool ok, const QString &message, const QString &captchaPassToken)>;
+    void verifySliderCaptcha(const QString &captchaToken, int captchaOffsetX, SliderCaptchaVerifyCb cb);
 
     // ─── 忘记密码 ────────────────────────────────────
     void sendResetCode(const QString &email, std::function<void(bool, const QString&)> cb);
