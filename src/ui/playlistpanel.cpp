@@ -23,8 +23,14 @@
 #include <QFrame>
 #include <QLinearGradient>
 #include <QUrl>
+#include <QResizeEvent>
+#include <functional>
 
 namespace {
+
+constexpr int kPlaylistRowHeight = 64;
+constexpr int kPlaylistRowSpacing = 6;
+constexpr int kPlaylistRowStride = kPlaylistRowHeight + kPlaylistRowSpacing;
 
 /** 队列里识别本地曲：有路径，或历史数据仅有负数占位 id */
 bool playlistPanelEntryIsLocal(const MusicInfo &info)
@@ -106,10 +112,29 @@ public:
                 removeRequested(m_musicId);
         });
         lay->addWidget(m_removeBtn);
+        m_coverCacheKey = coverCacheKey();
     }
 
     std::function<void(int)> onClicked;
     std::function<void(int)> removeRequested;
+
+    bool isLocalLayout() const { return m_localBadge != nullptr; }
+
+    void bind(const MusicInfo &info, int index, bool isCurrent)
+    {
+        m_info = info;
+        m_musicId = info.id;
+        m_index = index;
+        m_titleLbl->setText(info.title);
+        m_artistLbl->setText(info.artist);
+        const QString key = coverCacheKey();
+        if (key != m_coverCacheKey) {
+            m_coverCacheKey = key;
+            m_coverLbl->clear();
+            loadCover();
+        }
+        updateCurrentState(isCurrent);
+    }
 
     void updateCurrentState(bool isCurrent)
     {
@@ -253,6 +278,13 @@ private:
         }
     }
 
+    QString coverCacheKey() const
+    {
+        if (playlistPanelEntryIsLocal(m_info))
+            return QStringLiteral("local:%1").arg(m_info.localPath);
+        return QString::number(m_musicId);
+    }
+
     void loadCover()
     {
         if (playlistPanelEntryIsLocal(m_info)) {
@@ -324,6 +356,7 @@ private:
     MusicInfo m_info;
     int m_musicId;
     int m_index;
+    QString m_coverCacheKey;
     bool m_isCurrent = false;
     bool m_hover = false;
     QLabel *m_indexLbl = nullptr;
@@ -333,6 +366,53 @@ private:
     QLabel *m_artistLbl = nullptr;
     QPushButton *m_removeBtn = nullptr;
 };
+
+void releasePlaylistCard(PlaylistItemCard *card, QList<QWidget *> &pool)
+{
+    if (!card)
+        return;
+    card->hide();
+    card->onClicked = nullptr;
+    card->removeRequested = nullptr;
+    pool.append(card);
+}
+
+PlaylistItemCard *acquirePlaylistCard(QWidget *container, QList<QWidget *> &pool)
+{
+    if (!pool.isEmpty())
+        return static_cast<PlaylistItemCard *>(pool.takeLast());
+    return new PlaylistItemCard(MusicInfo{}, 0, false, container);
+}
+
+void bindPlaylistCard(PlaylistItemCard *card, int row, QWidget *container,
+                      QHash<int, QWidget *> &rowCards, QList<QWidget *> &pool,
+                      const std::function<void(int)> &playCb)
+{
+    const auto &playlist = PlaylistManager::instance().playlist();
+    const MusicInfo &info = playlist[row];
+    const bool isCurrent = row == PlaylistManager::instance().currentIndex();
+    const bool wantLocal = playlistPanelEntryIsLocal(info);
+
+    if (card->isLocalLayout() != wantLocal) {
+        releasePlaylistCard(card, pool);
+        card = new PlaylistItemCard(info, row, isCurrent, container);
+    } else {
+        card->bind(info, row, isCurrent);
+    }
+
+    const int musicId = info.id;
+    card->onClicked = [playCb, musicId](int) { playCb(musicId); };
+    card->removeRequested = [](int localId) {
+        PlaylistManager::instance().removeFromPlaylist(localId);
+    };
+
+    const int w = container->width();
+    card->setParent(container);
+    card->setFixedSize(w, kPlaylistRowHeight);
+    card->move(0, row * kPlaylistRowStride);
+    card->show();
+    rowCards[row] = card;
+}
 
 // ─── PlaylistPanel ──────────────────────────────────────
 
@@ -358,6 +438,9 @@ PlaylistPanel::PlaylistPanel(QWidget *parent)
                 refresh();
             });
 
+    connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this, &PlaylistPanel::refresh);
+
+    m_lastPlaylistSize = PlaylistManager::instance().count();
     refresh();
 }
 
@@ -477,72 +560,118 @@ void PlaylistPanel::setupUi()
     m_scroll->setFrameShape(QFrame::NoFrame);
 
     m_listContainer = new QWidget(m_scroll);
-    m_listLayout = new QVBoxLayout(m_listContainer);
-    m_listLayout->setContentsMargins(2, 6, 6, 8);
-    m_listLayout->setSpacing(6);
-    m_listLayout->setAlignment(Qt::AlignTop);
+    m_listContainer->setContentsMargins(2, 6, 6, 8);
+
+    m_emptyLabel = new QLabel(I18n::instance().tr("emptyPlaylist"), m_listContainer);
+    m_emptyLabel->setAlignment(Qt::AlignCenter);
+    m_emptyLabel->setWordWrap(true);
+    m_emptyLabel->hide();
 
     m_scroll->setWidget(m_listContainer);
     nekoPolishScrollAreaViewport(m_scroll);
     lay->addWidget(m_scroll, 1);
+
+    connect(m_scroll->verticalScrollBar(), &QScrollBar::valueChanged, this, [this]() {
+        updateVisibleRows();
+    });
 }
 
-void PlaylistPanel::refresh() {
-    // 保存当前滚动位置
-    int scrollPos = 0;
-    if (m_scroll) {
-        scrollPos = m_scroll->verticalScrollBar()->value();
-    }
-
-    rebuildList();
-
-    // 恢复滚动位置
-    if (m_scroll) {
-        m_scroll->verticalScrollBar()->setValue(scrollPos);
-    }
-}
-
-void PlaylistPanel::rebuildList() {
-    QLayoutItem *lit;
-    while ((lit = m_listLayout->takeAt(0)) != nullptr) {
-        if (QWidget *w = lit->widget())
-            w->deleteLater();
-        delete lit;
-    }
-    m_items.clear();
-
-    const auto& playlist = PlaylistManager::instance().playlist();
-    int currentIndex = PlaylistManager::instance().currentIndex();
-
-    if (playlist.isEmpty()) {
-        auto *emptyLbl = new QLabel(I18n::instance().tr("emptyPlaylist"), m_listContainer);
-        emptyLbl->setAlignment(Qt::AlignCenter);
-        const bool dark = Theme::ThemeManager::instance().isDarkMode();
-        const QString c = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.55)");
-        emptyLbl->setStyleSheet(QStringLiteral(
-            "QLabel { color: %1; font-size: 13px; padding: 48px 24px; line-height: 1.5; }")
-                                    .arg(c));
-        m_listLayout->addWidget(emptyLbl);
-        m_items.append(emptyLbl);
-    } else {
-        for (int i = 0; i < playlist.size(); ++i) {
-            auto *card = new PlaylistItemCard(playlist[i], i, i == currentIndex, m_listContainer);
-            card->onClicked = [this, musicId = playlist[i].id](int) {
-                emit playRequested(musicId);
-            };
-            card->removeRequested = [this](int localId) {
-                PlaylistManager::instance().removeFromPlaylist(localId);
-                refresh();
-            };
-            m_listLayout->addWidget(card);
-            m_items.append(card);
-        }
-    }
-
-    m_listLayout->addStretch(1);
-
+void PlaylistPanel::updateCountLabel()
+{
     if (m_countLabel)
-        m_countLabel->setText(QStringLiteral("· %1").arg(playlist.size()));
+        m_countLabel->setText(QStringLiteral("· %1").arg(PlaylistManager::instance().count()));
+}
+
+void PlaylistPanel::syncContainerHeight()
+{
+    const int count = PlaylistManager::instance().count();
+    const int contentH = count > 0 ? count * kPlaylistRowStride - kPlaylistRowSpacing : 0;
+    const int viewH = m_scroll ? m_scroll->viewport()->height() : 0;
+    m_listContainer->setMinimumHeight(qMax(contentH, viewH));
+    if (m_scroll)
+        m_listContainer->setFixedWidth(m_scroll->viewport()->width());
+}
+
+void PlaylistPanel::clearAllCards()
+{
+    const QList<int> rows = m_rowCards.keys();
+    for (int row : rows)
+        releasePlaylistCard(static_cast<PlaylistItemCard *>(m_rowCards.take(row)), m_cardPool);
+}
+
+void PlaylistPanel::updateVisibleRows()
+{
+    const int count = PlaylistManager::instance().count();
+    if (count <= 0 || !m_scroll)
+        return;
+
+    const int scrollY = m_scroll->verticalScrollBar()->value();
+    const int viewH = m_scroll->viewport()->height();
+    const int first = qMax(0, scrollY / kPlaylistRowStride - kVisibleBuffer);
+    const int last = qMin(count - 1, (scrollY + viewH) / kPlaylistRowStride + kVisibleBuffer);
+
+    QList<int> stale;
+    for (auto it = m_rowCards.constBegin(); it != m_rowCards.constEnd(); ++it) {
+        if (it.key() < first || it.key() > last)
+            stale.append(it.key());
+    }
+    for (int row : stale)
+        releasePlaylistCard(static_cast<PlaylistItemCard *>(m_rowCards.take(row)), m_cardPool);
+
+    const int w = m_listContainer->width();
+    const auto playCb = [this](int musicId) { emit playRequested(musicId); };
+    for (int row = first; row <= last; ++row) {
+        if (m_rowCards.contains(row)) {
+            auto *card = static_cast<PlaylistItemCard *>(m_rowCards[row]);
+            card->move(0, row * kPlaylistRowStride);
+            card->setFixedWidth(w);
+            continue;
+        }
+        bindPlaylistCard(acquirePlaylistCard(m_listContainer, m_cardPool), row, m_listContainer,
+                         m_rowCards, m_cardPool, playCb);
+    }
+}
+
+void PlaylistPanel::refresh()
+{
+    int scrollPos = 0;
+    if (m_scroll)
+        scrollPos = m_scroll->verticalScrollBar()->value();
+
+    const int count = PlaylistManager::instance().count();
+    updateCountLabel();
+
+    if (count == 0) {
+        clearAllCards();
+        m_lastPlaylistSize = 0;
+        m_listContainer->setMinimumHeight(0);
+        if (m_emptyLabel) {
+            const bool dark = Theme::ThemeManager::instance().isDarkMode();
+            const QString c = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.55)");
+            m_emptyLabel->setStyleSheet(QStringLiteral(
+                "QLabel { color: %1; font-size: 13px; padding: 48px 24px; line-height: 1.5; }")
+                                            .arg(c));
+            m_emptyLabel->setGeometry(m_listContainer->rect());
+            m_emptyLabel->show();
+        }
+        return;
+    }
+
+    if (m_emptyLabel)
+        m_emptyLabel->hide();
+
+    clearAllCards();
+    m_lastPlaylistSize = count;
+
+    syncContainerHeight();
+    updateVisibleRows();
+
+    const int cur = PlaylistManager::instance().currentIndex();
+    for (auto it = m_rowCards.constBegin(); it != m_rowCards.constEnd(); ++it)
+        static_cast<PlaylistItemCard *>(it.value())->updateCurrentState(it.key() == cur);
+
+    if (m_scroll)
+        m_scroll->verticalScrollBar()->setValue(scrollPos);
 }
 
 void PlaylistPanel::retranslate()
@@ -551,11 +680,31 @@ void PlaylistPanel::retranslate()
         m_titleLabel->setText(I18n::instance().tr("playlist"));
     if (m_clearBtn)
         m_clearBtn->setText(I18n::instance().tr("clear"));
+    if (m_emptyLabel)
+        m_emptyLabel->setText(I18n::instance().tr("emptyPlaylist"));
     applyPanelChrome();
 }
 
-void PlaylistPanel::showPanel() {
+void PlaylistPanel::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    if (!m_scroll || !m_listContainer)
+        return;
+    m_listContainer->setFixedWidth(m_scroll->viewport()->width());
+    if (m_emptyLabel && m_emptyLabel->isVisible())
+        m_emptyLabel->setGeometry(m_listContainer->rect());
+    const int w = m_listContainer->width();
+    for (auto *card : m_rowCards)
+        static_cast<PlaylistItemCard *>(card)->setFixedWidth(w);
+}
+
+void PlaylistPanel::showPanel()
+{
     refresh();
+    const int cur = PlaylistManager::instance().currentIndex();
+    if (cur >= 0 && m_scroll)
+        m_scroll->verticalScrollBar()->setValue(cur * kPlaylistRowStride);
+    updateVisibleRows();
     show();
     raise();
 }
