@@ -10,6 +10,7 @@
 #include "../core/covercache.h"
 #include "../core/httpprotocollabel.h"
 #include "../core/embeddedlyrics.h"
+#include "../core/playlistmanager.h"
 #include "../theme/theme.h"
 #include "../theme/thememanager.h"
 #include "glasspaint.h"
@@ -18,14 +19,28 @@
 #include <QPainter>
 #include <QStylePainter>
 #include <QStyleOptionButton>
+#include <QGraphicsScene>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsBlurEffect>
 
 namespace {
 
 constexpr int kPlayerCoverSize = 300;
 constexpr int kPlayerCoverRadius = 32;
-constexpr int kLyricPadLeft = 40;
+constexpr int kPlayerMenuH = 80;
+constexpr int kPlayerMenuPad = 20;
+constexpr int kLyricPadLeft = 24;
+constexpr int kLyricPadRight = 80;
 constexpr int kPlayerStyleRatio = 50;
 constexpr int kPlayerControlH = 80;
+constexpr int kPpSidePad = 30;
+constexpr int kPpMenuIcon = 40;
+constexpr int kControlHideMs = 2000;
+/** 对齐 SPlayer overlay blur(80px) */
+constexpr qreal kBackdropBlurRadius = 80.0;
+constexpr int kBackdropBlurMaxSide = 900;
+/** 遮罩：SPlayer .full-player #00000060；PlayerBackground ::after rgba(0,0,0,0.5) 取较轻一层 */
+constexpr int kBackdropOverlayAlpha = 0x60;
 constexpr int kPpCtrlBtn = 38;
 constexpr int kPpPlayBtn = 44;
 constexpr int kPpCtrlIcon = 20;
@@ -47,7 +62,125 @@ QString formatPlaybackTime(qint64 ms)
     return QStringLiteral("%1:%2").arg(sec / 60).arg(sec % 60, 2, 10, QChar('0'));
 }
 
-enum class PpInk : int { Prev, Next, PlayMain };
+static QPixmap tintMaskedPixmap(const QPixmap &src, const QColor &c)
+{
+    if (src.isNull())
+        return src;
+    QPixmap out(src.size());
+    out.fill(Qt::transparent);
+    QPainter p(&out);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    p.fillRect(out.rect(), c);
+    p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+    p.drawPixmap(0, 0, src);
+    p.end();
+    return out;
+}
+
+static QColor pixmapAverageColor(const QPixmap &src)
+{
+    if (src.isNull())
+        return QColor(230, 57, 80);
+    QImage img = src.toImage().scaled(24, 24, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    qint64 r = 0, g = 0, b = 0;
+    const int n = img.width() * img.height();
+    for (int y = 0; y < img.height(); ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb *>(img.constScanLine(y));
+        for (int x = 0; x < img.width(); ++x) {
+            const QRgb px = line[x];
+            r += qRed(px);
+            g += qGreen(px);
+            b += qBlue(px);
+        }
+    }
+    if (n <= 0)
+        return QColor(230, 57, 80);
+    return QColor(int(r / n), int(g / n), int(b / n));
+}
+
+static QSize backdropWorkSize(const QSize &target)
+{
+    QSize w = target;
+    if (w.width() < 1)
+        w.setWidth(1280);
+    if (w.height() < 1)
+        w.setHeight(720);
+    const int maxSide = qMax(w.width(), w.height());
+    if (maxSide > kBackdropBlurMaxSide) {
+        w.scale(kBackdropBlurMaxSide, kBackdropBlurMaxSide, Qt::KeepAspectRatio);
+    }
+    return w;
+}
+
+/** 高斯模糊（QGraphicsBlurEffect），避免缩小-放大带来的马赛克 */
+static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target)
+{
+    if (src.isNull() || target.isEmpty())
+        return {};
+
+    const QSize work = backdropWorkSize(target);
+    QPixmap cover = src.scaled(work, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    if (cover.width() > work.width() || cover.height() > work.height()) {
+        const int x = (cover.width() - work.width()) / 2;
+        const int y = (cover.height() - work.height()) / 2;
+        cover = cover.copy(x, y, work.width(), work.height());
+    } else if (cover.size() != work) {
+        cover = cover.scaled(work, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
+
+    QGraphicsScene scene;
+    QGraphicsPixmapItem item(cover);
+    QGraphicsBlurEffect effect;
+    effect.setBlurRadius(kBackdropBlurRadius);
+    effect.setBlurHints(QGraphicsBlurEffect::QualityHint);
+    item.setGraphicsEffect(&effect);
+    scene.addItem(&item);
+    const QRectF bounds = item.boundingRect();
+    scene.setSceneRect(bounds);
+
+    const int pad = int(kBackdropBlurRadius * 2);
+    QPixmap blurred(work.width() + pad * 2, work.height() + pad * 2);
+    blurred.fill(Qt::transparent);
+    {
+        QPainter p(&blurred);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        scene.render(&p, QRectF(pad, pad, work.width(), work.height()), bounds);
+    }
+
+    QPixmap cropped = blurred.copy(pad, pad, work.width(), work.height());
+
+    const QSize out(target.width() > 0 ? target.width() : work.width(),
+                    target.height() > 0 ? target.height() : work.height());
+    if (cropped.size() != out)
+        cropped = cropped.scaled(out, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+    // SPlayer .bg-img: blur(80px) contrast(1.2)
+    QImage img = cropped.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    constexpr qreal kContrast = 1.18;
+    for (int y = 0; y < img.height(); ++y) {
+        auto *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+        for (int x = 0; x < img.width(); ++x) {
+            QRgb px = line[x];
+            auto adj = [](int v) {
+                return qBound(0, int((v - 128) * kContrast + 128), 255);
+            };
+            line[x] = qRgba(adj(qRed(px)), adj(qGreen(px)), adj(qBlue(px)), qAlpha(px));
+        }
+    }
+    return QPixmap::fromImage(img);
+}
+
+enum class PpInk : int {
+    Back,
+    Prev,
+    Next,
+    PlayMain,
+    Playlist,
+    Volume,
+    PlayModePng,
+};
 
 class PlayerPageInkButton final : public QPushButton {
 public:
@@ -79,6 +212,9 @@ protected:
 
         QPixmap pm;
         switch (ink) {
+        case PpInk::Back:
+            pm = Icons::render(Icons::kPrev, px, hi ? cA : cN);
+            break;
         case PpInk::Prev:
             pm = Icons::render(Icons::kPrev, px, hi ? cA : cN);
             break;
@@ -88,6 +224,34 @@ protected:
         case PpInk::PlayMain:
             pm = Icons::render(property("ppPlaying").toBool() ? Icons::kPause : Icons::kPlay, px, kPpPlayGlyph);
             break;
+        case PpInk::Playlist:
+            pm = Icons::render(Icons::kPlaylist, px, hi ? cA : cN);
+            break;
+        case PpInk::Volume: {
+            const int band = property("ppVol").toInt();
+            const char *path = Icons::kVolumeHigh;
+            if (band == 0)
+                path = Icons::kVolumeMute;
+            else if (band == 1)
+                path = Icons::kVolumeLow;
+            pm = Icons::render(path, px, hi ? cA : cN);
+            break;
+        }
+        case PpInk::PlayModePng: {
+            const int m = property("ppPlayMode").toInt();
+            const QColor tint = hi ? cA : cN;
+            if (m == 2) {
+                pm = Icons::render(Icons::kShuffle, px, tint);
+                break;
+            }
+            const QString res = m == 1 ? QStringLiteral(":/icons/icon_single_loop.png")
+                                       : QStringLiteral(":/icons/icon_list_loop.png");
+            QPixmap raw;
+            if (!raw.load(res))
+                return;
+            pm = tintMaskedPixmap(raw.scaled(sz, Qt::KeepAspectRatio, Qt::SmoothTransformation), tint);
+            break;
+        }
         }
         if (pm.isNull())
             return;
@@ -128,12 +292,31 @@ protected:
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QRegularExpression>
+#include <QWheelEvent>
+#include <QSettings>
+#include <QEasingCurve>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_engine(engine), m_apiClient(apiClient)
 {
+    m_coverMainColor = QColor(255, 200, 210);
+    m_coverSecondColor = QColor(255, 255, 255, 32);
     setAttribute(Qt::WA_StyledBackground, true);
+    setAttribute(Qt::WA_OpaquePaintEvent, true);
+    setAutoFillBackground(true);
+    setMouseTracking(true);
     setupUi();
+
+    m_controlHideTimer = new QTimer(this);
+    m_controlHideTimer->setSingleShot(true);
+    m_controlHideTimer->setInterval(kControlHideMs);
+    connect(m_controlHideTimer, &QTimer::timeout, this, [this]() {
+        if (width() > 700)
+            setControlSidesVisible(false);
+    });
+    if (m_controlBar)
+        m_controlBar->installEventFilter(this);
+    installEventFilter(this);
 
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
             [this](Theme::ThemeMode) {
@@ -154,10 +337,62 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
 
 PlayerPage::~PlayerPage() = default;
 
+void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize)
+{
+    if (!source)
+        return;
+
+    const QPixmap shot = source->grab(source->rect());
+    if (shot.isNull())
+        return;
+
+    m_underlaySnapshot = shot;
+    QSize target = targetSize;
+    if (target.width() < 1)
+        target = size();
+    if (target.width() < 1)
+        target = shot.size();
+    m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, target);
+    update();
+}
+
 void PlayerPage::paintEvent(QPaintEvent *event)
 {
     QPainter p(this);
-    GlassPaint::paintMainWindowDeepBackdrop(p, rect(), Theme::ThemeManager::instance().isDarkMode());
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+
+    // 不透明垫底，避免模糊图边缘 alpha 透出下层
+    QColor opaqueBase(20, 18, 24);
+    if (m_coverMainColor.isValid())
+        opaqueBase = QColor(m_coverMainColor.red(), m_coverMainColor.green(), m_coverMainColor.blue());
+    else if (!dark)
+        opaqueBase = QColor(241, 243, 246);
+    p.fillRect(rect(), opaqueBase);
+
+    // SPlayer .full-player：backdrop-filter 模糊背后主界面
+    if (!m_underlayBlurPixmap.isNull())
+        p.drawPixmap(rect(), m_underlayBlurPixmap);
+
+    // SPlayer PlayerBackground.blur：封面模糊叠在上层
+    if (!m_bgBlurPixmap.isNull())
+        p.drawPixmap(rect(), m_bgBlurPixmap);
+    else if (!m_underlayBlurPixmap.isNull()) {
+        // 仅有界面模糊时不再叠一层
+    } else if (m_coverMainColor.isValid()) {
+        QColor fill = m_coverMainColor;
+        if (dark)
+            fill = fill.darker(160);
+        else
+            fill = fill.lighter(140);
+        p.fillRect(rect(), fill);
+    } else {
+        GlassPaint::paintMainWindowDeepBackdrop(p, rect(), dark);
+    }
+
+    // SPlayer .full-player background-color: #00000060
+    p.fillRect(rect(), QColor(0, 0, 0, kBackdropOverlayAlpha));
 
     QWidget::paintEvent(event);
 }
@@ -195,6 +430,8 @@ void PlayerPage::applyPlayerPageStyle()
     const int sepA = dark ? 40 : 48;
     const int sbA = dark ? 60 : 85;
     const int sbHiA = dark ? 100 : 120;
+    const QString scrollHandleBg = QStringLiteral("rgba(230,57,80,%1)").arg(sbA);
+    const QString scrollHoverBg = QStringLiteral("rgba(230,57,80,%1)").arg(sbHiA);
 
     setStyleSheet(QString::fromUtf8(
                       "#playerPage { background: transparent; }"
@@ -209,8 +446,7 @@ void PlayerPage::applyPlayerPageStyle()
 
                       "#playerCoverLabel { "
                       "  background: transparent; "
-                      "  border: 2px solid %2; "
-                      "  border-radius: %13px; }"
+                      "  border: 2px solid %2; }"
 
                       "#playerSongTitleLabel { "
                       "  color: %3; font-size: 26px; font-weight: 700; "
@@ -242,13 +478,11 @@ void PlayerPage::applyPlayerPageStyle()
                       "#lyricsScroll > QWidget { background: transparent; }"
 
                       "QScrollBar:vertical { width: 4px; background: transparent; }"
-                      "QScrollBar::handle:vertical { "
-                      "  background: rgba(230,57,80,%11); border-radius: 2px; min-height: 50px; }"
-                      "QScrollBar::handle:vertical:hover { "
-                      "  background: rgba(230,57,80,%12); }"
                       "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
                       "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }"
 
+                      "#playerMenuBar, #playerContentHost, #playerLeftPanel, #playerRightPanel { "
+                      "  background: transparent; }"
                       "#playerControlBar { background: transparent; }"
                       "#ppCurTime, #ppDurTime { "
                       "  color: %4; font-size: 12px; background: transparent; }")
@@ -261,10 +495,11 @@ void PlayerPage::applyPlayerPageStyle()
                       .arg(backHiA)
                       .arg(backHiBdA)
                       .arg(m_clrAlbum)
-                      .arg(sepA)
-                      .arg(sbA)
-                      .arg(sbHiA)
-                      .arg(kPlayerCoverRadius));
+        + QString::fromUtf8(
+              "QScrollBar::handle:vertical { background: %1; border-radius: 2px; min-height: 50px; }"
+              "QScrollBar::handle:vertical:hover { background: %2; }")
+              .arg(scrollHandleBg, scrollHoverBg)
+        + QString::fromUtf8("#playerCoverLabel { border-radius: %1px; }").arg(kPlayerCoverRadius));
 
     applyMetaLabelFonts();
     applyMetaTextElide();
@@ -274,14 +509,44 @@ void PlayerPage::setupPlayerControl()
 {
     m_controlBar = new QWidget(this);
     m_controlBar->setObjectName(QStringLiteral("playerControlBar"));
-    m_controlBar->setFixedHeight(kPlayerControlH);
-    m_controlBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_controlBar->setMouseTracking(true);
 
     auto *barLay = new QHBoxLayout(m_controlBar);
-    barLay->setContentsMargins(24, 0, 24, 0);
+    barLay->setContentsMargins(0, 0, 0, 0);
     barLay->setSpacing(0);
 
-    barLay->addStretch(1);
+    m_ppLeftTools = new QWidget(m_controlBar);
+    m_ppLeftTools->setObjectName(QStringLiteral("ppLeftTools"));
+    auto *leftLay = new QHBoxLayout(m_ppLeftTools);
+    leftLay->setContentsMargins(kPpSidePad, 0, kPpSidePad, 0);
+    leftLay->setSpacing(0);
+    leftLay->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
+
+    m_ppPlayModeBtn = new PlayerPageInkButton(m_ppLeftTools);
+    m_ppPlayModeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppPlayModeBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_ppPlayModeBtn->setProperty("ppInk", int(PpInk::PlayModePng));
+    m_ppPlayModeBtn->setProperty("ppPlayMode", 0);
+    m_ppPlayModeBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_ppPlayModeBtn, &QPushButton::clicked, this, &PlayerPage::playModeClicked);
+
+    m_ppPlaylistBtn = new PlayerPageInkButton(m_ppLeftTools);
+    m_ppPlaylistBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppPlaylistBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_ppPlaylistBtn->setProperty("ppInk", int(PpInk::Playlist));
+    m_ppPlaylistBtn->setCursor(Qt::PointingHandCursor);
+    m_ppPlaylistBtn->setToolTip(I18n::instance().tr("playlist"));
+    connect(m_ppPlaylistBtn, &QPushButton::clicked, this, &PlayerPage::playlistClicked);
+
+    leftLay->addWidget(m_ppPlayModeBtn);
+    leftLay->addWidget(m_ppPlaylistBtn);
+
+    m_ppLeftOpacity = new QGraphicsOpacityEffect(m_ppLeftTools);
+    m_ppLeftOpacity->setOpacity(0.0);
+    m_ppLeftTools->setGraphicsEffect(m_ppLeftOpacity);
+    m_ppLeftOpAnim = new QPropertyAnimation(m_ppLeftOpacity, "opacity", this);
+    m_ppLeftOpAnim->setDuration(300);
+    m_ppLeftOpAnim->setEasingCurve(QEasingCurve::OutCubic);
 
     auto *center = new QWidget(m_controlBar);
     center->setObjectName(QStringLiteral("playerControlCenter"));
@@ -291,7 +556,6 @@ void PlayerPage::setupPlayerControl()
     centerLay->setAlignment(Qt::AlignCenter);
 
     auto *btnRow = new QHBoxLayout();
-    btnRow->setContentsMargins(0, 0, 0, 0);
     btnRow->setSpacing(12);
     btnRow->setAlignment(Qt::AlignCenter);
 
@@ -328,7 +592,6 @@ void PlayerPage::setupPlayerControl()
     centerLay->addLayout(btnRow);
 
     auto *sliderRow = new QHBoxLayout();
-    sliderRow->setContentsMargins(0, 0, 0, 0);
     sliderRow->setSpacing(8);
     sliderRow->setAlignment(Qt::AlignVCenter);
 
@@ -355,13 +618,60 @@ void PlayerPage::setupPlayerControl()
     sliderRow->addWidget(m_ppDurTime);
     centerLay->addLayout(sliderRow);
 
-    barLay->addWidget(center, 0, Qt::AlignCenter);
-    barLay->addStretch(1);
+    m_ppRightTools = new QWidget(m_controlBar);
+    m_ppRightTools->setObjectName(QStringLiteral("ppRightTools"));
+    auto *rightLay = new QHBoxLayout(m_ppRightTools);
+    rightLay->setContentsMargins(kPpSidePad, 0, kPpSidePad, 0);
+    rightLay->setSpacing(12);
+    rightLay->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
 
-    if (auto *mainLayout = qobject_cast<QVBoxLayout *>(layout())) {
-        mainLayout->setContentsMargins(40, 16, 40, 8);
-        mainLayout->addWidget(m_controlBar, 0);
+    m_ppVolumeBtn = new PlayerPageInkButton(m_ppRightTools);
+    m_ppVolumeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppVolumeBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_ppVolumeBtn->setProperty("ppInk", int(PpInk::Volume));
+    m_ppVolumeBtn->setProperty("ppVol", 2);
+    m_ppVolumeBtn->setCursor(Qt::PointingHandCursor);
+    m_ppVolumeBtn->setToolTip(I18n::instance().tr("volume"));
+
+    m_ppDesktopLrcBtn = new QPushButton(QStringLiteral("词"), m_ppRightTools);
+    m_ppDesktopLrcBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppDesktopLrcBtn->setFlat(true);
+    m_ppDesktopLrcBtn->setCheckable(true);
+    {
+        QFont f = m_ppDesktopLrcBtn->font();
+        f.setPixelSize(15);
+        f.setWeight(QFont::DemiBold);
+        m_ppDesktopLrcBtn->setFont(f);
     }
+    m_ppDesktopLrcBtn->setCursor(Qt::PointingHandCursor);
+    m_ppDesktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
+    {
+        QSettings s;
+        m_ppDesktopLrcBtn->setChecked(s.value(QStringLiteral("desktopLyrics"), false).toBool());
+    }
+    connect(m_ppDesktopLrcBtn, &QPushButton::toggled, this, [this](bool on) {
+        QSettings s;
+        s.setValue(QStringLiteral("desktopLyrics"), on);
+        emit desktopLyricsToggled(on);
+    });
+
+    rightLay->addWidget(m_ppVolumeBtn);
+    rightLay->addWidget(m_ppDesktopLrcBtn);
+
+    m_ppRightOpacity = new QGraphicsOpacityEffect(m_ppRightTools);
+    m_ppRightOpacity->setOpacity(0.0);
+    m_ppRightTools->setGraphicsEffect(m_ppRightOpacity);
+    m_ppRightOpAnim = new QPropertyAnimation(m_ppRightOpacity, "opacity", this);
+    m_ppRightOpAnim->setDuration(300);
+    m_ppRightOpAnim->setEasingCurve(QEasingCurve::OutCubic);
+
+    barLay->addWidget(m_ppLeftTools, 1);
+    barLay->addWidget(center, 1);
+    barLay->addWidget(m_ppRightTools, 1);
+
+    updatePlayModeBtn(PlaylistManager::instance().playMode());
+    if (width() <= 700)
+        setControlSidesVisible(true);
 }
 
 void PlayerPage::connectPlayerControlEngine()
@@ -411,6 +721,115 @@ void PlayerPage::updatePlayControlState()
     m_ppPlayBtn->setToolTip(I18n::instance().tr(playing ? "pause" : "play"));
 }
 
+void PlayerPage::layoutPlayerPageChrome()
+{
+    if (!m_controlBar)
+        return;
+    const int h = kPlayerControlH;
+    m_controlBar->setFixedHeight(h);
+    m_controlBar->setGeometry(0, qMax(0, height() - h), width(), h);
+    m_controlBar->raise();
+    m_controlBar->show();
+}
+
+void PlayerPage::updateCoverBackdrop(const QPixmap &source)
+{
+    if (source.isNull()) {
+        m_bgBlurPixmap = QPixmap();
+        update();
+        return;
+    }
+    m_coverMainColor = pixmapAverageColor(source);
+    m_coverSecondColor = QColor(m_coverMainColor.red(), m_coverMainColor.green(), m_coverMainColor.blue(), 32);
+    m_bgBlurPixmap = makeBlurredBackdrop(source, size().isEmpty() ? QSize(1280, 720) : size());
+    update();
+}
+
+void PlayerPage::setControlSidesVisible(bool visible)
+{
+    if (m_controlSidesVisible == visible)
+        return;
+    m_controlSidesVisible = visible;
+    const qreal target = (visible || width() <= 700) ? 1.0 : 0.0;
+    if (m_ppLeftOpAnim) {
+        m_ppLeftOpAnim->stop();
+        m_ppLeftOpAnim->setStartValue(m_ppLeftOpacity ? m_ppLeftOpacity->opacity() : 0.0);
+        m_ppLeftOpAnim->setEndValue(target);
+        m_ppLeftOpAnim->start();
+    }
+    if (m_ppRightOpAnim) {
+        m_ppRightOpAnim->stop();
+        m_ppRightOpAnim->setStartValue(m_ppRightOpacity ? m_ppRightOpacity->opacity() : 0.0);
+        m_ppRightOpAnim->setEndValue(target);
+        m_ppRightOpAnim->start();
+    }
+}
+
+void PlayerPage::bumpControlShowTimer()
+{
+    if (width() <= 700) {
+        setControlSidesVisible(true);
+        return;
+    }
+    setControlSidesVisible(true);
+    if (m_controlHideTimer)
+        m_controlHideTimer->start();
+}
+
+void PlayerPage::updatePlayModeBtn(const QString &mode)
+{
+    if (!m_ppPlayModeBtn)
+        return;
+    if (mode == QStringLiteral("single")) {
+        m_ppPlayModeBtn->setProperty("ppPlayMode", 1);
+        m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeSingle"));
+    } else if (mode == QStringLiteral("random")) {
+        m_ppPlayModeBtn->setProperty("ppPlayMode", 2);
+        m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeRandom"));
+    } else {
+        m_ppPlayModeBtn->setProperty("ppPlayMode", 0);
+        m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeList"));
+    }
+    m_ppPlayModeBtn->update();
+}
+
+bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter) {
+        if (watched == this || watched == m_controlBar) {
+            bumpControlShowTimer();
+            return false;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void PlayerPage::wheelEvent(QWheelEvent *event)
+{
+    if (m_controlBar && m_controlBar->geometry().contains(event->position().toPoint()) && m_engine) {
+        const int delta = event->angleDelta().y();
+        if (delta != 0) {
+            double v = m_engine->volume();
+            v += (delta > 0 ? 0.05 : -0.05);
+            v = qBound(0.0, v, 1.0);
+            m_engine->setVolume(static_cast<float>(v));
+            const int pct = qBound(0, static_cast<int>(qRound(v * 100.0)), 100);
+            if (m_ppVolumeBtn) {
+                int band = 2;
+                if (pct == 0)
+                    band = 0;
+                else if (pct < 35)
+                    band = 1;
+                m_ppVolumeBtn->setProperty("ppVol", band);
+                m_ppVolumeBtn->update();
+            }
+            event->accept();
+            return;
+        }
+    }
+    QWidget::wheelEvent(event);
+}
+
 void PlayerPage::applyMetaLabelFonts()
 {
     if (!m_titleLabel || !m_artistLabel || !m_albumLabel)
@@ -433,28 +852,40 @@ void PlayerPage::setupUi()
 {
     setObjectName("playerPage");
 
-    auto *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(40, 16, 40, 32);
-    mainLayout->setSpacing(0);
+    auto *rootLay = new QVBoxLayout(this);
+    rootLay->setContentsMargins(0, 0, 0, 0);
+    rootLay->setSpacing(0);
 
-    m_backBtn = new QPushButton(this);
-    m_backBtn->setFixedSize(44, 44);
+    m_contentHost = new QWidget(this);
+    m_contentHost->setObjectName(QStringLiteral("playerContentHost"));
+    auto *hostLay = new QVBoxLayout(m_contentHost);
+    hostLay->setContentsMargins(0, 0, 0, 0);
+    hostLay->setSpacing(0);
+
+    m_menuBar = new QWidget(m_contentHost);
+    m_menuBar->setObjectName(QStringLiteral("playerMenuBar"));
+    m_menuBar->setFixedHeight(kPlayerMenuH);
+    auto *menuLay = new QHBoxLayout(m_menuBar);
+    menuLay->setContentsMargins(kPlayerMenuPad, kPlayerMenuPad, kPlayerMenuPad, kPlayerMenuPad);
+    menuLay->setSpacing(12);
+
+    m_backBtn = new PlayerPageInkButton(m_menuBar);
+    m_backBtn->setFixedSize(kPpMenuIcon, kPpMenuIcon);
+    m_backBtn->setIconSize(QSize(28, 28));
+    m_backBtn->setProperty("ppInk", int(PpInk::Back));
+    m_backBtn->setObjectName(QStringLiteral("playerBackBtn"));
     m_backBtn->setCursor(Qt::PointingHandCursor);
-    m_backBtn->setObjectName("playerBackBtn");
-    m_backBtn->setText(QString::fromUtf8("\xe2\x86\x90"));
+    m_backBtn->setToolTip(I18n::instance().tr("back"));
     connect(m_backBtn, &QPushButton::clicked, this, [this]() { emit backRequested(); });
-
-    auto *topBar = new QHBoxLayout();
-    topBar->setContentsMargins(0, 0, 0, 8);
-    topBar->addWidget(m_backBtn);
-    topBar->addStretch();
-    mainLayout->addLayout(topBar);
+    menuLay->addWidget(m_backBtn, 0, Qt::AlignVCenter);
+    menuLay->addStretch(1);
+    hostLay->addWidget(m_menuBar);
 
     auto *contentRow = new QHBoxLayout();
     contentRow->setSpacing(0);
     contentRow->setContentsMargins(0, 0, 0, 0);
 
-    m_leftPanel = new QWidget(this);
+    m_leftPanel = new QWidget(m_contentHost);
     m_leftPanel->setObjectName(QStringLiteral("playerLeftPanel"));
     m_leftPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_leftPanel->setMinimumWidth(280);
@@ -564,13 +995,13 @@ void PlayerPage::setupUi()
     leftOuter->addWidget(m_leftInfoColumn, 0, Qt::AlignCenter);
     leftOuter->addStretch(1);
 
-    m_rightPanel = new QWidget(this);
+    m_rightPanel = new QWidget(m_contentHost);
     m_rightPanel->setObjectName(QStringLiteral("playerRightPanel"));
     m_rightPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_rightPanel->setMinimumWidth(320);
 
     auto *lyricsCol = new QVBoxLayout(m_rightPanel);
-    lyricsCol->setContentsMargins(kLyricPadLeft, 0, 16, 0);
+    lyricsCol->setContentsMargins(kLyricPadLeft, 0, kLyricPadRight, 26);
     lyricsCol->setSpacing(0);
 
     m_lyricsScroll = new QScrollArea(m_rightPanel);
@@ -593,10 +1024,12 @@ void PlayerPage::setupUi()
     contentRow->addWidget(m_leftPanel, kPlayerStyleRatio);
     contentRow->addWidget(m_rightPanel, 100 - kPlayerStyleRatio);
 
-    mainLayout->addLayout(contentRow, 1);
+    hostLay->addLayout(contentRow, 1);
+    rootLay->addWidget(m_contentHost, 1);
 
     setupPlayerControl();
     connectPlayerControlEngine();
+    layoutPlayerPageChrome();
 
     applyPlayerPageStyle();
     applyMetaTextElide();
@@ -691,8 +1124,11 @@ void PlayerPage::applyMetaTextElide()
         return;
 
     int w = kPlayerCoverSize;
-    if (m_leftPanel && m_leftPanel->width() > kPlayerCoverSize + 40)
-        w = qMax(kPlayerCoverSize, m_leftPanel->width() - 8);
+    if (m_leftPanel && m_leftPanel->width() > kPlayerCoverSize + 40) {
+        const int panelW = m_leftPanel->width();
+        const int maxMeta = qMin(int(panelW * 0.7), int(qMax(height(), kPlayerCoverSize) * 0.55));
+        w = qBound(kPlayerCoverSize, maxMeta, panelW - 8);
+    }
 
     m_titleLabel->ensurePolished();
     m_artistLabel->ensurePolished();
@@ -751,6 +1187,11 @@ void PlayerPage::relayoutLeftInfoColumn()
 void PlayerPage::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
+    layoutPlayerPageChrome();
+    if (!m_underlaySnapshot.isNull())
+        m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, size());
+    if (!m_coverBackdropSource.isNull())
+        updateCoverBackdrop(m_coverBackdropSource);
     applyMetaTextElide();
 
     if (m_lyricsScroll && m_lyricsContainer) {
@@ -765,26 +1206,31 @@ void PlayerPage::resizeEvent(QResizeEvent *event)
 void PlayerPage::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    layoutPlayerPageChrome();
+    bumpControlShowTimer();
     applyMetaTextElide();
     QTimer::singleShot(0, this, [this]() {
         applyMetaTextElide();
         relayoutLeftInfoColumn();
     });
 
-    // 入场动画：淡入 + 内容上移
-    auto *opacity = new QGraphicsOpacityEffect(this);
+    // 仅内容区淡入，背景保持不透明，避免透出主界面
+    if (!m_contentHost)
+        return;
+    auto *opacity = new QGraphicsOpacityEffect(m_contentHost);
     opacity->setOpacity(0.0);
-    setGraphicsEffect(opacity);
+    m_contentHost->setGraphicsEffect(opacity);
 
-    auto *fadeIn = new QPropertyAnimation(opacity, "opacity");
+    auto *fadeIn = new QPropertyAnimation(opacity, "opacity", m_contentHost);
     fadeIn->setDuration(350);
     fadeIn->setStartValue(0.0);
     fadeIn->setEndValue(1.0);
     fadeIn->setEasingCurve(QEasingCurve::OutCubic);
     fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
 
-    connect(fadeIn, &QPropertyAnimation::finished, this, [this]() {
-        setGraphicsEffect(nullptr);
+    connect(fadeIn, &QPropertyAnimation::finished, m_contentHost, [this]() {
+        if (m_contentHost)
+            m_contentHost->setGraphicsEffect(nullptr);
     });
 }
 
@@ -802,6 +1248,8 @@ void PlayerPage::applyCoverPixmap(const QPixmap &sourcePixmap)
     p.setClipPath(path);
     p.drawPixmap(0, 0, sourcePixmap.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_coverLabel->setPixmap(rounded);
+    m_coverBackdropSource = sourcePixmap;
+    updateCoverBackdrop(sourcePixmap);
 }
 
 void PlayerPage::applyCoverUnknownLarge()
@@ -823,6 +1271,9 @@ void PlayerPage::applyCoverUnknownLarge()
     p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
     p.end();
     m_coverLabel->setPixmap(pm);
+    m_coverBackdropSource = QPixmap();
+    m_bgBlurPixmap = QPixmap();
+    update();
 }
 
 void PlayerPage::loadCover(const QString &url)

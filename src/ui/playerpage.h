@@ -9,13 +9,17 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QPropertyAnimation>
+#include <QGraphicsOpacityEffect>
 #include <QHash>
 #include <QMetaObject>
+#include <QColor>
+#include <QPixmap>
 #include "../core/musicinfo.h"
 #include "../core/playerengine.h"
 
 class ApiClient;
 class QTimer;
+class QWheelEvent;
 
 struct LyricLine {
     qint64 time;
@@ -37,16 +41,25 @@ public:
     /** 在线曲走 API；本地曲读内嵌标签（ID3 USLT / FLAC 注释）再尝试同名 .lrc，不请求网络。 */
     void loadLyricsForTrack(const MusicInfo &info);
     void updateLyricHighlight(qint64 positionMs);
+    void updatePlayModeBtn(const QString &mode);
+    void layoutPlayerPageChrome();
+    /** 抓取 host 并模糊，对齐 SPlayer .full-player backdrop-filter，避免透出背后清晰界面 */
+    void refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize = QSize());
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 signals:
     void backRequested();
     void previousClicked();
     void nextClicked();
+    void playModeClicked();
+    void playlistClicked();
+    void desktopLyricsToggled(bool enabled);
     /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
     void lyricsPayloadReady(const QString &lrcText);
     /** 底栏艺人行：当前歌词行（含翻译括号）；lineIndex&lt;0 表示尚无对应当前时间的行 */
@@ -57,6 +70,9 @@ private:
     void setupPlayerControl();
     void connectPlayerControlEngine();
     void updatePlayControlState();
+    void updateCoverBackdrop(const QPixmap &source);
+    void setControlSidesVisible(bool visible);
+    void bumpControlShowTimer();
     void applyPlayerPageStyle();
     void applyMetaLabelFonts();
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
@@ -96,9 +112,29 @@ private:
     QString m_clrLyricHi;
     QString m_clrLyricHiTrans;
     QString m_clrLyricHiBg;
+    QColor m_coverMainColor;
+    QColor m_coverSecondColor;
+    QPixmap m_bgBlurPixmap;
+    QPixmap m_coverBackdropSource;
+    QPixmap m_underlaySnapshot;
+    QPixmap m_underlayBlurPixmap;
+    bool m_controlSidesVisible = false;
 
+    QWidget *m_contentHost = nullptr;
+    QWidget *m_menuBar = nullptr;
     QPushButton *m_backBtn;
     QWidget *m_controlBar = nullptr;
+    QWidget *m_ppLeftTools = nullptr;
+    QWidget *m_ppRightTools = nullptr;
+    QGraphicsOpacityEffect *m_ppLeftOpacity = nullptr;
+    QGraphicsOpacityEffect *m_ppRightOpacity = nullptr;
+    QPropertyAnimation *m_ppLeftOpAnim = nullptr;
+    QPropertyAnimation *m_ppRightOpAnim = nullptr;
+    QTimer *m_controlHideTimer = nullptr;
+    QPushButton *m_ppPlayModeBtn = nullptr;
+    QPushButton *m_ppPlaylistBtn = nullptr;
+    QPushButton *m_ppVolumeBtn = nullptr;
+    QPushButton *m_ppDesktopLrcBtn = nullptr;
     QPushButton *m_ppPrevBtn = nullptr;
     QPushButton *m_ppPlayBtn = nullptr;
     QPushButton *m_ppNextBtn = nullptr;

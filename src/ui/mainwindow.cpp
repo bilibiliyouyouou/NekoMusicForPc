@@ -189,7 +189,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_engine, &PlayerEngine::durationChanged, this, &MainWindow::refreshSystemMediaIntegration);
     connect(m_engine, &PlayerEngine::positionChanged, m_systemMedia, &SystemMediaController::onPositionMsChanged);
     connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this, &MainWindow::refreshSystemMediaIntegration);
-    connect(&PlaylistManager::instance(), &PlaylistManager::playModeChanged, this, &MainWindow::refreshSystemMediaIntegration);
+    connect(&PlaylistManager::instance(), &PlaylistManager::playModeChanged, this, [this]() {
+        refreshSystemMediaIntegration();
+        if (m_playerPage)
+            m_playerPage->updatePlayModeBtn(PlaylistManager::instance().playMode());
+    });
     connect(m_playerBar, &PlayerBar::volumePercentChanged, this, [this](int p) {
         if (m_systemMedia)
             m_systemMedia->syncVolumeFromEngine(p / 100.0);
@@ -610,6 +614,23 @@ void MainWindow::setupUi()
     connect(m_playerPage, &PlayerPage::backRequested, this, &MainWindow::closePlayerPage);
     connect(m_playerPage, &PlayerPage::previousClicked, this, &MainWindow::playPrevious);
     connect(m_playerPage, &PlayerPage::nextClicked, this, &MainWindow::playNext);
+    connect(m_playerPage, &PlayerPage::playModeClicked, this, [this]() {
+        PlaylistManager::instance().togglePlayMode();
+        const QString mode = PlaylistManager::instance().playMode();
+        m_playerBar->updatePlayModeBtn(mode);
+        m_playerPage->updatePlayModeBtn(mode);
+    });
+    connect(m_playerPage, &PlayerPage::playlistClicked, this, &MainWindow::togglePlaylistPanel);
+    connect(m_playerPage, &PlayerPage::desktopLyricsToggled, this, [this](bool enabled) {
+        if (m_playerBar) {
+            QSettings s;
+            s.setValue(QStringLiteral("desktopLyrics"), enabled);
+        }
+        if (enabled)
+            Toast::show(this, I18n::instance().tr("desktopLyricsEnabled"));
+        else
+            Toast::show(this, I18n::instance().tr("desktopLyricsDisabled"));
+    });
 
     // 播放位置变化时更新歌词高亮
     connect(m_engine, &PlayerEngine::positionChanged, m_playerPage, &PlayerPage::updateLyricHighlight);
@@ -1296,8 +1317,10 @@ void MainWindow::openPlayerPage()
     QWidget *host = centralWidget();
     if (!host)
         host = this;
-    m_playerPage->setParent(host);
     const QRect area = playerPageOverlayGeometry();
+    // 先抓取主界面再挂播放页，避免 grab 进播放页自身
+    m_playerPage->refreshUnderlayBackdrop(host, area.size());
+    m_playerPage->setParent(host);
     m_playerPage->setGeometry(area);
     m_playerPage->move(0, area.height());
     m_playerPage->show();
