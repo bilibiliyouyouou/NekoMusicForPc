@@ -245,8 +245,7 @@ enum class PpInk : int {
     Next,
     PlayMain,
     Favorite,
-    Shuffle,
-    Repeat,
+    PlayMode,
     Playlist,
     Volume,
 };
@@ -328,12 +327,14 @@ protected:
         case PpInk::Volume:
             pm = Icons::renderNamed("VolumeUp", px, hi ? cA : cN);
             break;
-        case PpInk::Shuffle:
-            pm = Icons::renderNamed("Shuffle", px, hi ? cA : cN);
-            break;
-        case PpInk::Repeat: {
-            const int m = property("ppRepeatMode").toInt();
-            pm = Icons::renderNamed(m == 1 ? "RepeatSong" : "Repeat", px, hi ? cA : cN);
+        case PpInk::PlayMode: {
+            const int m = property("ppPlayMode").toInt();
+            const char *name = "Repeat";
+            if (m == 1)
+                name = "RepeatSong";
+            else if (m == 2)
+                name = "Shuffle";
+            pm = Icons::renderNamed(name, px, hi ? cA : cN);
             break;
         }
         }
@@ -785,34 +786,21 @@ void PlayerPage::setupPlayerControl()
     m_ppNextBtn->setToolTip(I18n::instance().tr("next"));
     connect(m_ppNextBtn, &QPushButton::clicked, this, &PlayerPage::nextClicked);
 
-    m_ppShuffleBtn = new PlayerPageInkButton(center);
-    m_ppShuffleBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
-    m_ppShuffleBtn->setIconSize(QSize(kPpModeIcon, kPpModeIcon));
-    m_ppShuffleBtn->setProperty("ppInk", int(PpInk::Shuffle));
-    m_ppShuffleBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_ppShuffleBtn, &QPushButton::clicked, this, [this]() {
-        auto &pm = PlaylistManager::instance();
-        pm.setPlayMode(pm.playMode() == QStringLiteral("random") ? QStringLiteral("list")
-                                                                 : QStringLiteral("random"));
+    m_ppPlayModeBtn = new PlayerPageInkButton(center);
+    m_ppPlayModeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppPlayModeBtn->setIconSize(QSize(kPpModeIcon, kPpModeIcon));
+    m_ppPlayModeBtn->setProperty("ppInk", int(PpInk::PlayMode));
+    m_ppPlayModeBtn->setProperty("ppPlayMode", 0);
+    m_ppPlayModeBtn->setCursor(Qt::PointingHandCursor);
+    m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeList"));
+    connect(m_ppPlayModeBtn, &QPushButton::clicked, this, [this]() {
+        PlaylistManager::instance().togglePlayMode();
     });
 
-    m_ppRepeatBtn = new PlayerPageInkButton(center);
-    m_ppRepeatBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
-    m_ppRepeatBtn->setIconSize(QSize(kPpModeIcon, kPpModeIcon));
-    m_ppRepeatBtn->setProperty("ppInk", int(PpInk::Repeat));
-    m_ppRepeatBtn->setProperty("ppRepeatMode", 0);
-    m_ppRepeatBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_ppRepeatBtn, &QPushButton::clicked, this, [this]() {
-        auto &pm = PlaylistManager::instance();
-        pm.setPlayMode(pm.playMode() == QStringLiteral("single") ? QStringLiteral("list")
-                                                                 : QStringLiteral("single"));
-    });
-
-    btnRow->addWidget(m_ppShuffleBtn);
+    btnRow->addWidget(m_ppPlayModeBtn);
     btnRow->addWidget(m_ppPrevBtn);
     btnRow->addWidget(m_ppPlayBtn);
     btnRow->addWidget(m_ppNextBtn);
-    btnRow->addWidget(m_ppRepeatBtn);
     centerLay->addLayout(btnRow);
 
     auto *sliderRow = new QHBoxLayout();
@@ -902,7 +890,7 @@ void PlayerPage::setupPlayerControl()
     m_ppControlOpAnim->setDuration(300);
     m_ppControlOpAnim->setEasingCurve(QEasingCurve::OutCubic);
 
-    updateShuffleRepeatBtns(PlaylistManager::instance().playMode());
+    updatePlayModeBtn(PlaylistManager::instance().playMode());
     if (m_engine)
         applyCoverVisualScale(m_engine->isActuallyPlaying() ? kCoverScalePlaying : kCoverScalePaused);
     if (width() <= 700)
@@ -1032,8 +1020,7 @@ void PlayerPage::updateCoverBackdrop(const QPixmap &source)
     refreshTintedPalette();
     applyPlayerPageStyle();
     applyMetaTextElide();
-    if (m_ppShuffleBtn || m_ppRepeatBtn)
-        updateShuffleRepeatBtns(PlaylistManager::instance().playMode());
+    updatePlayModeBtn(PlaylistManager::instance().playMode());
     updateChromeBlurStrips();
     update();
 }
@@ -1090,27 +1077,21 @@ void PlayerPage::bumpControlShowTimer()
         m_controlHideTimer->start();
 }
 
-void PlayerPage::updateShuffleRepeatBtns(const QString &mode)
-{
-    if (m_ppShuffleBtn) {
-        const bool on = (mode == QStringLiteral("random"));
-        m_ppShuffleBtn->setProperty("ppDim", !on);
-        m_ppShuffleBtn->setToolTip(I18n::instance().tr("playModeRandom"));
-        m_ppShuffleBtn->update();
-    }
-    if (m_ppRepeatBtn) {
-        const bool single = (mode == QStringLiteral("single"));
-        m_ppRepeatBtn->setProperty("ppRepeatMode", single ? 1 : 0);
-        m_ppRepeatBtn->setProperty("ppDim", !single);
-        m_ppRepeatBtn->setToolTip(single ? I18n::instance().tr("playModeSingle")
-                                         : I18n::instance().tr("playModeList"));
-        m_ppRepeatBtn->update();
-    }
-}
-
 void PlayerPage::updatePlayModeBtn(const QString &mode)
 {
-    updateShuffleRepeatBtns(mode);
+    if (!m_ppPlayModeBtn)
+        return;
+    if (mode == QStringLiteral("single")) {
+        m_ppPlayModeBtn->setProperty("ppPlayMode", 1);
+        m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeSingle"));
+    } else if (mode == QStringLiteral("random")) {
+        m_ppPlayModeBtn->setProperty("ppPlayMode", 2);
+        m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeRandom"));
+    } else {
+        m_ppPlayModeBtn->setProperty("ppPlayMode", 0);
+        m_ppPlayModeBtn->setToolTip(I18n::instance().tr("playModeList"));
+    }
+    m_ppPlayModeBtn->update();
 }
 
 void PlayerPage::setFavoriteStatus(bool isFavorited)

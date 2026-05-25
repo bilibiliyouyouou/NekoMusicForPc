@@ -42,7 +42,6 @@ public:
     void loadLyricsForTrack(const MusicInfo &info);
     void updateLyricHighlight(qint64 positionMs);
     void updatePlayModeBtn(const QString &mode);
-    void updateShuffleRepeatBtns(const QString &mode);
     void refreshTintedPalette();
     int coverSideLength() const;
     QColor idleIconColor() const;
@@ -150,8 +149,7 @@ private:
     QPropertyAnimation *m_ppControlOpAnim = nullptr;
     QTimer *m_controlHideTimer = nullptr;
     QPushButton *m_ppHeartBtn = nullptr;
-    QPushButton *m_ppShuffleBtn = nullptr;
-    QPushButton *m_ppRepeatBtn = nullptr;
+    QPushButton *m_ppPlayModeBtn = nullptr;
     QPushButton *m_ppPlaylistBtn = nullptr;
     QPushButton *m_ppVolumeBtn = nullptr;
     QPushButton *m_ppDesktopLrcBtn = nullptr;
