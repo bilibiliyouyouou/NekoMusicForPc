@@ -19,9 +19,18 @@
         <file>icons/nav_settings_active.png</file>
         <file>icons/nav_music.png</file>
         <file>icons/nav_music_active.png</file>
-        <file>icons/icon_shuffle.png</file>
-        <file>icons/icon_list_loop.png</file>
-        <file>icons/icon_single_loop.png</file>
+        <file>icons/Down.svg</file>
+        <file>icons/SkipPrev.svg</file>
+        <file>icons/SkipNext.svg</file>
+        <file>icons/Play.svg</file>
+        <file>icons/Pause.svg</file>
+        <file>icons/Shuffle.svg</file>
+        <file>icons/Repeat.svg</file>
+        <file>icons/RepeatSong.svg</file>
+        <file>icons/Favorite.svg</file>
+        <file>icons/FavoriteBorder.svg</file>
+        <file>icons/PlayList.svg</file>
+        <file>icons/VolumeUp.svg</file>
         <file>style.qss</file>
         <file>style-light.qss</file>
     </qresource>

@@ -556,6 +556,11 @@ static QPixmap tintMaskedPixmap(const QPixmap &src, const QColor &c)
     return out;
 }
 
+static QString spIconRes(const char *name)
+{
+    return QStringLiteral(":/icons/%1.svg").arg(QLatin1String(name));
+}
+
 /** 播放栏图标绘制角色：完全不走 QIcon::pixmap，避免 Fusion+QSS 把图标当蒙版染黑。 */
 enum class PbInk : int {
     None = 0,
@@ -676,18 +681,12 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
     }
     case PbInk::PlayModePng: {
         const int m = property("pbPlayMode").toInt();
-        const QColor tint = hi ? cA : cN;
-        if (m == 2) {
-            pm = Icons::render(Icons::kShuffle, px, tint);
-            break;
-        }
-        const QString res = m == 1 ? QStringLiteral(":/icons/icon_single_loop.png")
-                                    : QStringLiteral(":/icons/icon_list_loop.png");
-        QPixmap raw;
-        if (!raw.load(res))
-            return;
-        const QPixmap scaled = raw.scaled(sz, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        pm = tintMaskedPixmap(scaled, tint);
+        const char *name = "Repeat";
+        if (m == 1)
+            name = "RepeatSong";
+        else if (m == 2)
+            name = "Shuffle";
+        pm = Icons::renderResource(spIconRes(name), px, hi ? cA : cN);
         break;
     }
     default:

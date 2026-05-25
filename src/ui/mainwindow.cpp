@@ -318,6 +318,8 @@ void MainWindow::setupUi()
         // 检查收藏状态（loadFavoritesCache 会在之后异步更新，但这里先设置初始状态）
         bool isFavorited = checkIsFavorited(lastMusic.id);
         m_playerBar->setFavoriteStatus(isFavorited);
+        if (m_playerPage)
+            m_playerPage->setFavoriteStatus(isFavorited);
 
         // 与点歌一致：远程起播 + 并行写缓存；外部文件则直接本地起播；起播后暂停等待用户操作
         disconnectDownloader();
@@ -612,6 +614,7 @@ void MainWindow::setupUi()
     m_playerBar->updatePlayModeBtn(PlaylistManager::instance().playMode());
 
     connect(m_playerPage, &PlayerPage::backRequested, this, &MainWindow::closePlayerPage);
+    connect(m_playerPage, &PlayerPage::favoriteClicked, this, &MainWindow::toggleFavorite);
     connect(m_playerPage, &PlayerPage::previousClicked, this, &MainWindow::playPrevious);
     connect(m_playerPage, &PlayerPage::nextClicked, this, &MainWindow::playNext);
     connect(m_playerPage, &PlayerPage::playModeClicked, this, [this]() {
@@ -882,6 +885,8 @@ void MainWindow::playLocalMusicInfo(const MusicInfo &info)
     m_playerBar->setCurrentMusicId(info.id);
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
     m_playerBar->setFavoriteStatus(false);
+    if (m_playerPage)
+        m_playerPage->setFavoriteStatus(false);
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
     m_playerPage->loadLyricsForTrack(info);
     m_engine->setCurrentMusic(info);
@@ -1150,7 +1155,10 @@ void MainWindow::playNext()
     // 与上一曲、点歌一致：立即同步播放栏与播放页（勿等 singleShot，避免播放页滞后）
     m_playerBar->setCurrentMusicId(info.id);
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
-    m_playerBar->setFavoriteStatus(checkIsFavorited(info.id));
+    const bool favorited = checkIsFavorited(info.id);
+    m_playerBar->setFavoriteStatus(favorited);
+    if (m_playerPage)
+        m_playerPage->setFavoriteStatus(favorited);
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
     m_playerPage->loadLyricsForTrack(info);
     m_engine->setCurrentMusic(info);
@@ -1204,7 +1212,10 @@ void MainWindow::playPrevious()
 
     m_playerBar->setCurrentMusicId(info.id);
     m_playerBar->setSongInfo(info.title, info.artist, info.coverUrl);
-    m_playerBar->setFavoriteStatus(checkIsFavorited(info.id));
+    const bool favorited = checkIsFavorited(info.id);
+    m_playerBar->setFavoriteStatus(favorited);
+    if (m_playerPage)
+        m_playerPage->setFavoriteStatus(favorited);
     m_playerPage->setMusicInfo(info.id, info.title, info.artist, info.album, info.coverUrl);
     m_playerPage->loadLyricsForTrack(info);
     m_engine->setCurrentMusic(info);
@@ -1277,6 +1288,8 @@ void MainWindow::playMusicById(int musicId, const QString &title, const QString 
     // 检查收藏状态
     bool isFavorited = checkIsFavorited(musicId);
     m_playerBar->setFavoriteStatus(isFavorited);
+    if (m_playerPage)
+        m_playerPage->setFavoriteStatus(isFavorited);
 
     // Update player page
     m_playerPage->setMusicInfo(musicId, title, artist, QString(), coverUrl);
@@ -1505,6 +1518,8 @@ void MainWindow::toggleFavorite(int musicId)
             if (reply->error() == QNetworkReply::NoError) {
                 m_favoritesCache.removeAll(musicId);
                 m_playerBar->setFavoriteStatus(false);
+                if (m_playerPage)
+                    m_playerPage->setFavoriteStatus(false);
                 Toast::show(this, I18n::instance().tr("cancelFavoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已从缓存移除并更新UI";
             } else {
@@ -1542,6 +1557,8 @@ void MainWindow::toggleFavorite(int musicId)
                     m_favoritesCache.append(musicId);
                 }
                 m_playerBar->setFavoriteStatus(true);
+                if (m_playerPage)
+                    m_playerPage->setFavoriteStatus(true);
                 Toast::show(this, I18n::instance().tr("favoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已加入缓存并更新UI";
             } else {
@@ -1619,6 +1636,8 @@ void MainWindow::loadFavoritesCache()
                 const int currentId = self->m_playerBar->currentMusicId();
                 const bool isFavorited = self->m_favoritesCache.contains(currentId);
                 self->m_playerBar->setFavoriteStatus(isFavorited);
+                if (self->m_playerPage)
+                    self->m_playerPage->setFavoriteStatus(isFavorited);
                 qDebug() << "[收藏] 缓存加载后更新收藏状态, id =" << currentId << ", favorited =" << isFavorited;
             }
         }

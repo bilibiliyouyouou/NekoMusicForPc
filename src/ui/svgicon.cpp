@@ -11,6 +11,7 @@
 #include <QPainter>
 #include <QByteArray>
 #include <QDebug>
+#include <QFile>
 
 namespace Icons {
 
@@ -49,6 +50,35 @@ QPixmap render(const char *pathD, int size, const QColor &color, int viewBox)
         return pix;
     }
     QPainter p(&pix);
+    renderer.render(&p);
+    return pix;
+}
+
+QPixmap renderResource(const QString &resourcePath, int size, const QColor &color)
+{
+    QFile file(resourcePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Icons::renderResource: cannot open" << resourcePath;
+        return {};
+    }
+    QString svg = QString::fromUtf8(file.readAll());
+    svg.replace(QStringLiteral("currentColor"), color.name(QColor::HexRgb));
+    if (color.alpha() < 255) {
+        const QString opacity = QString::number(color.alphaF(), 'f', 5);
+        svg.replace(QStringLiteral("fill-opacity=\"1\""),
+                    QStringLiteral("fill-opacity=\"%1\"").arg(opacity));
+    }
+
+    QSvgRenderer renderer(svg.toUtf8());
+    QPixmap pix(size, size);
+    pix.fill(Qt::transparent);
+    if (!renderer.isValid()) {
+        qWarning() << "Icons::renderResource: invalid SVG" << resourcePath;
+        return pix;
+    }
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     renderer.render(&p);
     return pix;
 }

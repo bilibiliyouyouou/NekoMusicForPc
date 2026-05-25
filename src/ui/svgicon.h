@@ -130,4 +130,7 @@ QPixmap render(const char *pathD, int size, const QColor &color, int viewBox = 2
 QIcon icon(const char *pathD, int size, const QColor &normal,
            const QColor &active = QColor(), int viewBox = 24);
 
+/** 从 Qt 资源路径加载 SVG（支持 fill="currentColor" 着色） */
+QPixmap renderResource(const QString &resourcePath, int size, const QColor &color);
+
 }  // namespace Icons

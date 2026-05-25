@@ -42,6 +42,7 @@ public:
     void loadLyricsForTrack(const MusicInfo &info);
     void updateLyricHighlight(qint64 positionMs);
     void updatePlayModeBtn(const QString &mode);
+    void setFavoriteStatus(bool isFavorited);
     void layoutPlayerPageChrome();
     /** 抓取 host 并模糊，对齐 SPlayer .full-player backdrop-filter，避免透出背后清晰界面 */
     void refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize = QSize());
@@ -58,6 +59,7 @@ signals:
     void previousClicked();
     void nextClicked();
     void playModeClicked();
+    void favoriteClicked(int musicId);
     void playlistClicked();
     void desktopLyricsToggled(bool enabled);
     /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
@@ -121,8 +123,7 @@ private:
     bool m_controlSidesVisible = false;
 
     QWidget *m_contentHost = nullptr;
-    QWidget *m_menuBar = nullptr;
-    QPushButton *m_backBtn;
+    QPushButton *m_backBtn = nullptr;
     QWidget *m_controlBar = nullptr;
     QWidget *m_ppLeftTools = nullptr;
     QWidget *m_ppRightTools = nullptr;
@@ -131,6 +132,7 @@ private:
     QPropertyAnimation *m_ppLeftOpAnim = nullptr;
     QPropertyAnimation *m_ppRightOpAnim = nullptr;
     QTimer *m_controlHideTimer = nullptr;
+    QPushButton *m_ppHeartBtn = nullptr;
     QPushButton *m_ppPlayModeBtn = nullptr;
     QPushButton *m_ppPlaylistBtn = nullptr;
     QPushButton *m_ppVolumeBtn = nullptr;

@@ -27,14 +27,11 @@ namespace {
 
 constexpr int kPlayerCoverSize = 300;
 constexpr int kPlayerCoverRadius = 32;
-constexpr int kPlayerMenuH = 80;
-constexpr int kPlayerMenuPad = 20;
 constexpr int kLyricPadLeft = 24;
 constexpr int kLyricPadRight = 80;
 constexpr int kPlayerStyleRatio = 50;
 constexpr int kPlayerControlH = 80;
 constexpr int kPpSidePad = 30;
-constexpr int kPpMenuIcon = 40;
 constexpr int kControlHideMs = 2000;
 /** 对齐 SPlayer overlay blur(80px) */
 constexpr qreal kBackdropBlurRadius = 80.0;
@@ -48,8 +45,6 @@ constexpr int kPpPlayIcon = 26;
 constexpr int kPpProgressMaxW = 480;
 
 const QColor kPpIconAccent = QColor(255, 143, 158, 255);
-const QColor kPpPlayGlyph = QColor(18, 10, 14, 255);
-
 inline QColor ppCtrlIdleColor()
 {
     return Theme::ThemeManager::instance().isDarkMode() ? QColor(255, 255, 255, 210)
@@ -76,6 +71,11 @@ static QPixmap tintMaskedPixmap(const QPixmap &src, const QColor &c)
     p.drawPixmap(0, 0, src);
     p.end();
     return out;
+}
+
+static QString spIconRes(const char *name)
+{
+    return QStringLiteral(":/icons/%1.svg").arg(QLatin1String(name));
 }
 
 static QColor pixmapAverageColor(const QPixmap &src)
@@ -177,9 +177,10 @@ enum class PpInk : int {
     Prev,
     Next,
     PlayMain,
+    Favorite,
+    PlayMode,
     Playlist,
     Volume,
-    PlayModePng,
 };
 
 class PlayerPageInkButton final : public QPushButton {
@@ -213,43 +214,38 @@ protected:
         QPixmap pm;
         switch (ink) {
         case PpInk::Back:
-            pm = Icons::render(Icons::kPrev, px, hi ? cA : cN);
+            pm = Icons::renderResource(spIconRes("Down"), px, hi ? cA : cN);
             break;
         case PpInk::Prev:
-            pm = Icons::render(Icons::kPrev, px, hi ? cA : cN);
+            pm = Icons::renderResource(spIconRes("SkipPrev"), px, hi ? cA : cN);
             break;
         case PpInk::Next:
-            pm = Icons::render(Icons::kNext, px, hi ? cA : cN);
+            pm = Icons::renderResource(spIconRes("SkipNext"), px, hi ? cA : cN);
             break;
         case PpInk::PlayMain:
-            pm = Icons::render(property("ppPlaying").toBool() ? Icons::kPause : Icons::kPlay, px, kPpPlayGlyph);
+            pm = Icons::renderResource(
+                spIconRes(property("ppPlaying").toBool() ? "Pause" : "Play"), px, hi ? cA : cN);
             break;
-        case PpInk::Playlist:
-            pm = Icons::render(Icons::kPlaylist, px, hi ? cA : cN);
-            break;
-        case PpInk::Volume: {
-            const int band = property("ppVol").toInt();
-            const char *path = Icons::kVolumeHigh;
-            if (band == 0)
-                path = Icons::kVolumeMute;
-            else if (band == 1)
-                path = Icons::kVolumeLow;
-            pm = Icons::render(path, px, hi ? cA : cN);
+        case PpInk::Favorite: {
+            const bool on = property("ppHeartOn").toBool();
+            pm = Icons::renderResource(spIconRes(on ? "Favorite" : "FavoriteBorder"), px,
+                                       on ? cA : (hi ? cA : cN));
             break;
         }
-        case PpInk::PlayModePng: {
+        case PpInk::Playlist:
+            pm = Icons::renderResource(spIconRes("PlayList"), px, hi ? cA : cN);
+            break;
+        case PpInk::Volume:
+            pm = Icons::renderResource(spIconRes("VolumeUp"), px, hi ? cA : cN);
+            break;
+        case PpInk::PlayMode: {
             const int m = property("ppPlayMode").toInt();
-            const QColor tint = hi ? cA : cN;
-            if (m == 2) {
-                pm = Icons::render(Icons::kShuffle, px, tint);
-                break;
-            }
-            const QString res = m == 1 ? QStringLiteral(":/icons/icon_single_loop.png")
-                                       : QStringLiteral(":/icons/icon_list_loop.png");
-            QPixmap raw;
-            if (!raw.load(res))
-                return;
-            pm = tintMaskedPixmap(raw.scaled(sz, Qt::KeepAspectRatio, Qt::SmoothTransformation), tint);
+            const char *name = "Repeat";
+            if (m == 1)
+                name = "RepeatSong";
+            else if (m == 2)
+                name = "Shuffle";
+            pm = Icons::renderResource(spIconRes(name), px, hi ? cA : cN);
             break;
         }
         }
@@ -481,11 +477,21 @@ void PlayerPage::applyPlayerPageStyle()
                       "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
                       "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }"
 
-                      "#playerMenuBar, #playerContentHost, #playerLeftPanel, #playerRightPanel { "
+                      "#playerContentHost, #playerLeftPanel, #playerRightPanel { "
                       "  background: transparent; }"
                       "#playerControlBar { background: transparent; }"
                       "#ppCurTime, #ppDurTime { "
-                      "  color: %4; font-size: 12px; background: transparent; }")
+                      "  color: %4; font-size: 12px; background: transparent; }"
+
+                      "#ppDesktopLrcBtn { "
+                      "  background: transparent; border: none; border-radius: 12px; "
+                      "  color: rgba(255,255,255,215); padding: 0; }"
+                      "#ppDesktopLrcBtn:hover { "
+                      "  background: rgba(255,255,255,26); color: #FFFFFF; }"
+                      "#ppDesktopLrcBtn:pressed { "
+                      "  background: rgba(255,255,255,14); }"
+                      "#ppDesktopLrcBtn:checked { "
+                      "  background: rgba(230,57,80,48); color: #FFF5F7; }")
                       .arg(backFg)
                       .arg(coverBorder)
                       .arg(m_clrTitle)
@@ -522,24 +528,29 @@ void PlayerPage::setupPlayerControl()
     leftLay->setSpacing(0);
     leftLay->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
 
-    m_ppPlayModeBtn = new PlayerPageInkButton(m_ppLeftTools);
-    m_ppPlayModeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
-    m_ppPlayModeBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
-    m_ppPlayModeBtn->setProperty("ppInk", int(PpInk::PlayModePng));
-    m_ppPlayModeBtn->setProperty("ppPlayMode", 0);
-    m_ppPlayModeBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_ppPlayModeBtn, &QPushButton::clicked, this, &PlayerPage::playModeClicked);
+    m_backBtn = new PlayerPageInkButton(m_ppLeftTools);
+    m_backBtn->setObjectName(QStringLiteral("playerBackBtn"));
+    m_backBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_backBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_backBtn->setProperty("ppInk", int(PpInk::Back));
+    m_backBtn->setCursor(Qt::PointingHandCursor);
+    m_backBtn->setToolTip(I18n::instance().tr("back"));
+    connect(m_backBtn, &QPushButton::clicked, this, [this]() { emit backRequested(); });
 
-    m_ppPlaylistBtn = new PlayerPageInkButton(m_ppLeftTools);
-    m_ppPlaylistBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
-    m_ppPlaylistBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
-    m_ppPlaylistBtn->setProperty("ppInk", int(PpInk::Playlist));
-    m_ppPlaylistBtn->setCursor(Qt::PointingHandCursor);
-    m_ppPlaylistBtn->setToolTip(I18n::instance().tr("playlist"));
-    connect(m_ppPlaylistBtn, &QPushButton::clicked, this, &PlayerPage::playlistClicked);
+    m_ppHeartBtn = new PlayerPageInkButton(m_ppLeftTools);
+    m_ppHeartBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppHeartBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_ppHeartBtn->setProperty("ppInk", int(PpInk::Favorite));
+    m_ppHeartBtn->setProperty("ppHeartOn", false);
+    m_ppHeartBtn->setCursor(Qt::PointingHandCursor);
+    m_ppHeartBtn->setToolTip(I18n::instance().tr("addToFavorites"));
+    connect(m_ppHeartBtn, &QPushButton::clicked, this, [this]() {
+        if (m_musicId > 0)
+            emit favoriteClicked(m_musicId);
+    });
 
-    leftLay->addWidget(m_ppPlayModeBtn);
-    leftLay->addWidget(m_ppPlaylistBtn);
+    leftLay->addWidget(m_backBtn);
+    leftLay->addWidget(m_ppHeartBtn);
 
     m_ppLeftOpacity = new QGraphicsOpacityEffect(m_ppLeftTools);
     m_ppLeftOpacity->setOpacity(0.0);
@@ -586,6 +597,15 @@ void PlayerPage::setupPlayerControl()
     m_ppNextBtn->setToolTip(I18n::instance().tr("next"));
     connect(m_ppNextBtn, &QPushButton::clicked, this, &PlayerPage::nextClicked);
 
+    m_ppPlayModeBtn = new PlayerPageInkButton(center);
+    m_ppPlayModeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppPlayModeBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_ppPlayModeBtn->setProperty("ppInk", int(PpInk::PlayMode));
+    m_ppPlayModeBtn->setProperty("ppPlayMode", 0);
+    m_ppPlayModeBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_ppPlayModeBtn, &QPushButton::clicked, this, &PlayerPage::playModeClicked);
+
+    btnRow->addWidget(m_ppPlayModeBtn);
     btnRow->addWidget(m_ppPrevBtn);
     btnRow->addWidget(m_ppPlayBtn);
     btnRow->addWidget(m_ppNextBtn);
@@ -625,25 +645,33 @@ void PlayerPage::setupPlayerControl()
     rightLay->setSpacing(12);
     rightLay->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
 
+    m_ppPlaylistBtn = new PlayerPageInkButton(m_ppRightTools);
+    m_ppPlaylistBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppPlaylistBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
+    m_ppPlaylistBtn->setProperty("ppInk", int(PpInk::Playlist));
+    m_ppPlaylistBtn->setCursor(Qt::PointingHandCursor);
+    m_ppPlaylistBtn->setToolTip(I18n::instance().tr("playlist"));
+    connect(m_ppPlaylistBtn, &QPushButton::clicked, this, &PlayerPage::playlistClicked);
+
     m_ppVolumeBtn = new PlayerPageInkButton(m_ppRightTools);
     m_ppVolumeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
     m_ppVolumeBtn->setIconSize(QSize(kPpCtrlIcon, kPpCtrlIcon));
     m_ppVolumeBtn->setProperty("ppInk", int(PpInk::Volume));
-    m_ppVolumeBtn->setProperty("ppVol", 2);
     m_ppVolumeBtn->setCursor(Qt::PointingHandCursor);
     m_ppVolumeBtn->setToolTip(I18n::instance().tr("volume"));
 
     m_ppDesktopLrcBtn = new QPushButton(QStringLiteral("词"), m_ppRightTools);
+    m_ppDesktopLrcBtn->setObjectName(QStringLiteral("ppDesktopLrcBtn"));
     m_ppDesktopLrcBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
     m_ppDesktopLrcBtn->setFlat(true);
     m_ppDesktopLrcBtn->setCheckable(true);
+    m_ppDesktopLrcBtn->setCursor(Qt::PointingHandCursor);
     {
         QFont f = m_ppDesktopLrcBtn->font();
         f.setPixelSize(15);
         f.setWeight(QFont::DemiBold);
         m_ppDesktopLrcBtn->setFont(f);
     }
-    m_ppDesktopLrcBtn->setCursor(Qt::PointingHandCursor);
     m_ppDesktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     {
         QSettings s;
@@ -655,6 +683,7 @@ void PlayerPage::setupPlayerControl()
         emit desktopLyricsToggled(on);
     });
 
+    rightLay->addWidget(m_ppPlaylistBtn);
     rightLay->addWidget(m_ppVolumeBtn);
     rightLay->addWidget(m_ppDesktopLrcBtn);
 
@@ -793,6 +822,16 @@ void PlayerPage::updatePlayModeBtn(const QString &mode)
     m_ppPlayModeBtn->update();
 }
 
+void PlayerPage::setFavoriteStatus(bool isFavorited)
+{
+    if (!m_ppHeartBtn)
+        return;
+    m_ppHeartBtn->setProperty("ppHeartOn", isFavorited);
+    m_ppHeartBtn->setToolTip(isFavorited ? I18n::instance().tr("removeFromFavorites")
+                                         : I18n::instance().tr("addToFavorites"));
+    m_ppHeartBtn->update();
+}
+
 bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
 {
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter) {
@@ -861,25 +900,6 @@ void PlayerPage::setupUi()
     auto *hostLay = new QVBoxLayout(m_contentHost);
     hostLay->setContentsMargins(0, 0, 0, 0);
     hostLay->setSpacing(0);
-
-    m_menuBar = new QWidget(m_contentHost);
-    m_menuBar->setObjectName(QStringLiteral("playerMenuBar"));
-    m_menuBar->setFixedHeight(kPlayerMenuH);
-    auto *menuLay = new QHBoxLayout(m_menuBar);
-    menuLay->setContentsMargins(kPlayerMenuPad, kPlayerMenuPad, kPlayerMenuPad, kPlayerMenuPad);
-    menuLay->setSpacing(12);
-
-    m_backBtn = new PlayerPageInkButton(m_menuBar);
-    m_backBtn->setFixedSize(kPpMenuIcon, kPpMenuIcon);
-    m_backBtn->setIconSize(QSize(28, 28));
-    m_backBtn->setProperty("ppInk", int(PpInk::Back));
-    m_backBtn->setObjectName(QStringLiteral("playerBackBtn"));
-    m_backBtn->setCursor(Qt::PointingHandCursor);
-    m_backBtn->setToolTip(I18n::instance().tr("back"));
-    connect(m_backBtn, &QPushButton::clicked, this, [this]() { emit backRequested(); });
-    menuLay->addWidget(m_backBtn, 0, Qt::AlignVCenter);
-    menuLay->addStretch(1);
-    hostLay->addWidget(m_menuBar);
 
     auto *contentRow = new QHBoxLayout();
     contentRow->setSpacing(0);
