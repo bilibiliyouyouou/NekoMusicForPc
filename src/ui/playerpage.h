@@ -42,6 +42,11 @@ public:
     void loadLyricsForTrack(const MusicInfo &info);
     void updateLyricHighlight(qint64 positionMs);
     void updatePlayModeBtn(const QString &mode);
+    void updateShuffleRepeatBtns(const QString &mode);
+    void refreshTintedPalette();
+    int coverSideLength() const;
+    QColor idleIconColor() const;
+    QColor accentIconColor() const;
     void setFavoriteStatus(bool isFavorited);
     void layoutPlayerPageChrome();
     /** 抓取 host 并模糊，对齐 SPlayer .full-player backdrop-filter，避免透出背后清晰界面 */
@@ -122,18 +127,20 @@ private:
     QPixmap m_underlayBlurPixmap;
     bool m_controlSidesVisible = false;
 
+    QWidget *m_menuBar = nullptr;
     QWidget *m_contentHost = nullptr;
     QPushButton *m_backBtn = nullptr;
     QWidget *m_controlBar = nullptr;
+    QGraphicsOpacityEffect *m_ppMenuOpacity = nullptr;
+    QPropertyAnimation *m_ppMenuOpAnim = nullptr;
     QWidget *m_ppLeftTools = nullptr;
     QWidget *m_ppRightTools = nullptr;
-    QGraphicsOpacityEffect *m_ppLeftOpacity = nullptr;
-    QGraphicsOpacityEffect *m_ppRightOpacity = nullptr;
-    QPropertyAnimation *m_ppLeftOpAnim = nullptr;
-    QPropertyAnimation *m_ppRightOpAnim = nullptr;
+    QGraphicsOpacityEffect *m_ppControlOpacity = nullptr;
+    QPropertyAnimation *m_ppControlOpAnim = nullptr;
     QTimer *m_controlHideTimer = nullptr;
     QPushButton *m_ppHeartBtn = nullptr;
-    QPushButton *m_ppPlayModeBtn = nullptr;
+    QPushButton *m_ppShuffleBtn = nullptr;
+    QPushButton *m_ppRepeatBtn = nullptr;
     QPushButton *m_ppPlaylistBtn = nullptr;
     QPushButton *m_ppVolumeBtn = nullptr;
     QPushButton *m_ppDesktopLrcBtn = nullptr;
