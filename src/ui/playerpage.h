@@ -79,6 +79,8 @@ private:
     void updatePlayControlState();
     void updateCoverPlayScale(bool playing);
     void applyCoverVisualScale(qreal scale);
+    void refreshCoverLayout();
+    void updateChromeBlurStrips();
     void updateCoverBackdrop(const QPixmap &source);
     void setControlSidesVisible(bool visible);
     void bumpControlShowTimer();
@@ -127,8 +129,10 @@ private:
     QPixmap m_coverBackdropSource;
     QPixmap m_underlaySnapshot;
     QPixmap m_underlayBlurPixmap;
+    /** 顶/底 80px 常驻毛玻璃（不随播控隐藏） */
+    QPixmap m_topChromeBlur;
+    QPixmap m_bottomChromeBlur;
     bool m_controlSidesVisible = false;
-    qreal m_chromeFadeOpacity = 0.0;
     qreal m_coverVisualScale = 0.9;
     bool m_coverScalePlaying = false;
 

@@ -442,6 +442,7 @@ void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSiz
     if (target.width() < 1)
         target = shot.size();
     m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, target);
+    updateChromeBlurStrips();
     update();
 }
 
@@ -483,23 +484,17 @@ void PlayerPage::paintEvent(QPaintEvent *event)
     // SPlayer .full-player background-color: #00000060
     p.fillRect(rect(), QColor(0, 0, 0, kBackdropOverlayAlpha));
 
-    if (m_chromeFadeOpacity > 0.01) {
-        const int menuH = m_menuBar ? kPlayerMenuH : 0;
-        const int controlH = m_controlBar ? kPlayerControlH : 0;
-        const int alpha = int(72 * m_chromeFadeOpacity);
-        if (menuH > 0) {
-            QLinearGradient topGrad(0, 0, 0, menuH);
-            topGrad.setColorAt(0.0, QColor(0, 0, 0, alpha));
-            topGrad.setColorAt(1.0, QColor(0, 0, 0, 0));
-            p.fillRect(QRect(0, 0, width(), menuH), topGrad);
-        }
-        if (controlH > 0) {
-            const int y0 = qMax(0, height() - controlH);
-            QLinearGradient botGrad(0, y0, 0, height());
-            botGrad.setColorAt(0.0, QColor(0, 0, 0, 0));
-            botGrad.setColorAt(1.0, QColor(0, 0, 0, alpha));
-            p.fillRect(QRect(0, y0, width(), controlH), botGrad);
-        }
+    // 顶/底常驻毛玻璃（对齐 SPlayer 顶栏/底栏 backdrop，不随播控淡入淡出）
+    const int menuH = kPlayerMenuH;
+    const int controlH = kPlayerControlH;
+    if (!m_topChromeBlur.isNull() && menuH > 0) {
+        p.drawPixmap(QRect(0, 0, width(), menuH), m_topChromeBlur);
+        p.fillRect(QRect(0, 0, width(), menuH), QColor(0, 0, 0, 0x40));
+    }
+    if (!m_bottomChromeBlur.isNull() && controlH > 0) {
+        const int y0 = qMax(0, height() - controlH);
+        p.drawPixmap(QRect(0, y0, width(), controlH), m_bottomChromeBlur);
+        p.fillRect(QRect(0, y0, width(), controlH), QColor(0, 0, 0, 0x40));
     }
 
     QWidget::paintEvent(event);
@@ -507,10 +502,65 @@ void PlayerPage::paintEvent(QPaintEvent *event)
 
 int PlayerPage::coverSideLength() const
 {
-    const int panelW = m_leftPanel ? m_leftPanel->width() : 360;
+    int panelW = 0;
+    if (m_leftPanel && m_leftPanel->width() >= 120)
+        panelW = m_leftPanel->width();
+    else if (width() > 0)
+        panelW = qMax(280, width() * kPlayerStyleRatio / 100);
+    else
+        panelW = 360;
+
+    const int pageH = height() > 120 ? height() : 720;
     const int byPanel = int(panelW * 0.70);
-    const int byVh = int(qMax(height(), 480) * 0.50);
+    const int byVh = int(pageH * 0.50);
     return qBound(200, qMin(byPanel, byVh), 480);
+}
+
+void PlayerPage::updateChromeBlurStrips()
+{
+    const int w = qMax(1, width());
+    const int h = qMax(1, height());
+    const QPixmap *src = nullptr;
+    if (!m_bgBlurPixmap.isNull())
+        src = &m_bgBlurPixmap;
+    else if (!m_underlayBlurPixmap.isNull())
+        src = &m_underlayBlurPixmap;
+
+    if (!src || src->isNull()) {
+        m_topChromeBlur = QPixmap();
+        m_bottomChromeBlur = QPixmap();
+        return;
+    }
+
+    const QPixmap &full = *src;
+    const int fw = full.width();
+    const int fh = full.height();
+    if (fw < 1 || fh < 1)
+        return;
+
+    auto makeStrip = [&](int y, int stripH) -> QPixmap {
+        if (stripH <= 0)
+            return {};
+        const int sy = qBound(0, fh * y / h, fh - 1);
+        const int sh = qMax(1, qMin(fh - sy, fh * stripH / h));
+        QPixmap crop = full.copy(0, sy, fw, sh);
+        if (crop.isNull())
+            return {};
+        return crop.scaled(w, stripH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    };
+
+    m_topChromeBlur = makeStrip(0, kPlayerMenuH);
+    m_bottomChromeBlur = makeStrip(qMax(0, h - kPlayerControlH), kPlayerControlH);
+}
+
+void PlayerPage::refreshCoverLayout()
+{
+    layoutPlayerPageChrome();
+    applyMetaTextElide();
+    if (!m_coverBackdropSource.isNull())
+        applyCoverPixmap(m_coverBackdropSource);
+    else
+        applyCoverVisualScale(m_coverVisualScale);
 }
 
 QColor PlayerPage::idleIconColor() const
@@ -984,6 +1034,7 @@ void PlayerPage::updateCoverBackdrop(const QPixmap &source)
     applyMetaTextElide();
     if (m_ppShuffleBtn || m_ppRepeatBtn)
         updateShuffleRepeatBtns(PlaylistManager::instance().playMode());
+    updateChromeBlurStrips();
     update();
 }
 
@@ -1006,12 +1057,12 @@ void PlayerPage::setControlSidesVisible(bool visible)
 
     m_chromeFadeAnim = new QVariantAnimation(this);
     m_chromeFadeAnim->setDuration(300);
-    m_chromeFadeAnim->setStartValue(m_chromeFadeOpacity);
+    const qreal startOp = m_ppControlOpacity ? m_ppControlOpacity->opacity() : 0.0;
+    m_chromeFadeAnim->setStartValue(startOp);
     m_chromeFadeAnim->setEndValue(target);
     m_chromeFadeAnim->setEasingCurve(QEasingCurve::OutCubic);
     connect(m_chromeFadeAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant &v) {
         const qreal o = v.toReal();
-        m_chromeFadeOpacity = o;
         if (m_ppMenuOpacity)
             m_ppMenuOpacity->setOpacity(o);
         if (m_ppControlOpacity)
@@ -1021,7 +1072,6 @@ void PlayerPage::setControlSidesVisible(bool visible)
             m_menuBar->setAttribute(Qt::WA_TransparentForMouseEvents, passMouse);
         if (m_controlBar)
             m_controlBar->setAttribute(Qt::WA_TransparentForMouseEvents, passMouse);
-        update();
     });
     connect(m_chromeFadeAnim, &QVariantAnimation::finished, this, [this]() {
         m_chromeFadeAnim = nullptr;
@@ -1509,9 +1559,10 @@ void PlayerPage::resizeEvent(QResizeEvent *event)
     layoutPlayerPageChrome();
     if (!m_underlaySnapshot.isNull())
         m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, size());
+    updateChromeBlurStrips();
     if (!m_coverBackdropSource.isNull())
         updateCoverBackdrop(m_coverBackdropSource);
-    applyMetaTextElide();
+    refreshCoverLayout();
 
     if (m_lyricsScroll && m_lyricsContainer) {
         if (auto *top = m_lyricsContainer->findChild<QWidget *>(QStringLiteral("lyricPadTop")))
@@ -1526,11 +1577,9 @@ void PlayerPage::showEvent(QShowEvent *event)
     QWidget::showEvent(event);
     layoutPlayerPageChrome();
     bumpControlShowTimer();
-    applyMetaTextElide();
-    QTimer::singleShot(0, this, [this]() {
-        applyMetaTextElide();
-        relayoutLeftInfoColumn();
-    });
+    updateChromeBlurStrips();
+    QTimer::singleShot(0, this, &PlayerPage::refreshCoverLayout);
+    QTimer::singleShot(380, this, &PlayerPage::refreshCoverLayout);
 
     // 仅内容区淡入，背景保持不透明，避免透出主界面
     if (!m_contentHost)
