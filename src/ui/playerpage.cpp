@@ -262,6 +262,22 @@ static void paintChromeEdgeGradients(QPainter &p, const QRect &pageRect)
     }
 }
 
+static QPixmap makeRoundedCoverPixmap(const QPixmap &source, int size)
+{
+    if (size < 1 || source.isNull())
+        return {};
+    QPixmap rounded(size, size);
+    rounded.fill(Qt::transparent);
+    QPainter p(&rounded);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    QPainterPath path;
+    path.addRoundedRect(0, 0, size, size, kPlayerCoverRadius, kPlayerCoverRadius);
+    p.setClipPath(path);
+    p.drawPixmap(0, 0, source.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    p.end();
+    return rounded;
+}
+
 /** SPlayer .bg-img：width 100%、scale(1.5)、blur(80px)，居中铺放勿拉伸铺满 */
 static void drawCoverBlurBackground(QPainter &p, const QPixmap &blur, const QRect &pageRect)
 {
@@ -393,6 +409,7 @@ protected:
 #include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QNetworkReply>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -593,13 +610,6 @@ void PlayerPage::applyPlayerPageStyle()
     refreshTintedPalette();
 
     const QString backFg = m_clrTitle;
-    const QString coverBorder = m_coverMainColor.isValid()
-                                    ? QStringLiteral("rgba(%1,%2,%3,48)")
-                                          .arg(m_coverMainColor.red())
-                                          .arg(m_coverMainColor.green())
-                                          .arg(m_coverMainColor.blue())
-                                    : (dark ? QStringLiteral("rgba(230,57,80,32)")
-                                            : QStringLiteral("rgba(111,66,193,0.32)"));
 
     const int backBgA = dark ? 18 : 22;
     const int backBdA = dark ? 32 : 40;
@@ -617,22 +627,23 @@ void PlayerPage::applyPlayerPageStyle()
 
                       "#playerLeftPanel, #playerRightPanel { background: transparent; }"
 
-                      "#playerCoverLabel { "
-                      "  background: transparent; "
-                      "  border: 2px solid %2; }"
+                      "#playerCoverFrame { "
+                      "  background: transparent; border: none; }"
+                      "#playerCoverImage { "
+                      "  background: transparent; border: none; }"
 
                       "#playerSongTitleLabel { "
-                      "  color: %3; font-size: 26px; font-weight: 700; "
+                      "  color: %2; font-size: 26px; font-weight: 700; "
                       "  background: transparent; }"
 
                       "#playerMetaIcon { "
-                      "  color: %4; font-size: 14px; background: transparent; }"
+                      "  color: %3; font-size: 14px; background: transparent; }"
 
                       "#playerArtistLabel, #playerAlbumLabel { "
-                      "  color: %4; font-size: 16px; font-weight: 400; "
+                      "  color: %3; font-size: 16px; font-weight: 400; "
                       "  background: transparent; }"
 
-                      "#playerAlbumLabel { color: %9; }"
+                      "#playerAlbumLabel { color: %8; }"
 
                       "#playerVideoRenderBtn, #playerVideoDownloadBtn { "
                       "  background: rgba(230,57,80,%5); color: %1; font-size: 13px; font-weight: 600; "
@@ -643,7 +654,7 @@ void PlayerPage::applyPlayerPageStyle()
                       "  color: rgba(255,255,255,0.35); background: rgba(120,120,120,0.25); border-color: rgba(255,255,255,0.08); }"
 
                       "#playerVideoStatusLbl { "
-                      "  color: %4; font-size: 12px; background: transparent; "
+                      "  color: %3; font-size: 12px; background: transparent; "
                       "  qproperty-alignment: 'AlignCenter'; }"
 
                       "#lyricsScroll { "
@@ -659,7 +670,7 @@ void PlayerPage::applyPlayerPageStyle()
                       "  background: transparent; }"
                       "#playerControlBar { background: transparent; }"
                       "#ppCurTime, #ppDurTime { "
-                      "  color: %4; font-size: 12px; background: transparent; }"
+                      "  color: %3; font-size: 12px; background: transparent; }"
 
                       "#ppDesktopLrcBtn { "
                       "  background: transparent; border: none; border-radius: 12px; "
@@ -671,15 +682,13 @@ void PlayerPage::applyPlayerPageStyle()
                       "#ppDesktopLrcBtn:checked { "
                       "  background: rgba(230,57,80,48); color: #FFF5F7; }")
                       .arg(backFg)
-                      .arg(coverBorder)
                       .arg(m_clrTitle)
                       .arg(m_clrArtist)
                       .arg(backBgA)
                       .arg(backBdA)
                       .arg(backHiA)
                       .arg(backHiBdA)
-                      .arg(m_clrAlbum)
-        + QString::fromUtf8("#playerCoverLabel { border-radius: %1px; }").arg(kPlayerCoverRadius));
+                      .arg(m_clrAlbum));
 
     applyMetaLabelFonts();
     applyMetaTextElide();
@@ -913,12 +922,17 @@ void PlayerPage::connectPlayerControlEngine()
 void PlayerPage::applyCoverVisualScale(qreal scale)
 {
     m_coverVisualScale = qBound(kCoverScalePaused, scale, kCoverScalePlaying);
-    if (!m_coverLabel)
+    if (!m_coverImage)
         return;
     const int base = coverSideLength();
-    const int s = qMax(120, int(base * m_coverVisualScale + 0.5));
-    m_coverLabel->setFixedSize(s, s);
-    relayoutLeftInfoColumn();
+    if (m_coverFrame)
+        m_coverFrame->setFixedSize(base, base);
+    const int imgSide = qMax(1, int(base * m_coverVisualScale + 0.5));
+    if (!m_coverRoundedBase.isNull()) {
+        m_coverImage->setPixmap(
+            m_coverRoundedBase.scaled(imgSide, imgSide, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+    m_coverImage->setFixedSize(imgSide, imgSide);
 }
 
 void PlayerPage::updateCoverPlayScale(bool playing)
@@ -1229,13 +1243,21 @@ void PlayerPage::setupUi()
     infoLay->setSpacing(24);
     infoLay->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
 
-    m_coverLabel = new QLabel(m_leftInfoColumn);
-    m_coverLabel->setFixedSize(320, 320);
-    m_coverLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    m_coverLabel->setScaledContents(false);
-    m_coverLabel->setAlignment(Qt::AlignCenter);
-    m_coverLabel->setObjectName("playerCoverLabel");
-    infoLay->addWidget(m_coverLabel, 0, Qt::AlignHCenter);
+    m_coverFrame = new QWidget(m_leftInfoColumn);
+    m_coverFrame->setObjectName(QStringLiteral("playerCoverFrame"));
+    m_coverFrame->setFixedSize(320, 320);
+    m_coverFrame->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    auto *coverLay = new QGridLayout(m_coverFrame);
+    coverLay->setContentsMargins(0, 0, 0, 0);
+    coverLay->setSpacing(0);
+
+    m_coverImage = new QLabel(m_coverFrame);
+    m_coverImage->setObjectName(QStringLiteral("playerCoverImage"));
+    m_coverImage->setScaledContents(false);
+    m_coverImage->setAlignment(Qt::AlignCenter);
+    m_coverImage->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    coverLay->addWidget(m_coverImage, 0, 0, Qt::AlignCenter);
+    infoLay->addWidget(m_coverFrame, 0, Qt::AlignHCenter);
 
     m_metaPanel = new QWidget(m_leftInfoColumn);
     m_metaPanel->setObjectName(QStringLiteral("playerMetaPanel"));
@@ -1400,7 +1422,8 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     }
 
     if (m_musicId <= 0) {
-        m_coverLabel->clear();
+        m_coverImage->clear();
+        m_coverRoundedBase = QPixmap();
         updateVideoRenderUi();
         return;
     }
@@ -1508,10 +1531,8 @@ void PlayerPage::relayoutLeftInfoColumn()
     m_metaPanel->setFixedSize(metaW, metaH);
 
     m_leftInfoColumn->setFixedWidth(qMax(coverW, metaW));
-    if (m_coverLabel) {
-        const int s = qMax(120, int(coverW * m_coverVisualScale + 0.5));
-        m_coverLabel->setFixedSize(s, s);
-    }
+    if (m_coverFrame)
+        m_coverFrame->setFixedSize(coverW, coverW);
     m_leftInfoColumn->adjustSize();
 }
 
@@ -1566,17 +1587,10 @@ void PlayerPage::applyCoverPixmap(const QPixmap &sourcePixmap)
     if (sourcePixmap.isNull())
         return;
     const int base = coverSideLength();
-    const int s = qMax(120, int(base * m_coverVisualScale + 0.5));
-    m_coverLabel->setFixedSize(s, s);
-    QPixmap rounded(s, s);
-    rounded.fill(Qt::transparent);
-    QPainter p(&rounded);
-    p.setRenderHint(QPainter::Antialiasing);
-    QPainterPath path;
-    path.addRoundedRect(0, 0, s, s, kPlayerCoverRadius, kPlayerCoverRadius);
-    p.setClipPath(path);
-    p.drawPixmap(0, 0, sourcePixmap.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    m_coverLabel->setPixmap(rounded);
+    if (m_coverFrame)
+        m_coverFrame->setFixedSize(base, base);
+    m_coverRoundedBase = makeRoundedCoverPixmap(sourcePixmap, base);
+    applyCoverVisualScale(m_coverVisualScale);
     m_coverBackdropSource = sourcePixmap;
     updateCoverBackdrop(sourcePixmap);
 }
@@ -1585,23 +1599,24 @@ void PlayerPage::applyCoverUnknownLarge()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
     const int base = coverSideLength();
-    const int s = qMax(120, int(base * m_coverVisualScale + 0.5));
-    m_coverLabel->setFixedSize(s, s);
-    QPixmap pm(s, s);
+    if (m_coverFrame)
+        m_coverFrame->setFixedSize(base, base);
+    QPixmap pm(base, base);
     pm.fill(Qt::transparent);
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
     QPainterPath path;
-    path.addRoundedRect(0, 0, s, s, kPlayerCoverRadius, kPlayerCoverRadius);
+    path.addRoundedRect(0, 0, base, base, kPlayerCoverRadius, kPlayerCoverRadius);
     p.fillPath(path, dark ? QColor(52, 44, 72) : QColor(236, 232, 248));
     p.setPen(dark ? QColor(230, 57, 80, 220) : QColor(111, 66, 193, 200));
     QFont f = p.font();
-    f.setPixelSize(56);
+    f.setPixelSize(qBound(28, base / 6, 56));
     f.setWeight(QFont::DemiBold);
     p.setFont(f);
     p.drawText(pm.rect(), Qt::AlignCenter, I18n::instance().tr(QStringLiteral("unknown")));
     p.end();
-    m_coverLabel->setPixmap(pm);
+    m_coverRoundedBase = pm;
+    applyCoverVisualScale(m_coverVisualScale);
     m_coverBackdropSource = QPixmap();
     m_bgBlurPixmap = QPixmap();
     update();
@@ -1624,7 +1639,9 @@ void PlayerPage::loadCover(const QString &url)
         return;
     }
 
-    m_coverLabel->clear();
+    if (m_coverImage)
+        m_coverImage->clear();
+    m_coverRoundedBase = QPixmap();
 
     disconnect(m_coverConn);
     const int expectId = m_musicId;

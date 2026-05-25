@@ -155,7 +155,9 @@ private:
     class PlayerProgressSlider *m_ppProgress = nullptr;
     QLabel *m_ppCurTime = nullptr;
     QLabel *m_ppDurTime = nullptr;
-    QLabel *m_coverLabel;
+    QWidget *m_coverFrame = nullptr;
+    QLabel *m_coverImage = nullptr;
+    QPixmap m_coverRoundedBase;
     QLabel *m_titleLabel;
     QLabel *m_artistLabel;
     QLabel *m_albumLabel;
