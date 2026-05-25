@@ -22,6 +22,12 @@
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsBlurEffect>
+#include <QMouseEvent>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QAbstractScrollArea>
+#include <QAbstractSlider>
+#include <QWindow>
 
 namespace {
 
@@ -76,6 +82,51 @@ static QPixmap tintMaskedPixmap(const QPixmap &src, const QColor &c)
 static QString spIconRes(const char *name)
 {
     return QStringLiteral(":/icons/%1.svg").arg(QLatin1String(name));
+}
+
+/** 顶栏高度内空白区用于拖动无边框窗口（对齐 TitleBar） */
+static bool isInPlayerPageTopDragRegion(const PlayerPage *page, const QPoint &globalPos)
+{
+    if (!page || !page->isVisible())
+        return false;
+    const QPoint local = page->mapFromGlobal(globalPos);
+    return local.y() >= 0 && local.y() < Theme::kTitleBarH;
+}
+
+static bool blocksPlayerPageWindowDrag(QWidget *w)
+{
+    if (!w)
+        return false;
+    if (qobject_cast<QPushButton *>(w) || qobject_cast<QLineEdit *>(w)
+        || qobject_cast<QAbstractSlider *>(w) || qobject_cast<QAbstractScrollArea *>(w)) {
+        return true;
+    }
+    for (QWidget *p = w; p; p = p->parentWidget()) {
+        if (qobject_cast<QPushButton *>(p) || qobject_cast<QAbstractSlider *>(p)
+            || qobject_cast<QAbstractScrollArea *>(p)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void startFramelessWindowMove(QWidget *page)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QWidget *win = page ? page->window() : nullptr;
+    if (win && win->windowHandle())
+        win->windowHandle()->startSystemMove();
+#else
+    Q_UNUSED(page);
+#endif
+}
+
+static void toggleFramelessWindowMaximize(QWidget *page)
+{
+    QWidget *win = page ? page->window() : nullptr;
+    if (!win)
+        return;
+    win->isMaximized() ? win->showNormal() : win->showMaximized();
 }
 
 static QColor pixmapAverageColor(const QPixmap &src)
@@ -313,6 +364,8 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
     if (m_controlBar)
         m_controlBar->installEventFilter(this);
     installEventFilter(this);
+    for (QWidget *child : findChildren<QWidget *>())
+        child->installEventFilter(this);
 
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
             [this](Theme::ThemeMode) {
@@ -834,6 +887,36 @@ void PlayerPage::setFavoriteStatus(bool isFavorited)
 
 bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
 {
+    auto *target = qobject_cast<QWidget *>(watched);
+    const bool onPageTree = (watched == this) || (target && isAncestorOf(target));
+
+    if (onPageTree) {
+        switch (event->type()) {
+        case QEvent::MouseButtonPress: {
+            auto *e = static_cast<QMouseEvent *>(event);
+            if (e->button() == Qt::LeftButton
+                && isInPlayerPageTopDragRegion(this, e->globalPosition().toPoint())
+                && !blocksPlayerPageWindowDrag(target)) {
+                startFramelessWindowMove(this);
+                return true;
+            }
+            break;
+        }
+        case QEvent::MouseButtonDblClick: {
+            auto *e = static_cast<QMouseEvent *>(event);
+            if (e->button() == Qt::LeftButton
+                && isInPlayerPageTopDragRegion(this, e->globalPosition().toPoint())
+                && !blocksPlayerPageWindowDrag(target)) {
+                toggleFramelessWindowMaximize(this);
+                return true;
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter) {
         if (watched == this || watched == m_controlBar) {
             bumpControlShowTimer();
