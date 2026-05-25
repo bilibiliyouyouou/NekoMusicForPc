@@ -369,7 +369,22 @@ if(LINUX)
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "FantasyNetwork <support@cnmsb.xin>")
     set(CPACK_DEBIAN_PACKAGE_SECTION "multimedia")
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6, libqt6multimedia6, libqt6network6, libqt6sql6, libqt6dbus6")
+    set(_neko_debian_depends
+            libqt6core6
+            libqt6gui6
+            libqt6widgets6
+            libqt6multimedia6
+            libqt6network6
+            libqt6sql6
+            libqt6dbus6
+    )
+    if(TARGET KF6::WindowSystem)
+        list(APPEND _neko_debian_depends libkf6windowsystem6)
+    endif()
+    if(TARGET LayerShellQt::Interface)
+        list(APPEND _neko_debian_depends liblayershellqtinterface6)
+    endif()
+    list(JOIN _neko_debian_depends ", " CPACK_DEBIAN_PACKAGE_DEPENDS)
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
     set(CPACK_DEBIAN_PACKAGE_POSTINST "${CMAKE_SOURCE_DIR}/packaging/debian/postinst")
     set(CPACK_DEBIAN_PACKAGE_POSTRM "${CMAKE_SOURCE_DIR}/packaging/debian/postrm")
