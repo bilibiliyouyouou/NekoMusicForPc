@@ -54,6 +54,10 @@ public:
     /** 切页等导致主内容变化时刷新底部栏磨砂采样 */
     void refreshGlassBackdrop();
 
+public slots:
+    /** 播放页当前歌词行（SPlayer 底栏 lyric-slide） */
+    void setBarLyricLine(const QString &displayText, int lineIndex, bool trackHasLyrics);
+
 protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -76,6 +80,7 @@ private:
     void refreshLocalBadge();
     void updateTitleMarqueeWidth();
     void scheduleTitleMarqueeWidthUpdate();
+    void refreshBarLyricSlot();
 
     bool m_titleMarqueeUpdateScheduled = false;
 
@@ -107,6 +112,11 @@ private:
     QLabel *m_localBadge = nullptr;
     QLabel *m_songName = nullptr;
     QLabel *m_artist = nullptr;
+    QWidget *m_lyricSlot = nullptr;
+    QLabel *m_barLyricLine = nullptr;
+    QString m_barLyricText;
+    int m_barLyricLineIndex = -1;
+    bool m_trackHasLyrics = false;
     QLabel *m_curTime = nullptr;
     QLabel *m_durTime = nullptr;
     QPushButton *m_cover = nullptr;

@@ -47,6 +47,11 @@
 #include <QShowEvent>
 #include <QTimer>
 #include <QFontMetrics>
+#include <QVariantAnimation>
+#include <QScrollArea>
+#include <QScrollBar>
+#include <QFrame>
+#include <functional>
 
 namespace {
 
@@ -60,7 +65,9 @@ constexpr int kPbHeartBtn = 24;
 constexpr int kPbHeartIcon = 20;
 constexpr int kPbMarqueeGap = 48;
 constexpr int kPbMarqueeIntervalMs = 32;
+constexpr int kPbLyricMarqueeIntervalMs = 16;
 constexpr int kPbMarqueePauseTicks = 45;
+constexpr qreal kPbLyricMarqueeSpeed = 2.0;
 
 /** 底栏歌名：限宽显示，超出后向左循环滚动 */
 class PbMarqueeLabel final : public QLabel {
@@ -73,8 +80,27 @@ public:
         setWordWrap(false);
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         setContentsMargins(0, 0, 0, 0);
-        m_timer.setInterval(kPbMarqueeIntervalMs);
+        applyTimerInterval();
         connect(&m_timer, &QTimer::timeout, this, [this]() { advanceScroll(); });
+    }
+
+    void setLineHeight(int height)
+    {
+        height = qMax(12, height);
+        if (m_lineHeight == height)
+            return;
+        m_lineHeight = height;
+        rebuildMetrics();
+    }
+
+    /** 跑马灯速度倍率（底栏歌词行默认 2×） */
+    void setMarqueeSpeed(qreal multiplier)
+    {
+        multiplier = qBound(0.5, multiplier, 8.0);
+        if (qFuzzyCompare(m_speedMul, multiplier))
+            return;
+        m_speedMul = multiplier;
+        applyTimerInterval();
     }
 
     QString fullText() const { return m_fullText; }
@@ -121,10 +147,9 @@ protected:
             return;
         }
 
-        const int baseY = (clip.height() + m_ascent - m_descent) / 2;
-
         auto drawAt = [&](int x) {
-            p.drawText(x, baseY, m_fullText);
+            QRect r(x, 0, m_textWidth + kPbMarqueeGap, clip.height());
+            p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, m_fullText);
         };
 
         drawAt(-m_offset);
@@ -132,6 +157,12 @@ protected:
     }
 
 private:
+    void applyTimerInterval()
+    {
+        const int ms = qMax(8, int(kPbMarqueeIntervalMs / m_speedMul + 0.5));
+        m_timer.setInterval(ms);
+    }
+
     void advanceScroll()
     {
         if (!m_scrolling)
@@ -158,7 +189,8 @@ private:
         m_scrolling = m_textWidth > m_maxWidth;
         m_loopWidth = m_textWidth + kPbMarqueeGap;
 
-        setFixedHeight(kPbTitleLineH);
+        const int lineH = m_lineHeight > 0 ? m_lineHeight : kPbTitleLineH;
+        setFixedHeight(lineH);
         setFixedWidth(m_scrolling ? m_maxWidth : qMin(m_textWidth, m_maxWidth));
 
         if (m_scrolling) {
@@ -182,6 +214,8 @@ private:
     int m_offset = 0;
     int m_loopWidth = 0;
     int m_pauseTicks = 0;
+    int m_lineHeight = 0;
+    qreal m_speedMul = 1.0;
     bool m_scrolling = false;
     QTimer m_timer;
 };
@@ -190,6 +224,222 @@ inline PbMarqueeLabel *pbSongMarquee(QLabel *label)
 {
     return static_cast<PbMarqueeLabel *>(label);
 }
+
+/** SPlayer lyric-slide：仅向上滚入；暂停瞬间回艺人，不切回下滚 */
+class PbLyricArtistSlot final : public QWidget {
+public:
+    explicit PbLyricArtistSlot(QWidget *parent = nullptr)
+        : QWidget(parent)
+    {
+        setObjectName(QStringLiteral("pbLyricSlot"));
+        setFixedHeight(kPbArtistLineH);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setAttribute(Qt::WA_TranslucentBackground);
+        setAutoFillBackground(false);
+
+        auto *lay = new QVBoxLayout(this);
+        lay->setContentsMargins(0, 0, 0, 0);
+        lay->setSpacing(0);
+
+        m_scroll = new QScrollArea(this);
+        m_scroll->setObjectName(QStringLiteral("pbLyricScroll"));
+        m_scroll->setFrameShape(QFrame::NoFrame);
+        m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_scroll->setWidgetResizable(false);
+        m_scroll->setFocusPolicy(Qt::NoFocus);
+        m_scroll->viewport()->setAttribute(Qt::WA_TranslucentBackground);
+        m_scroll->setStyleSheet(QStringLiteral(
+            "QScrollArea#pbLyricScroll { background: transparent; border: none; }"
+            "QScrollArea#pbLyricScroll > QWidget > QWidget { background: transparent; }"));
+
+        m_inner = new QWidget;
+        m_inner->setAttribute(Qt::WA_TranslucentBackground);
+
+        m_artist = new PbMarqueeLabel(m_inner);
+        m_artist->setObjectName(QStringLiteral("pbArtist"));
+        m_artist->setLineHeight(kPbArtistLineH);
+        m_artist->setMarqueeSpeed(kPbLyricMarqueeSpeed);
+
+        m_lyricPrimary = new PbMarqueeLabel(m_inner);
+        m_lyricPrimary->setObjectName(QStringLiteral("pbLyric"));
+        QFont lyricFont = m_lyricPrimary->font();
+        lyricFont.setPixelSize(12);
+        m_lyricPrimary->setFont(lyricFont);
+        m_lyricPrimary->setLineHeight(kPbArtistLineH);
+        m_lyricPrimary->setMarqueeSpeed(kPbLyricMarqueeSpeed);
+
+        m_lyricStaging = new PbMarqueeLabel(m_inner);
+        m_lyricStaging->setObjectName(QStringLiteral("pbLyric"));
+        m_lyricStaging->setFont(lyricFont);
+        m_lyricStaging->setLineHeight(kPbArtistLineH);
+        m_lyricStaging->setMarqueeSpeed(kPbLyricMarqueeSpeed);
+
+        m_scroll->setWidget(m_inner);
+        lay->addWidget(m_scroll);
+
+        m_anim = new QVariantAnimation(this);
+        m_anim->setDuration(300);
+        m_anim->setEasingCurve(QEasingCurve::OutCubic);
+        connect(m_anim, &QVariantAnimation::valueChanged, this, [this](const QVariant &v) {
+            applyScrollPx(v.toInt());
+        });
+
+        relayoutInner();
+        applyScrollPx(0);
+    }
+
+    QLabel *artistLabel() const { return m_artist; }
+    PbMarqueeLabel *lyricLabel() const { return m_lyricPrimary; }
+
+    void setLineMaxWidth(int width)
+    {
+        width = qMax(24, width);
+        if (m_lineMaxW == width)
+            return;
+        m_lineMaxW = width;
+        setMaximumWidth(width);
+        if (m_artist)
+            m_artist->setMaxDisplayWidth(width);
+        if (m_lyricPrimary)
+            m_lyricPrimary->setMaxDisplayWidth(width);
+        if (m_lyricStaging)
+            m_lyricStaging->setMaxDisplayWidth(width);
+        relayoutInner();
+        applyScrollPx(m_scrollPx);
+    }
+
+    void updateSecondLine(bool showLyric, const QString &lyricText, int lineIndex)
+    {
+        if (!showLyric) {
+            if (m_inLyricMode && m_scrollPx >= kPbArtistLineH)
+                showArtistScrollUp();
+            else
+                showArtistNow();
+            m_inLyricMode = false;
+            m_lastLineIndex = -1;
+            return;
+        }
+
+        if (!m_inLyricMode) {
+            m_inLyricMode = true;
+            m_lyricStaging->setText(QString());
+            m_lyricPrimary->setText(lyricText);
+            m_lastLineIndex = lineIndex;
+            scrollUpTo(kPbArtistLineH);
+            return;
+        }
+
+        if (lineIndex == m_lastLineIndex)
+            return;
+
+        m_lyricStaging->setText(lyricText);
+        scrollUpTo(kPbArtistLineH * 2, [this, lyricText, lineIndex]() {
+            m_lyricPrimary->setText(lyricText);
+            applyScrollPx(kPbArtistLineH);
+            m_lyricStaging->setText(QString());
+            m_lastLineIndex = lineIndex;
+        });
+    }
+
+protected:
+    void resizeEvent(QResizeEvent *event) override
+    {
+        QWidget::resizeEvent(event);
+        relayoutInner();
+        applyScrollPx(m_scrollPx);
+    }
+
+private:
+    void showArtistNow()
+    {
+        m_anim->stop();
+        if (m_animDoneConn)
+            disconnect(m_animDoneConn);
+        m_lyricStaging->setText(QString());
+        m_inLyricMode = false;
+        applyScrollPx(0);
+    }
+
+    /** 暂停：歌词继续向上滚出，艺人从下方滚入（不向下滚回） */
+    void showArtistScrollUp()
+    {
+        if (m_scrollPx < kPbArtistLineH) {
+            showArtistNow();
+            return;
+        }
+
+        m_lyricStaging->setText(m_artist->fullText());
+        scrollUpTo(kPbArtistLineH * 2, [this]() {
+            applyScrollPx(0);
+            m_lyricStaging->setText(QString());
+            m_inLyricMode = false;
+        });
+    }
+
+    void scrollUpTo(int targetPx, const std::function<void()> &onDone = {})
+    {
+        const int startPx = m_scrollPx;
+        if (startPx == targetPx) {
+            if (onDone)
+                onDone();
+            return;
+        }
+        if (!isVisible()) {
+            applyScrollPx(targetPx);
+            if (onDone)
+                onDone();
+            return;
+        }
+
+        m_anim->stop();
+        if (m_animDoneConn)
+            disconnect(m_animDoneConn);
+
+        m_anim->setStartValue(startPx);
+        m_anim->setEndValue(targetPx);
+        if (onDone) {
+            m_animDoneConn = connect(m_anim, &QVariantAnimation::finished, this, [onDone]() {
+                if (onDone)
+                    onDone();
+            });
+        }
+        m_anim->start();
+    }
+
+    void relayoutInner()
+    {
+        const int w = m_lineMaxW > 0 ? m_lineMaxW : (width() > 0 ? width() : 0);
+        if (w <= 0)
+            return;
+
+        const int h = kPbArtistLineH;
+        m_inner->setFixedSize(w, h * 3);
+        m_artist->setGeometry(0, 0, w, h);
+        m_lyricPrimary->setGeometry(0, h, w, h);
+        m_lyricStaging->setGeometry(0, h * 2, w, h);
+        m_scroll->setFixedSize(w, h);
+    }
+
+    void applyScrollPx(int px)
+    {
+        m_scrollPx = qBound(0, px, kPbArtistLineH * 2);
+        if (m_scroll && m_scroll->verticalScrollBar())
+            m_scroll->verticalScrollBar()->setValue(m_scrollPx);
+    }
+
+    QScrollArea *m_scroll = nullptr;
+    QWidget *m_inner = nullptr;
+    PbMarqueeLabel *m_artist = nullptr;
+    PbMarqueeLabel *m_lyricPrimary = nullptr;
+    PbMarqueeLabel *m_lyricStaging = nullptr;
+    int m_lineMaxW = 0;
+    int m_scrollPx = 0;
+    int m_lastLineIndex = -1;
+    bool m_inLyricMode = false;
+    QVariantAnimation *m_anim = nullptr;
+    QMetaObject::Connection m_animDoneConn;
+};
 
 int widgetEffectiveWidth(QWidget *w)
 {
@@ -220,6 +470,24 @@ int titleRowWidthBesidesSong(QWidget *titleRow, QWidget *songWidget)
         w += widgetEffectiveWidth(item);
         first = false;
     }
+    return w;
+}
+
+/** 第二行限宽：与上一行标题行右缘（收藏按钮最右侧）对齐 */
+int titleRowLineMaxWidth(QWidget *titleRow, QWidget *songWidget)
+{
+    if (!titleRow)
+        return 0;
+    if (titleRow->width() > 0)
+        return titleRow->width();
+
+    int w = titleRowWidthBesidesSong(titleRow, songWidget);
+    if (songWidget)
+        w += widgetEffectiveWidth(songWidget);
+
+    const int cap = titleRow->maximumWidth();
+    if (cap > 0 && cap < 10000)
+        w = qMax(w, cap);
     return w;
 }
 
@@ -617,13 +885,13 @@ void PlayerBar::setupUi()
 
     infoL->addWidget(titleRow, 0, Qt::AlignLeft);
 
-    m_artist = new QLabel(I18n::instance().tr("unknown"), infoBlock);
-    m_artist->setObjectName("pbArtist");
+    m_lyricSlot = new PbLyricArtistSlot(infoBlock);
+    m_artist = static_cast<PbLyricArtistSlot *>(m_lyricSlot)->artistLabel();
+    m_barLyricLine = static_cast<PbLyricArtistSlot *>(m_lyricSlot)->lyricLabel();
     m_artist->setFixedHeight(kPbArtistLineH);
-    m_artist->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    pbSongMarquee(m_artist)->setText(I18n::instance().tr("unknown"));
     m_songName->setWordWrap(false);
-    m_artist->setWordWrap(false);
-    infoL->addWidget(m_artist, 0, Qt::AlignLeft);
+    infoL->addWidget(m_lyricSlot, 0, Qt::AlignLeft);
     ll->addWidget(infoBlock, 1, Qt::AlignVCenter);
     lay->addWidget(left, 1);
 
@@ -1066,8 +1334,11 @@ void PlayerBar::retranslate()
         if (cur == QStringLiteral("未在播放") || cur == I18n::instance().tr("notPlaying"))
             pbSongMarquee(m_songName)->setText(I18n::instance().tr("notPlaying"));
     }
-    if (m_artist && (m_artist->text() == "--" || m_artist->text() == I18n::instance().tr("unknown")))
-        m_artist->setText(I18n::instance().tr("unknown"));
+    if (m_artist) {
+        const QString cur = pbSongMarquee(m_artist)->fullText();
+        if (cur == QStringLiteral("--") || cur == I18n::instance().tr("unknown"))
+            pbSongMarquee(m_artist)->setText(I18n::instance().tr("unknown"));
+    }
 
     if (m_playBtn) {
         bool playing = m_engine && m_engine->isActuallyPlaying();
@@ -1100,7 +1371,11 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
         scheduleTitleMarqueeWidthUpdate();
     }
     if (m_artist)
-        m_artist->setText(artist.isEmpty() ? I18n::instance().tr("unknown") : artist);
+        pbSongMarquee(m_artist)->setText(artist.isEmpty() ? I18n::instance().tr("unknown") : artist);
+    m_barLyricText.clear();
+    m_barLyricLineIndex = -1;
+    m_trackHasLyrics = false;
+    refreshBarLyricSlot();
     refreshLocalBadge();
 
     if (!m_cover)
@@ -1265,10 +1540,40 @@ void PlayerBar::updateTitleMarqueeWidth()
     const int titleMax = qMax(24, infoW - besideSong);
 
     marquee->setMaxDisplayWidth(titleMax);
-    if (m_titleRow)
-        m_titleRow->setMaximumWidth(besideSong + titleMax);
-    if (m_artist)
-        m_artist->setMaximumWidth(infoW);
+    const int titleRowW = besideSong + titleMax;
+    if (m_titleRow) {
+        m_titleRow->setMaximumWidth(titleRowW);
+        m_titleRow->adjustSize();
+    }
+
+    int secondLineMax = titleRowLineMaxWidth(m_titleRow, m_songName);
+    if (secondLineMax <= 0)
+        secondLineMax = titleRowW;
+
+    if (m_lyricSlot)
+        static_cast<PbLyricArtistSlot *>(m_lyricSlot)->setLineMaxWidth(secondLineMax);
+}
+
+void PlayerBar::setBarLyricLine(const QString &displayText, int lineIndex, bool trackHasLyrics)
+{
+    m_barLyricText = displayText;
+    m_barLyricLineIndex = lineIndex;
+    m_trackHasLyrics = trackHasLyrics;
+    refreshBarLyricSlot();
+}
+
+void PlayerBar::refreshBarLyricSlot()
+{
+    if (!m_lyricSlot)
+        return;
+
+    const bool playing = m_engine && m_engine->isActuallyPlaying();
+    const bool showLyric = playing && m_trackHasLyrics && m_barLyricLineIndex >= 0
+                           && !m_barLyricText.isEmpty();
+
+    auto *slot = static_cast<PbLyricArtistSlot *>(m_lyricSlot);
+    slot->updateSecondLine(showLyric, m_barLyricText, m_barLyricLineIndex);
+    scheduleTitleMarqueeWidthUpdate();
 }
 
 void PlayerBar::setFavoriteStatus(bool isFavorited)
@@ -1351,6 +1656,7 @@ void PlayerBar::updateState()
     // Use isActuallyPlaying() to check the real QMediaPlayer state,
     // so the button shows pause icon during fadeOut until audio actually pauses.
     bool playing = m_engine->isActuallyPlaying();
+    refreshBarLyricSlot();
     if (m_playBtn) {
         if (!m_isLoading)
             m_playBtn->setProperty("pbLoading", false);

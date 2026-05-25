@@ -707,9 +707,15 @@ QTextEdit:focus {
     color: #F4F6FF;
 }
 
-#pbArtist {
+#pbArtist, #pbLyric {
     font-size: 12px;
+    font-weight: 400;
     color: rgba(244, 246, 255, 140);
+    background: transparent;
+}
+
+#pbLyricSlot {
+    background: transparent;
 }
 
 /* 勿对带 QIcon 的按钮设 color，否则 Fusion 等样式会把图标整颗染成单色（常见为纯黑） */

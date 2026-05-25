@@ -840,6 +840,7 @@ void PlayerPage::rebuildLyricLabels()
         m_lyricsLayout->addWidget(noDataLabel);
         m_lyricsLayout->addStretch();
         emitDesktopLyricsPayload();
+        emitBarLyricUpdate(-1);
         return;
     }
 
@@ -878,6 +879,20 @@ void PlayerPage::rebuildLyricLabels()
     }
     m_lyricsLayout->addStretch();
     emitDesktopLyricsPayload();
+    emitBarLyricUpdate(-1);
+}
+
+void PlayerPage::emitBarLyricUpdate(int lineIndex)
+{
+    QString text;
+    if (lineIndex >= 0 && lineIndex < m_lyrics.size()) {
+        const LyricLine &line = m_lyrics.at(lineIndex);
+        text = line.text;
+        const QString trans = line.translation.trimmed();
+        if (!trans.isEmpty())
+            text += QStringLiteral("（ %1 ）").arg(trans);
+    }
+    emit barLyricLineChanged(text, lineIndex, !m_lyrics.isEmpty());
 }
 
 QString PlayerPage::serializeLyricsForDesktop() const
@@ -907,7 +922,13 @@ void PlayerPage::emitDesktopLyricsPayload()
 
 void PlayerPage::updateLyricHighlight(qint64 positionMs)
 {
-    if (m_lyrics.isEmpty()) return;
+    if (m_lyrics.isEmpty()) {
+        if (m_currentLyricLine != -1) {
+            m_currentLyricLine = -1;
+            emitBarLyricUpdate(-1);
+        }
+        return;
+    }
 
     int line = -1;
     for (int i = m_lyrics.size() - 1; i >= 0; --i) {
@@ -917,8 +938,10 @@ void PlayerPage::updateLyricHighlight(qint64 positionMs)
         }
     }
 
-    if (line == m_currentLyricLine) return;
+    if (line == m_currentLyricLine)
+        return;
     m_currentLyricLine = line;
+    emitBarLyricUpdate(line);
 
     for (int i = 0; i < m_lyricsLayout->count(); ++i) {
         QLayoutItem *layoutItem = m_lyricsLayout->itemAt(i);

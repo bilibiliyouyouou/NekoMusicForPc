@@ -49,6 +49,8 @@ signals:
     void backRequested();
     /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
     void lyricsPayloadReady(const QString &lrcText);
+    /** 底栏艺人行：当前歌词行（含翻译括号）；lineIndex&lt;0 表示尚无对应当前时间的行 */
+    void barLyricLineChanged(const QString &displayText, int lineIndex, bool trackHasLyrics);
 
 private:
     void setupUi();
@@ -66,6 +68,7 @@ private:
     void rebuildLyricLabels();
     QString serializeLyricsForDesktop() const;
     void emitDesktopLyricsPayload();
+    void emitBarLyricUpdate(int lineIndex);
     void resetVideoRenderState();
     void updateVideoRenderUi();
     void pollVideoRenderStatus();

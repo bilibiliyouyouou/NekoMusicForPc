@@ -683,9 +683,15 @@ QTextEdit:focus {
     color: #121417;
 }
 
-#pbArtist {
+#pbArtist, #pbLyric {
     font-size: 12px;
+    font-weight: 400;
     color: rgba(33, 37, 41, 0.58);
+    background: transparent;
+}
+
+#pbLyricSlot {
+    background: transparent;
 }
 
 /* 播放键 48×48：圆角不得超过半边长 */
