@@ -87,7 +87,9 @@ private:
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
     void applyMetaTextElide();
     void updateMetaIcons();
-    void applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent) const;
+    void applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent,
+                             int mainPxOverride = -1) const;
+    void animateLyricLine(QWidget *lineWidget, QLabel *textLabel, QLabel *transLabel, bool isCurrent);
     void relayoutLeftInfoColumn();
     void loadCover(const QString &url);
     void applyCoverPixmap(const QPixmap &sourcePixmap);
