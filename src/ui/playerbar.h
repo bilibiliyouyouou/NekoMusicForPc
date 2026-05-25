@@ -32,6 +32,7 @@ signals:
     void nextClicked();
     void favoriteClicked(int musicId);
     void shareClicked();
+    void videoShareClicked();
     void playModeClicked();
     void volumePercentChanged(int percent);
 
@@ -48,6 +49,7 @@ public:
     void setDesktopLyricsChecked(bool checked);
     void setLoading(bool loading);
     void updatePlayModeBtn(const QString &mode);
+    void updateVideoShareUi(bool available, bool busy, const QString &jobStatus);
 
     /** 窗口尺寸变化时同步顶栏进度条几何（挂到主窗口并 top:-8px） */
     void relayoutChrome();
@@ -100,6 +102,7 @@ private:
     QPushButton *m_playModeBtn = nullptr;
     QPushButton *m_heartBtn = nullptr;
     QPushButton *m_shareBtn = nullptr;
+    QPushButton *m_videoShareBtn = nullptr;
     QSlider *m_progress = nullptr;
     
     QWidget *m_volumePanel = nullptr;

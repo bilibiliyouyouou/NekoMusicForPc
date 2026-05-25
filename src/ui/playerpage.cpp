@@ -5,8 +5,8 @@
 #include "svgicon.h"
 #include "../core/apiclient.h"
 #include "../core/playerengine.h"
-#include "../core/i18n.h"
 #include "../core/usermanager.h"
+#include "../core/i18n.h"
 #include "../core/covercache.h"
 #include "../core/httpprotocollabel.h"
 #include "../core/embeddedlyrics.h"
@@ -300,6 +300,7 @@ enum class PpInk : int {
     PlayMode,
     Playlist,
     Volume,
+    DesktopLyric,
 };
 
 class PlayerPageInkButton final : public QPushButton {
@@ -379,6 +380,11 @@ protected:
         case PpInk::Volume:
             pm = Icons::renderNamed("VolumeUp", px, hi ? cA : cN);
             break;
+        case PpInk::DesktopLyric: {
+            const bool on = isCheckable() && isChecked();
+            pm = Icons::renderNamed("DesktopLyric2", px, on ? cA : (hi ? cA : cN));
+            break;
+        }
         case PpInk::PlayMode: {
             const int m = property("ppPlayMode").toInt();
             const char *name = "Repeat";
@@ -602,6 +608,22 @@ void PlayerPage::refreshTintedPalette()
                          .arg(hiC.red())
                          .arg(hiC.green())
                          .arg(hiC.blue());
+    updateMetaIcons();
+}
+
+void PlayerPage::updateMetaIcons()
+{
+    constexpr int px = 16;
+    if (m_artistMetaIcon) {
+        const QPixmap artistPm = Icons::renderNamed("Artist", px, QColor(m_clrArtist));
+        m_artistMetaIcon->setPixmap(artistPm);
+        m_artistMetaIcon->setFixedSize(px, px);
+    }
+    if (m_albumMetaIcon) {
+        const QPixmap albumPm = Icons::renderNamed("Album", px, QColor(m_clrAlbum));
+        m_albumMetaIcon->setPixmap(albumPm);
+        m_albumMetaIcon->setFixedSize(px, px);
+    }
 }
 
 void PlayerPage::applyPlayerPageStyle()
@@ -636,14 +658,15 @@ void PlayerPage::applyPlayerPageStyle()
                       "  color: %2; font-size: 26px; font-weight: 700; "
                       "  background: transparent; }"
 
-                      "#playerMetaIcon { "
-                      "  color: %3; font-size: 14px; background: transparent; }"
+                      "#playerMetaIcon { background: transparent; }"
 
-                      "#playerArtistLabel, #playerAlbumLabel { "
+                      "#playerArtistLabel { "
                       "  color: %3; font-size: 16px; font-weight: 400; "
                       "  background: transparent; }"
 
-                      "#playerAlbumLabel { color: %8; }"
+                      "#playerAlbumLabel { "
+                      "  color: %4; font-size: 16px; font-weight: 400; "
+                      "  background: transparent; }"
 
                       "#playerVideoRenderBtn, #playerVideoDownloadBtn { "
                       "  background: rgba(230,57,80,%5); color: %1; font-size: 13px; font-weight: 600; "
@@ -684,11 +707,11 @@ void PlayerPage::applyPlayerPageStyle()
                       .arg(backFg)
                       .arg(m_clrTitle)
                       .arg(m_clrArtist)
+                      .arg(m_clrAlbum)
                       .arg(backBgA)
                       .arg(backBdA)
                       .arg(backHiA)
-                      .arg(backHiBdA)
-                      .arg(m_clrAlbum));
+                      .arg(backHiBdA));
 
     applyMetaLabelFonts();
     applyMetaTextElide();
@@ -839,18 +862,13 @@ void PlayerPage::setupPlayerControl()
     m_ppVolumeBtn->setCursor(Qt::PointingHandCursor);
     m_ppVolumeBtn->setToolTip(I18n::instance().tr("volume"));
 
-    m_ppDesktopLrcBtn = new QPushButton(QStringLiteral("词"), m_ppRightTools);
+    m_ppDesktopLrcBtn = new PlayerPageInkButton(m_ppRightTools);
     m_ppDesktopLrcBtn->setObjectName(QStringLiteral("ppDesktopLrcBtn"));
     m_ppDesktopLrcBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
-    m_ppDesktopLrcBtn->setFlat(true);
+    m_ppDesktopLrcBtn->setIconSize(QSize(kPpSideIcon, kPpSideIcon));
+    m_ppDesktopLrcBtn->setProperty("ppInk", int(PpInk::DesktopLyric));
     m_ppDesktopLrcBtn->setCheckable(true);
     m_ppDesktopLrcBtn->setCursor(Qt::PointingHandCursor);
-    {
-        QFont f = m_ppDesktopLrcBtn->font();
-        f.setPixelSize(15);
-        f.setWeight(QFont::DemiBold);
-        m_ppDesktopLrcBtn->setFont(f);
-    }
     m_ppDesktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     {
         QSettings s;
@@ -860,6 +878,7 @@ void PlayerPage::setupPlayerControl()
         QSettings s;
         s.setValue(QStringLiteral("desktopLyrics"), on);
         emit desktopLyricsToggled(on);
+        m_ppDesktopLrcBtn->update();
     });
 
     rightLay->addWidget(m_ppDesktopLrcBtn);
@@ -1104,6 +1123,7 @@ void PlayerPage::setDesktopLyricsChecked(bool checked)
         return;
     const QSignalBlocker blocker(m_ppDesktopLrcBtn);
     m_ppDesktopLrcBtn->setChecked(checked);
+    m_ppDesktopLrcBtn->update();
 }
 
 bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
@@ -1277,33 +1297,31 @@ void PlayerPage::setupUi()
     auto *artistLay = new QHBoxLayout(m_artistRow);
     artistLay->setContentsMargins(0, 0, 0, 0);
     artistLay->setSpacing(6);
-    auto *artistIcon = new QLabel(m_artistRow);
-    artistIcon->setObjectName(QStringLiteral("playerMetaIcon"));
-    artistIcon->setText(QStringLiteral("♪"));
-    artistIcon->setFixedWidth(20);
+    m_artistMetaIcon = new QLabel(m_artistRow);
+    m_artistMetaIcon->setObjectName(QStringLiteral("playerMetaIcon"));
     m_artistLabel = new QLabel(I18n::instance().tr("unknownArtist"), m_artistRow);
     m_artistLabel->setObjectName("playerArtistLabel");
     m_artistLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_artistLabel->setWordWrap(false);
     m_artistLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    artistLay->addWidget(artistIcon, 0, Qt::AlignTop);
+    artistLay->addWidget(m_artistMetaIcon, 0, Qt::AlignTop);
     artistLay->addWidget(m_artistLabel, 1);
 
     m_albumRow = new QWidget(m_metaPanel);
     auto *albumLay = new QHBoxLayout(m_albumRow);
     albumLay->setContentsMargins(0, 0, 0, 0);
     albumLay->setSpacing(6);
-    auto *albumIcon = new QLabel(m_albumRow);
-    albumIcon->setObjectName(QStringLiteral("playerMetaIcon"));
-    albumIcon->setText(QStringLiteral("◎"));
-    albumIcon->setFixedWidth(20);
+    m_albumMetaIcon = new QLabel(m_albumRow);
+    m_albumMetaIcon->setObjectName(QStringLiteral("playerMetaIcon"));
     m_albumLabel = new QLabel(m_albumRow);
     m_albumLabel->setObjectName("playerAlbumLabel");
     m_albumLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_albumLabel->setWordWrap(false);
     m_albumLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    albumLay->addWidget(albumIcon, 0, Qt::AlignTop);
+    albumLay->addWidget(m_albumMetaIcon, 0, Qt::AlignTop);
     albumLay->addWidget(m_albumLabel, 1);
+
+    updateMetaIcons();
 
     m_fullMetaTitle = m_titleLabel->text();
     m_fullMetaArtist = m_artistLabel->text();
@@ -1330,13 +1348,16 @@ void PlayerPage::setupUi()
     m_videoDownloadBtn->hide();
     connect(m_videoDownloadBtn, &QPushButton::clicked, this, &PlayerPage::downloadRenderedVideo);
 
-    m_videoStatusLbl->hide();
     m_videoRenderBtn->hide();
     m_videoDownloadBtn->hide();
 
     m_videoPollTimer = new QTimer(this);
     m_videoPollTimer->setInterval(8000);
     connect(m_videoPollTimer, &QTimer::timeout, this, &PlayerPage::pollVideoRenderStatus);
+
+    infoLay->addWidget(m_videoStatusLbl, 0, Qt::AlignHCenter);
+    infoLay->addWidget(m_videoRenderBtn, 0, Qt::AlignHCenter);
+    infoLay->addWidget(m_videoDownloadBtn, 0, Qt::AlignHCenter);
 
     leftOuter->addStretch(1);
     leftOuter->addWidget(m_leftInfoColumn, 0, Qt::AlignCenter);
@@ -2177,8 +2198,7 @@ void PlayerPage::downloadRenderedVideo()
 {
     if (m_videoJobId.isEmpty() || !m_apiClient)
         return;
-    const QString safeTitle = m_fullMetaTitle;
-    QString base = safeTitle;
+    QString base = m_fullMetaTitle;
     base.replace(QRegularExpression(QStringLiteral(R"([/\\?%*:|"<>])")), QStringLiteral("_"));
     if (base.isEmpty())
         base = QStringLiteral("clip");
@@ -2193,7 +2213,7 @@ void PlayerPage::downloadRenderedVideo()
     m_apiClient->downloadVideoRenderFile(m_videoJobId, path, [this, path](bool ok, const QString &err) {
         if (ok) {
             Toast::show(window(), I18n::instance().tr(QStringLiteral("videoRenderDownloadDone")).arg(path),
-                      Toast::Success, 5000);
+                        Toast::Success, 5000);
         } else {
             Toast::show(window(),
                         I18n::instance().tr(QStringLiteral("videoRenderFailed"))

@@ -564,6 +564,8 @@ enum class PbInk : int {
     PlayMain,
     Heart,
     Share,
+    Video,
+    DesktopLyric,
     Playlist,
     Volume,
     PlayModePng,
@@ -662,6 +664,14 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
     case PbInk::Share:
         pm = Icons::renderNamed("Share", px, hi ? cA : cN);
         break;
+    case PbInk::Video:
+        pm = Icons::renderNamed("Video", px, hi ? cA : cN);
+        break;
+    case PbInk::DesktopLyric: {
+        const bool on = isCheckable() && isChecked();
+        pm = Icons::renderNamed("DesktopLyric2", px, on ? cA : (hi ? cA : cN));
+        break;
+    }
     case PbInk::Playlist:
         pm = Icons::renderNamed("PlayList", px, hi ? cA : cN);
         break;
@@ -1018,18 +1028,23 @@ void PlayerBar::setupUi()
     connect(m_shareBtn, &QPushButton::clicked, this, [this]() { emit shareClicked(); });
     rl->addWidget(m_shareBtn);
 
-    m_desktopLrcBtn = new QPushButton(QStringLiteral("词"), right);
+    m_videoShareBtn = new PlayerBarInkButton(right);
+    m_videoShareBtn->setObjectName(QStringLiteral("pbVideoShareBtn"));
+    m_videoShareBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
+    m_videoShareBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
+    m_videoShareBtn->setProperty("pbInk", int(PbInk::Video));
+    m_videoShareBtn->setCursor(Qt::PointingHandCursor);
+    m_videoShareBtn->hide();
+    connect(m_videoShareBtn, &QPushButton::clicked, this, [this]() { emit videoShareClicked(); });
+    rl->addWidget(m_videoShareBtn);
+
+    m_desktopLrcBtn = new PlayerBarInkButton(right);
     m_desktopLrcBtn->setObjectName("pbDesktopLrcBtn");
     m_desktopLrcBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
-    m_desktopLrcBtn->setFlat(true);
+    m_desktopLrcBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
+    m_desktopLrcBtn->setProperty("pbInk", int(PbInk::DesktopLyric));
     m_desktopLrcBtn->setCheckable(true);
     m_desktopLrcBtn->setCursor(Qt::PointingHandCursor);
-    {
-        QFont f = m_desktopLrcBtn->font();
-        f.setPixelSize(15);
-        f.setWeight(QFont::DemiBold);
-        m_desktopLrcBtn->setFont(f);
-    }
     m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     {
         QSettings lrcSettings;
@@ -1039,6 +1054,7 @@ void PlayerBar::setupUi()
         QSettings s;
         s.setValue(QStringLiteral("desktopLyrics"), on);
         emit desktopLyricsToggled(on);
+        m_desktopLrcBtn->update();
     });
     rl->addWidget(m_desktopLrcBtn);
 
@@ -1347,6 +1363,24 @@ void PlayerBar::updateVolumeIcon(int value)
     m_volumeBtn->update();
 }
 
+void PlayerBar::updateVideoShareUi(bool available, bool busy, const QString &jobStatus)
+{
+    if (!m_videoShareBtn)
+        return;
+    m_videoShareBtn->setVisible(available);
+    const bool processing = jobStatus == QStringLiteral("pending")
+                            || jobStatus == QStringLiteral("processing");
+    m_videoShareBtn->setEnabled(available && !busy && !processing);
+    if (jobStatus == QStringLiteral("done"))
+        m_videoShareBtn->setToolTip(I18n::instance().tr(QStringLiteral("videoRenderDownload")));
+    else if (busy)
+        m_videoShareBtn->setToolTip(I18n::instance().tr(QStringLiteral("videoRenderButtonBusy")));
+    else if (processing)
+        m_videoShareBtn->setToolTip(I18n::instance().tr(QStringLiteral("videoRenderStatusProcessing")));
+    else
+        m_videoShareBtn->setToolTip(I18n::instance().tr(QStringLiteral("videoRenderButton")));
+}
+
 void PlayerBar::retranslate()
 {
     // Update default labels if still showing defaults
@@ -1381,6 +1415,8 @@ void PlayerBar::retranslate()
         m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     if (m_shareBtn)
         m_shareBtn->setToolTip(I18n::instance().tr(QStringLiteral("shareTrack")));
+    if (m_videoShareBtn && m_videoShareBtn->isVisible())
+        updateVideoShareUi(true, false, QString());
 
     refreshLocalBadge();
 }
@@ -1612,6 +1648,7 @@ void PlayerBar::setDesktopLyricsChecked(bool checked)
         return;
     const QSignalBlocker blocker(m_desktopLrcBtn);
     m_desktopLrcBtn->setChecked(checked);
+    m_desktopLrcBtn->update();
 }
 
 void PlayerBar::setLoading(bool loading)

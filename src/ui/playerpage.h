@@ -86,6 +86,7 @@ private:
     void applyMetaLabelFonts();
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
     void applyMetaTextElide();
+    void updateMetaIcons();
     void relayoutLeftInfoColumn();
     void loadCover(const QString &url);
     void applyCoverPixmap(const QPixmap &sourcePixmap);
@@ -159,6 +160,8 @@ private:
     QLabel *m_coverImage = nullptr;
     QPixmap m_coverRoundedBase;
     QLabel *m_titleLabel;
+    QLabel *m_artistMetaIcon = nullptr;
+    QLabel *m_albumMetaIcon = nullptr;
     QLabel *m_artistLabel;
     QLabel *m_albumLabel;
     QPushButton *m_videoRenderBtn = nullptr;
