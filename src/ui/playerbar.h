@@ -45,6 +45,7 @@ public:
     void setCurrentMusicId(int musicId);
     int currentMusicId() const { return m_currentMusicId; }
     void setFavoriteStatus(bool isFavorited);
+    void setDesktopLyricsChecked(bool checked);
     void setLoading(bool loading);
     void updatePlayModeBtn(const QString &mode);
 

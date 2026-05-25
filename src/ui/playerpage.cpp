@@ -54,6 +54,10 @@ constexpr int kPpModeIcon = 20;
 constexpr int kPpTransportIcon = 26;
 constexpr int kPpPlayIcon = 28;
 constexpr int kPpProgressMaxW = 480;
+/** SPlayer .player-cover：暂停 scale(0.9)，播放 scale(1) */
+constexpr qreal kCoverScalePaused = 0.9;
+constexpr qreal kCoverScalePlaying = 1.0;
+constexpr int kCoverScaleAnimMs = 500;
 
 const QColor kPpIconAccent = QColor(255, 143, 158, 255);
 
@@ -359,6 +363,8 @@ protected:
 #include <QJsonObject>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
+#include <QVariantAnimation>
+#include <QAbstractAnimation>
 #include <QDebug>
 #include <QUrl>
 #include <QFile>
@@ -370,6 +376,7 @@ protected:
 #include <QRegularExpression>
 #include <QWheelEvent>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QEasingCurve>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent)
@@ -394,6 +401,8 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
         m_controlBar->installEventFilter(this);
     if (m_menuBar)
         m_menuBar->installEventFilter(this);
+    if (m_contentHost)
+        m_contentHost->installEventFilter(this);
     installEventFilter(this);
     for (QWidget *child : findChildren<QWidget *>())
         child->installEventFilter(this);
@@ -473,6 +482,25 @@ void PlayerPage::paintEvent(QPaintEvent *event)
 
     // SPlayer .full-player background-color: #00000060
     p.fillRect(rect(), QColor(0, 0, 0, kBackdropOverlayAlpha));
+
+    if (m_chromeFadeOpacity > 0.01) {
+        const int menuH = m_menuBar ? kPlayerMenuH : 0;
+        const int controlH = m_controlBar ? kPlayerControlH : 0;
+        const int alpha = int(72 * m_chromeFadeOpacity);
+        if (menuH > 0) {
+            QLinearGradient topGrad(0, 0, 0, menuH);
+            topGrad.setColorAt(0.0, QColor(0, 0, 0, alpha));
+            topGrad.setColorAt(1.0, QColor(0, 0, 0, 0));
+            p.fillRect(QRect(0, 0, width(), menuH), topGrad);
+        }
+        if (controlH > 0) {
+            const int y0 = qMax(0, height() - controlH);
+            QLinearGradient botGrad(0, y0, 0, height());
+            botGrad.setColorAt(0.0, QColor(0, 0, 0, 0));
+            botGrad.setColorAt(1.0, QColor(0, 0, 0, alpha));
+            p.fillRect(QRect(0, y0, width(), controlH), botGrad);
+        }
+    }
 
     QWidget::paintEvent(event);
 }
@@ -716,7 +744,6 @@ void PlayerPage::setupPlayerControl()
         auto &pm = PlaylistManager::instance();
         pm.setPlayMode(pm.playMode() == QStringLiteral("random") ? QStringLiteral("list")
                                                                  : QStringLiteral("random"));
-        updateShuffleRepeatBtns(pm.playMode());
     });
 
     m_ppRepeatBtn = new PlayerPageInkButton(center);
@@ -729,7 +756,6 @@ void PlayerPage::setupPlayerControl()
         auto &pm = PlaylistManager::instance();
         pm.setPlayMode(pm.playMode() == QStringLiteral("single") ? QStringLiteral("list")
                                                                  : QStringLiteral("single"));
-        updateShuffleRepeatBtns(pm.playMode());
     });
 
     btnRow->addWidget(m_ppShuffleBtn);
@@ -827,6 +853,8 @@ void PlayerPage::setupPlayerControl()
     m_ppControlOpAnim->setEasingCurve(QEasingCurve::OutCubic);
 
     updateShuffleRepeatBtns(PlaylistManager::instance().playMode());
+    if (m_engine)
+        applyCoverVisualScale(m_engine->isActuallyPlaying() ? kCoverScalePlaying : kCoverScalePaused);
     if (width() <= 700)
         setControlSidesVisible(true);
 }
@@ -866,6 +894,46 @@ void PlayerPage::connectPlayerControlEngine()
     });
 }
 
+void PlayerPage::applyCoverVisualScale(qreal scale)
+{
+    m_coverVisualScale = qBound(kCoverScalePaused, scale, kCoverScalePlaying);
+    if (!m_coverLabel)
+        return;
+    const int base = coverSideLength();
+    const int s = qMax(120, int(base * m_coverVisualScale + 0.5));
+    m_coverLabel->setFixedSize(s, s);
+    relayoutLeftInfoColumn();
+}
+
+void PlayerPage::updateCoverPlayScale(bool playing)
+{
+    if (m_coverScalePlaying == playing && m_coverScaleAnim && m_coverScaleAnim->state() == QAbstractAnimation::Running)
+        return;
+    m_coverScalePlaying = playing;
+
+    const qreal target = playing ? kCoverScalePlaying : kCoverScalePaused;
+    if (m_coverScaleAnim) {
+        m_coverScaleAnim->stop();
+        delete m_coverScaleAnim;
+        m_coverScaleAnim = nullptr;
+    }
+
+    m_coverScaleAnim = new QVariantAnimation(this);
+    m_coverScaleAnim->setDuration(kCoverScaleAnimMs);
+    m_coverScaleAnim->setStartValue(m_coverVisualScale);
+    m_coverScaleAnim->setEndValue(target);
+    QEasingCurve ec(QEasingCurve::OutBack);
+    ec.setOvershoot(1.15);
+    m_coverScaleAnim->setEasingCurve(ec);
+    connect(m_coverScaleAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant &v) {
+        applyCoverVisualScale(v.toReal());
+    });
+    connect(m_coverScaleAnim, &QVariantAnimation::finished, this, [this]() {
+        m_coverScaleAnim = nullptr;
+    });
+    m_coverScaleAnim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
 void PlayerPage::updatePlayControlState()
 {
     if (!m_ppPlayBtn || !m_engine)
@@ -874,6 +942,7 @@ void PlayerPage::updatePlayControlState()
     if (m_ppPlayBtn->property("ppPlaying").toBool() != playing) {
         m_ppPlayBtn->setProperty("ppPlaying", playing);
         m_ppPlayBtn->update();
+        updateCoverPlayScale(playing);
     }
     m_ppPlayBtn->setToolTip(I18n::instance().tr(playing ? "pause" : "play"));
 }
@@ -924,18 +993,40 @@ void PlayerPage::setControlSidesVisible(bool visible)
         return;
     m_controlSidesVisible = visible;
     const qreal target = (visible || width() <= 700) ? 1.0 : 0.0;
-    if (m_ppControlOpAnim) {
+
+    if (m_ppControlOpAnim)
         m_ppControlOpAnim->stop();
-        m_ppControlOpAnim->setStartValue(m_ppControlOpacity ? m_ppControlOpacity->opacity() : 0.0);
-        m_ppControlOpAnim->setEndValue(target);
-        m_ppControlOpAnim->start();
-    }
-    if (m_ppMenuOpAnim) {
+    if (m_ppMenuOpAnim)
         m_ppMenuOpAnim->stop();
-        m_ppMenuOpAnim->setStartValue(m_ppMenuOpacity ? m_ppMenuOpacity->opacity() : 0.0);
-        m_ppMenuOpAnim->setEndValue(target);
-        m_ppMenuOpAnim->start();
+    if (m_chromeFadeAnim) {
+        m_chromeFadeAnim->stop();
+        delete m_chromeFadeAnim;
+        m_chromeFadeAnim = nullptr;
     }
+
+    m_chromeFadeAnim = new QVariantAnimation(this);
+    m_chromeFadeAnim->setDuration(300);
+    m_chromeFadeAnim->setStartValue(m_chromeFadeOpacity);
+    m_chromeFadeAnim->setEndValue(target);
+    m_chromeFadeAnim->setEasingCurve(QEasingCurve::OutCubic);
+    connect(m_chromeFadeAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant &v) {
+        const qreal o = v.toReal();
+        m_chromeFadeOpacity = o;
+        if (m_ppMenuOpacity)
+            m_ppMenuOpacity->setOpacity(o);
+        if (m_ppControlOpacity)
+            m_ppControlOpacity->setOpacity(o);
+        const bool passMouse = (o < 0.05);
+        if (m_menuBar)
+            m_menuBar->setAttribute(Qt::WA_TransparentForMouseEvents, passMouse);
+        if (m_controlBar)
+            m_controlBar->setAttribute(Qt::WA_TransparentForMouseEvents, passMouse);
+        update();
+    });
+    connect(m_chromeFadeAnim, &QVariantAnimation::finished, this, [this]() {
+        m_chromeFadeAnim = nullptr;
+    });
+    m_chromeFadeAnim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void PlayerPage::bumpControlShowTimer()
@@ -960,7 +1051,7 @@ void PlayerPage::updateShuffleRepeatBtns(const QString &mode)
     if (m_ppRepeatBtn) {
         const bool single = (mode == QStringLiteral("single"));
         m_ppRepeatBtn->setProperty("ppRepeatMode", single ? 1 : 0);
-        m_ppRepeatBtn->setProperty("ppDim", false);
+        m_ppRepeatBtn->setProperty("ppDim", !single);
         m_ppRepeatBtn->setToolTip(single ? I18n::instance().tr("playModeSingle")
                                          : I18n::instance().tr("playModeList"));
         m_ppRepeatBtn->update();
@@ -980,6 +1071,14 @@ void PlayerPage::setFavoriteStatus(bool isFavorited)
     m_ppHeartBtn->setToolTip(isFavorited ? I18n::instance().tr("removeFromFavorites")
                                          : I18n::instance().tr("addToFavorites"));
     m_ppHeartBtn->update();
+}
+
+void PlayerPage::setDesktopLyricsChecked(bool checked)
+{
+    if (!m_ppDesktopLrcBtn)
+        return;
+    const QSignalBlocker blocker(m_ppDesktopLrcBtn);
+    m_ppDesktopLrcBtn->setChecked(checked);
 }
 
 bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
@@ -1015,7 +1114,7 @@ bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
     }
 
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter) {
-        if (watched == this || watched == m_controlBar || watched == m_menuBar) {
+        if (watched == this || watched == m_controlBar || watched == m_menuBar || watched == m_contentHost) {
             bumpControlShowTimer();
             return false;
         }
@@ -1397,8 +1496,10 @@ void PlayerPage::relayoutLeftInfoColumn()
     m_metaPanel->setFixedSize(metaW, metaH);
 
     m_leftInfoColumn->setFixedWidth(qMax(coverW, metaW));
-    if (m_coverLabel)
-        m_coverLabel->setFixedSize(coverW, coverW);
+    if (m_coverLabel) {
+        const int s = qMax(120, int(coverW * m_coverVisualScale + 0.5));
+        m_coverLabel->setFixedSize(s, s);
+    }
     m_leftInfoColumn->adjustSize();
 }
 
@@ -1455,7 +1556,8 @@ void PlayerPage::applyCoverPixmap(const QPixmap &sourcePixmap)
 {
     if (sourcePixmap.isNull())
         return;
-    const int s = coverSideLength();
+    const int base = coverSideLength();
+    const int s = qMax(120, int(base * m_coverVisualScale + 0.5));
     m_coverLabel->setFixedSize(s, s);
     QPixmap rounded(s, s);
     rounded.fill(Qt::transparent);
@@ -1473,7 +1575,8 @@ void PlayerPage::applyCoverPixmap(const QPixmap &sourcePixmap)
 void PlayerPage::applyCoverUnknownLarge()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
-    const int s = coverSideLength();
+    const int base = coverSideLength();
+    const int s = qMax(120, int(base * m_coverVisualScale + 0.5));
     m_coverLabel->setFixedSize(s, s);
     QPixmap pm(s, s);
     pm.fill(Qt::transparent);

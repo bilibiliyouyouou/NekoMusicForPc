@@ -48,6 +48,7 @@ public:
     QColor idleIconColor() const;
     QColor accentIconColor() const;
     void setFavoriteStatus(bool isFavorited);
+    void setDesktopLyricsChecked(bool checked);
     void layoutPlayerPageChrome();
     /** 抓取 host 并模糊，对齐 SPlayer .full-player backdrop-filter，避免透出背后清晰界面 */
     void refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize = QSize());
@@ -63,7 +64,6 @@ signals:
     void backRequested();
     void previousClicked();
     void nextClicked();
-    void playModeClicked();
     void favoriteClicked(int musicId);
     void playlistClicked();
     void desktopLyricsToggled(bool enabled);
@@ -77,6 +77,8 @@ private:
     void setupPlayerControl();
     void connectPlayerControlEngine();
     void updatePlayControlState();
+    void updateCoverPlayScale(bool playing);
+    void applyCoverVisualScale(qreal scale);
     void updateCoverBackdrop(const QPixmap &source);
     void setControlSidesVisible(bool visible);
     void bumpControlShowTimer();
@@ -126,6 +128,9 @@ private:
     QPixmap m_underlaySnapshot;
     QPixmap m_underlayBlurPixmap;
     bool m_controlSidesVisible = false;
+    qreal m_chromeFadeOpacity = 0.0;
+    qreal m_coverVisualScale = 0.9;
+    bool m_coverScalePlaying = false;
 
     QWidget *m_menuBar = nullptr;
     QWidget *m_contentHost = nullptr;
@@ -133,6 +138,8 @@ private:
     QWidget *m_controlBar = nullptr;
     QGraphicsOpacityEffect *m_ppMenuOpacity = nullptr;
     QPropertyAnimation *m_ppMenuOpAnim = nullptr;
+    QVariantAnimation *m_chromeFadeAnim = nullptr;
+    QVariantAnimation *m_coverScaleAnim = nullptr;
     QWidget *m_ppLeftTools = nullptr;
     QWidget *m_ppRightTools = nullptr;
     QGraphicsOpacityEffect *m_ppControlOpacity = nullptr;

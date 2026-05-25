@@ -189,10 +189,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_engine, &PlayerEngine::durationChanged, this, &MainWindow::refreshSystemMediaIntegration);
     connect(m_engine, &PlayerEngine::positionChanged, m_systemMedia, &SystemMediaController::onPositionMsChanged);
     connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this, &MainWindow::refreshSystemMediaIntegration);
-    connect(&PlaylistManager::instance(), &PlaylistManager::playModeChanged, this, [this]() {
+    connect(&PlaylistManager::instance(), &PlaylistManager::playModeChanged, this, [this](const QString &) {
         refreshSystemMediaIntegration();
-        if (m_playerPage)
-            m_playerPage->updatePlayModeBtn(PlaylistManager::instance().playMode());
+        syncPlayModeUi();
     });
     connect(m_playerBar, &PlayerBar::volumePercentChanged, this, [this](int p) {
         if (m_systemMedia)
@@ -604,35 +603,17 @@ void MainWindow::setupUi()
     connect(m_playerBar, &PlayerBar::favoriteClicked, this, &MainWindow::toggleFavorite);
     connect(m_playerBar, &PlayerBar::shareClicked, this, &MainWindow::copyCurrentTrackShare);
 
-    // 播放模式按钮
     connect(m_playerBar, &PlayerBar::playModeClicked, this, [this]() {
         PlaylistManager::instance().togglePlayMode();
-        m_playerBar->updatePlayModeBtn(PlaylistManager::instance().playMode());
     });
-
-    // 初始化播放模式按钮状态
-    m_playerBar->updatePlayModeBtn(PlaylistManager::instance().playMode());
 
     connect(m_playerPage, &PlayerPage::backRequested, this, &MainWindow::closePlayerPage);
     connect(m_playerPage, &PlayerPage::favoriteClicked, this, &MainWindow::toggleFavorite);
     connect(m_playerPage, &PlayerPage::previousClicked, this, &MainWindow::playPrevious);
     connect(m_playerPage, &PlayerPage::nextClicked, this, &MainWindow::playNext);
-    connect(m_playerPage, &PlayerPage::playModeClicked, this, [this]() {
-        PlaylistManager::instance().togglePlayMode();
-        const QString mode = PlaylistManager::instance().playMode();
-        m_playerBar->updatePlayModeBtn(mode);
-        m_playerPage->updatePlayModeBtn(mode);
-    });
     connect(m_playerPage, &PlayerPage::playlistClicked, this, &MainWindow::togglePlaylistPanel);
     connect(m_playerPage, &PlayerPage::desktopLyricsToggled, this, [this](bool enabled) {
-        if (m_playerBar) {
-            QSettings s;
-            s.setValue(QStringLiteral("desktopLyrics"), enabled);
-        }
-        if (enabled)
-            Toast::show(this, I18n::instance().tr("desktopLyricsEnabled"));
-        else
-            Toast::show(this, I18n::instance().tr("desktopLyricsDisabled"));
+        applyDesktopLyricsEnabled(enabled, true);
     });
 
     // 播放位置变化时更新歌词高亮
@@ -710,27 +691,11 @@ void MainWindow::setupUi()
     connect(m_playerPage, &PlayerPage::lyricsPayloadReady, m_desktopLrc, &DesktopLrc::loadLrcText);
 
     connect(m_playerBar, &PlayerBar::desktopLyricsToggled, this, [this](bool enabled) {
-        if (!m_desktopLrc)
-            return;
-        if (enabled) {
-            m_desktopLrc->showWindow();
-            Toast::show(this, I18n::instance().tr("desktopLyricsEnabled"));
-        } else {
-            m_desktopLrc->hideWindow();
-            Toast::show(this, I18n::instance().tr("desktopLyricsDisabled"));
-        }
+        applyDesktopLyricsEnabled(enabled, true);
     });
 
-    // 初始加载桌面歌词设置
-    QSettings settings;
-    bool lyricsEnabled = settings.value("desktopLyrics", false).toBool();
-    if (m_desktopLrc) {
-        if (lyricsEnabled) {
-            m_desktopLrc->showWindow();
-        } else {
-            m_desktopLrc->hideWindow();
-        }
-    }
+    syncPlayModeUi();
+    applyDesktopLyricsEnabled(QSettings().value(QStringLiteral("desktopLyrics"), false).toBool(), false);
 }
 void MainWindow::loadStyleSheet()
 {
@@ -1338,6 +1303,8 @@ void MainWindow::openPlayerPage()
     m_playerPage->move(0, area.height());
     m_playerPage->show();
     m_playerPage->raise();
+    syncPlayModeUi();
+    applyDesktopLyricsEnabled(QSettings().value(QStringLiteral("desktopLyrics"), false).toBool(), false);
 
     auto *anim = new QPropertyAnimation(m_playerPage, "pos", this);
     anim->setDuration(Theme::kAnimNormal);
@@ -1698,6 +1665,34 @@ void MainWindow::checkForUpdates(bool showNoUpdateToast)
     });
 
     m_updateChecker->checkForUpdates();
+}
+
+void MainWindow::syncPlayModeUi()
+{
+    const QString mode = PlaylistManager::instance().playMode();
+    if (m_playerBar)
+        m_playerBar->updatePlayModeBtn(mode);
+    if (m_playerPage)
+        m_playerPage->updatePlayModeBtn(mode);
+}
+
+void MainWindow::applyDesktopLyricsEnabled(bool enabled, bool showToast)
+{
+    QSettings().setValue(QStringLiteral("desktopLyrics"), enabled);
+    if (m_playerBar)
+        m_playerBar->setDesktopLyricsChecked(enabled);
+    if (m_playerPage)
+        m_playerPage->setDesktopLyricsChecked(enabled);
+    if (m_desktopLrc) {
+        if (enabled)
+            m_desktopLrc->showWindow();
+        else
+            m_desktopLrc->hideWindow();
+    }
+    if (showToast) {
+        Toast::show(this, enabled ? I18n::instance().tr("desktopLyricsEnabled")
+                                 : I18n::instance().tr("desktopLyricsDisabled"));
+    }
 }
 
 void MainWindow::refreshSystemMediaIntegration()

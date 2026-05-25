@@ -1606,6 +1606,14 @@ void PlayerBar::setFavoriteStatus(bool isFavorited)
     }
 }
 
+void PlayerBar::setDesktopLyricsChecked(bool checked)
+{
+    if (!m_desktopLrcBtn)
+        return;
+    const QSignalBlocker blocker(m_desktopLrcBtn);
+    m_desktopLrcBtn->setChecked(checked);
+}
+
 void PlayerBar::setLoading(bool loading)
 {
     if (m_isLoading == loading) return;
