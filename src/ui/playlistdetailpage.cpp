@@ -207,7 +207,7 @@ private:
         path.addRoundedRect(0, 0, 48, 48, 4, 4);
         p.fillPath(path, QColor(230, 57, 80, 200));
         p.setClipPath(path);
-        auto icon = Icons::render(Icons::kMusic, 20, QColor(255, 255, 255, 200));
+        auto icon = Icons::renderNamed("Music", 20, QColor(255, 255, 255, 200));
         p.drawPixmap(14, 14, icon);
         m_coverLbl->setPixmap(pix);
     }
@@ -621,7 +621,7 @@ void PlaylistDetailPage::setPlaceholderCover()
     path.addRoundedRect(0, 0, 200, 200, 8, 8);
     p.fillPath(path, QColor(230, 57, 80, 200));
     p.setClipPath(path);
-    auto icon = Icons::render(Icons::kMusic, 60, QColor(255, 255, 255, 200));
+    auto icon = Icons::renderNamed("Music", 60, QColor(255, 255, 255, 200));
     p.drawPixmap(70, 70, icon);
     m_coverLbl->setPixmap(pix);
 }

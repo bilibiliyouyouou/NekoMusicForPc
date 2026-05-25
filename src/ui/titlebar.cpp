@@ -261,7 +261,7 @@ void TitleBar::setupUi()
     m_avatarIcon = new QLabel(m_avatarWidget);
     m_avatarIcon->setFixedSize(kTbAvatarPx, kTbAvatarPx);
     m_avatarIcon->setScaledContents(false);
-    m_avatarIcon->setPixmap(QPixmap(":/icons/app.png").scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
     avatarLay->addWidget(m_avatarIcon, 0, Qt::AlignVCenter);
 
     m_usernameLabel = new QLabel(m_avatarWidget);
@@ -290,7 +290,7 @@ void TitleBar::setupUi()
     auto *settingsBtn = new QPushButton(this);
     settingsBtn->setObjectName("tbIconBtn");
     settingsBtn->setFixedSize(36, 36);
-    settingsBtn->setIcon(Icons::icon(Icons::kSettings, 18, iconNormal(), iconActive()));
+    settingsBtn->setIcon(Icons::iconNamed("Settings", 18, iconNormal(), iconActive()));
     settingsBtn->setCursor(Qt::PointingHandCursor);
     settingsBtn->setToolTip(I18n::instance().tr("settings"));
     connect(settingsBtn, &QPushButton::clicked, this, &TitleBar::settingsClicked);
@@ -306,7 +306,7 @@ void TitleBar::setupUi()
     auto *minBtn = new QPushButton(this);
     minBtn->setObjectName("tbMinBtn");
     minBtn->setFixedSize(32, 32);
-    minBtn->setIcon(Icons::icon(Icons::kMinimize, 20, iconNormal(), kMinHover));
+    minBtn->setIcon(Icons::iconNamed("WindowMinimize", 20, iconNormal(), kMinHover));
     minBtn->setCursor(Qt::PointingHandCursor);
     minBtn->setToolTip(QStringLiteral("最小化"));
     connect(minBtn, &QPushButton::clicked, this, [this]() { if (window()) window()->showMinimized(); });
@@ -315,7 +315,7 @@ void TitleBar::setupUi()
     auto *maxBtn = new QPushButton(this);
     maxBtn->setObjectName("tbMaxBtn");
     maxBtn->setFixedSize(32, 32);
-    maxBtn->setIcon(Icons::icon(Icons::kMaximize, 20, iconNormal(), kMaxHover));
+    maxBtn->setIcon(Icons::iconNamed("WindowMaximize", 20, iconNormal(), kMaxHover));
     maxBtn->setCursor(Qt::PointingHandCursor);
     maxBtn->setToolTip(QStringLiteral("最大化"));
     connect(maxBtn, &QPushButton::clicked, this, [this]() {
@@ -326,7 +326,7 @@ void TitleBar::setupUi()
     auto *closeBtn = new QPushButton(this);
     closeBtn->setObjectName("tbCloseBtn");
     closeBtn->setFixedSize(32, 32);
-    closeBtn->setIcon(Icons::icon(Icons::kClose, 20, closeNormal(), kCloseHover));
+    closeBtn->setIcon(Icons::iconNamed("WindowClose", 20, closeNormal(), kCloseHover));
     closeBtn->setCursor(Qt::PointingHandCursor);
     closeBtn->setToolTip(QStringLiteral("关闭"));
     connect(closeBtn, &QPushButton::clicked, this, [this]() { if (window()) window()->close(); });
@@ -386,7 +386,7 @@ void TitleBar::refreshSearchGlyph()
 {
     if (!m_searchGlyph)
         return;
-    m_searchGlyph->setPixmap(Icons::render(Icons::kSearch, 16, searchBarIconMuted()));
+    m_searchGlyph->setPixmap(Icons::renderNamed("Search", 16, searchBarIconMuted()));
 }
 
 void TitleBar::updateChevronPixmap()
@@ -418,7 +418,7 @@ void TitleBar::updateAvatar()
                 .arg(Theme::kApiBase).arg(userId);
             loadAvatarAsync(avatarUrl, userId);
         } else {
-            m_avatarIcon->setPixmap(QPixmap(":/icons/app.png").scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
         }
         elideUsername();
     } else {
@@ -428,7 +428,7 @@ void TitleBar::updateAvatar()
             m_avatarReply->deleteLater();
             m_avatarReply = nullptr;
         }
-        m_avatarIcon->setPixmap(QPixmap(":/icons/app.png").scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
         m_usernameLabel->setText(I18n::instance().tr("goToLogin"));
         m_usernameLabel->setToolTip(I18n::instance().tr("goToLogin"));
     }
@@ -455,7 +455,7 @@ void TitleBar::updateVipPill()
 
 void TitleBar::loadAvatarAsync(const QString &url, int userId)
 {
-    m_avatarIcon->setPixmap(QPixmap(":/icons/app.png").scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
 
     if (m_avatarReply) {
         m_avatarReply->disconnect();

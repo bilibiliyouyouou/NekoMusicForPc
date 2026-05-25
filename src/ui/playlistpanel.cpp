@@ -266,7 +266,7 @@ private:
         if (m_isCurrent) {
             const QColor ac = Theme::ThemeManager::instance().isDarkMode() ? QColor(230, 57, 80)
                                                                             : QColor(111, 66, 193);
-            auto icon = Icons::render(Icons::kPlay, 14, ac);
+            auto icon = Icons::renderNamed("Play", 14, ac);
             QPixmap pix(26, 26);
             pix.fill(Qt::transparent);
             QPainter p(&pix);

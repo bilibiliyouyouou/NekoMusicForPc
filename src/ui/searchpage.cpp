@@ -151,7 +151,7 @@ private:
         QPixmap pix(54, 54); pix.fill(Qt::transparent);
         QPainter p(&pix); QPainterPath path; path.addRoundedRect(0, 0, 54, 54, 6, 6);
         p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::render(Icons::kMusic, 24, QColor(255, 255, 255, 100));
+        auto icon = Icons::renderNamed("Music", 24, QColor(255, 255, 255, 100));
         p.drawPixmap(15, 15, icon); m_coverLbl->setPixmap(pix);
     }
 
@@ -269,7 +269,7 @@ private:
         QPixmap pix(60, 60); pix.fill(Qt::transparent);
         QPainter p(&pix); QPainterPath path; path.addRoundedRect(0, 0, 60, 60, 6, 6);
         p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::render(Icons::kMusic, 28, QColor(255, 255, 255, 100));
+        auto icon = Icons::renderNamed("Music", 28, QColor(255, 255, 255, 100));
         p.drawPixmap(16, 16, icon); m_coverLbl->setPixmap(pix);
     }
 
@@ -364,7 +364,7 @@ private:
         QPixmap pix(40, 40); pix.fill(Qt::transparent);
         QPainter p(&pix); QPainterPath path; path.addRoundedRect(0, 0, 40, 40, 4, 4);
         p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::render(Icons::kMusic, 18, QColor(255, 255, 255, 100));
+        auto icon = Icons::renderNamed("Music", 18, QColor(255, 255, 255, 100));
         p.drawPixmap(11, 11, icon); m_coverLbl->setPixmap(pix);
     }
 
@@ -413,7 +413,7 @@ public:
         QPixmap pix(44, 44); pix.fill(Qt::transparent);
         QPainter p(&pix); QPainterPath path; path.addEllipse(0, 0, 44, 44);
         p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::render(Icons::kMusic, 24, QColor(255, 255, 255, 100));
+        auto icon = Icons::renderNamed("Music", 24, QColor(255, 255, 255, 100));
         p.drawPixmap(10, 10, icon); m_avatarLbl->setPixmap(pix);
         headerLay->addWidget(m_avatarLbl);
 

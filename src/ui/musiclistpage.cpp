@@ -147,7 +147,7 @@ private:
         path.addRoundedRect(0, 0, 54, 54, 6, 6);
         p.fillPath(path, QColor(128, 128, 128, 40));
         p.setClipPath(path);
-        auto icon = Icons::render(Icons::kMusic, 24, QColor(255, 255, 255, 100));
+        auto icon = Icons::renderNamed("Music", 24, QColor(255, 255, 255, 100));
         p.drawPixmap(15, 15, icon);
         m_coverLbl->setPixmap(pix);
     }

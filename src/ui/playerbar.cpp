@@ -556,11 +556,6 @@ static QPixmap tintMaskedPixmap(const QPixmap &src, const QColor &c)
     return out;
 }
 
-static QString spIconRes(const char *name)
-{
-    return QStringLiteral(":/icons/%1.svg").arg(QLatin1String(name));
-}
-
 /** 播放栏图标绘制角色：完全不走 QIcon::pixmap，避免 Fusion+QSS 把图标当蒙版染黑。 */
 enum class PbInk : int {
     None = 0,
@@ -648,35 +643,38 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
     QPixmap pm;
     switch (ink) {
     case PbInk::Prev:
-        pm = Icons::render(Icons::kPrev, px, hi ? cA : cN);
+        pm = Icons::renderNamed("SkipPrev", px, hi ? cA : cN);
         break;
     case PbInk::Next:
-        pm = Icons::render(Icons::kNext, px, hi ? cA : cN);
+        pm = Icons::renderNamed("SkipNext", px, hi ? cA : cN);
         break;
     case PbInk::PlayMain: {
         const bool playing = property("pbPlaying").toBool();
-        pm = Icons::render(playing ? Icons::kPause : Icons::kPlay, px, kPbPlayGlyph);
+        pm = Icons::renderNamed(playing ? "Pause" : "Play", px, kPbPlayGlyph);
         break;
     }
     case PbInk::Heart: {
         const bool on = property("pbHeartOn").toBool();
-        pm = Icons::render(Icons::kHeart, px, on ? kPbHeartOn : (hi ? cA : cN));
+        pm = Icons::renderNamed(on ? "Favorite" : "FavoriteBorder", px,
+                               on ? kPbHeartOn : (hi ? cA : cN));
         break;
     }
     case PbInk::Share:
-        pm = Icons::render(Icons::kShare, px, hi ? cA : cN);
+        pm = Icons::renderNamed("Share", px, hi ? cA : cN);
         break;
     case PbInk::Playlist:
-        pm = Icons::render(Icons::kPlaylist, px, hi ? cA : cN);
+        pm = Icons::renderNamed("PlayList", px, hi ? cA : cN);
         break;
     case PbInk::Volume: {
         const int band = property("pbVol").toInt();
-        const char *path = Icons::kVolumeHigh;
+        const char *name = "VolumeUp";
         if (band == 0)
-            path = Icons::kVolumeMute;
+            name = "VolumeOff";
         else if (band == 1)
-            path = Icons::kVolumeLow;
-        pm = Icons::render(path, px, hi ? cA : cN);
+            name = "VolumeMute";
+        else if (band == 2)
+            name = "VolumeDown";
+        pm = Icons::renderNamed(name, px, hi ? cA : cN);
         break;
     }
     case PbInk::PlayModePng: {
@@ -686,7 +684,7 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
             name = "RepeatSong";
         else if (m == 2)
             name = "Shuffle";
-        pm = Icons::renderResource(spIconRes(name), px, hi ? cA : cN);
+        pm = Icons::renderNamed(name, px, hi ? cA : cN);
         break;
     }
     default:
@@ -1056,7 +1054,7 @@ void PlayerBar::setupUi()
     m_volumeBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
     m_volumeBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
     m_volumeBtn->setProperty("pbInk", int(PbInk::Volume));
-    m_volumeBtn->setProperty("pbVol", 2);
+    m_volumeBtn->setProperty("pbVol", 3);
     m_volumeBtn->setCursor(Qt::PointingHandCursor);
     volLay->addWidget(m_volumeBtn);
     rl->addWidget(volWrapper);
@@ -1338,11 +1336,13 @@ bool PlayerBar::eventFilter(QObject *watched, QEvent *event)
 void PlayerBar::updateVolumeIcon(int value)
 {
     if (!m_volumeBtn) return;
-    int band = 2;
+    int band = 3;
     if (value == 0)
         band = 0;
-    else if (value < 50)
+    else if (value < 40)
         band = 1;
+    else if (value < 70)
+        band = 2;
     m_volumeBtn->setProperty("pbVol", band);
     m_volumeBtn->update();
 }
@@ -1425,7 +1425,7 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
     if (fetchUrl.isEmpty()) {
         disconnect(m_coverConn);
         m_coverConn = {};
-        if (QPixmap ph = Icons::render(Icons::kMusic, 28, pbCtrlIdleColor()); !ph.isNull())
+        if (QPixmap ph = Icons::renderNamed("Music", 28, pbCtrlIdleColor()); !ph.isNull())
             setCoverPixmap(ph);
         return;
     }
@@ -1435,7 +1435,7 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
     if (cacheKey.isEmpty()) {
         disconnect(m_coverConn);
         m_coverConn = {};
-        if (QPixmap ph = Icons::render(Icons::kMusic, 28, pbCtrlIdleColor()); !ph.isNull())
+        if (QPixmap ph = Icons::renderNamed("Music", 28, pbCtrlIdleColor()); !ph.isNull())
             setCoverPixmap(ph);
         return;
     }
@@ -1461,7 +1461,7 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
                               setCoverPixmap(pix);
                           });
 
-    if (QPixmap ph = Icons::render(Icons::kMusic, 28, pbCtrlIdleColor()); !ph.isNull())
+    if (QPixmap ph = Icons::renderNamed("Music", 28, pbCtrlIdleColor()); !ph.isNull())
         setCoverPixmap(ph);
     cc->fetchCover(cacheKey, fetchUrl);
 }

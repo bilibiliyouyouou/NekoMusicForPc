@@ -79,11 +79,6 @@ static QPixmap tintMaskedPixmap(const QPixmap &src, const QColor &c)
     return out;
 }
 
-static QString spIconRes(const char *name)
-{
-    return QStringLiteral(":/icons/%1.svg").arg(QLatin1String(name));
-}
-
 /** 顶栏高度内空白区用于拖动无边框窗口（对齐 TitleBar） */
 static bool isInPlayerPageTopDragRegion(const PlayerPage *page, const QPoint &globalPos)
 {
@@ -265,29 +260,28 @@ protected:
         QPixmap pm;
         switch (ink) {
         case PpInk::Back:
-            pm = Icons::renderResource(spIconRes("Down"), px, hi ? cA : cN);
+            pm = Icons::renderNamed("Down", px, hi ? cA : cN);
             break;
         case PpInk::Prev:
-            pm = Icons::renderResource(spIconRes("SkipPrev"), px, hi ? cA : cN);
+            pm = Icons::renderNamed("SkipPrev", px, hi ? cA : cN);
             break;
         case PpInk::Next:
-            pm = Icons::renderResource(spIconRes("SkipNext"), px, hi ? cA : cN);
+            pm = Icons::renderNamed("SkipNext", px, hi ? cA : cN);
             break;
         case PpInk::PlayMain:
-            pm = Icons::renderResource(
-                spIconRes(property("ppPlaying").toBool() ? "Pause" : "Play"), px, hi ? cA : cN);
+            pm = Icons::renderNamed(property("ppPlaying").toBool() ? "Pause" : "Play", px, hi ? cA : cN);
             break;
         case PpInk::Favorite: {
             const bool on = property("ppHeartOn").toBool();
-            pm = Icons::renderResource(spIconRes(on ? "Favorite" : "FavoriteBorder"), px,
-                                       on ? cA : (hi ? cA : cN));
+            pm = Icons::renderNamed(on ? "Favorite" : "FavoriteBorder", px,
+                                    on ? cA : (hi ? cA : cN));
             break;
         }
         case PpInk::Playlist:
-            pm = Icons::renderResource(spIconRes("PlayList"), px, hi ? cA : cN);
+            pm = Icons::renderNamed("PlayList", px, hi ? cA : cN);
             break;
         case PpInk::Volume:
-            pm = Icons::renderResource(spIconRes("VolumeUp"), px, hi ? cA : cN);
+            pm = Icons::renderNamed("VolumeUp", px, hi ? cA : cN);
             break;
         case PpInk::PlayMode: {
             const int m = property("ppPlayMode").toInt();
@@ -296,7 +290,7 @@ protected:
                 name = "RepeatSong";
             else if (m == 2)
                 name = "Shuffle";
-            pm = Icons::renderResource(spIconRes(name), px, hi ? cA : cN);
+            pm = Icons::renderNamed(name, px, hi ? cA : cN);
             break;
         }
         }

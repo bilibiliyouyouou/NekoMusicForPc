@@ -63,7 +63,7 @@ void PlaylistCard::loadCover()
     p.fillPath(pp, g);
     p.setPen(Qt::white);
     p.drawPixmap(QRect((Theme::kCoverSmall-40)/2, (Theme::kCoverSmall-40)/2, 40, 40),
-                 Icons::render(Icons::kMusic, 40, QColor(255, 255, 255, 160)));
+                 Icons::renderNamed("Music", 40, QColor(255, 255, 255, 160)));
     p.end();
     m_coverPixmap = ph;
 

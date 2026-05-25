@@ -104,7 +104,7 @@ void Carousel::setupUi()
     clay->setContentsMargins(16, 0, 16, 4);
 
     auto *prevBtn = createArrowBtn("carouselPrev");
-    prevBtn->setIcon(Icons::icon(Icons::kLeft, 18, kArrowNormal, kArrowActive));
+    prevBtn->setIcon(Icons::iconNamed("NavigateBefore", 18, kArrowNormal, kArrowActive));
     connect(prevBtn, &QPushButton::clicked, this, [this]() {
         if (m_items.size() > 1 && !m_animating)
             goToIndex((m_currentIndex - 1 + m_items.size()) % m_items.size());
@@ -123,7 +123,7 @@ void Carousel::setupUi()
     clay->addStretch();
 
     auto *nextBtn = createArrowBtn("carouselNext");
-    nextBtn->setIcon(Icons::icon(Icons::kRight, 18, kArrowNormal, kArrowActive));
+    nextBtn->setIcon(Icons::iconNamed("NavigateNext", 18, kArrowNormal, kArrowActive));
     connect(nextBtn, &QPushButton::clicked, this, [this]() {
         if (m_items.size() > 1 && !m_animating)
             goToIndex((m_currentIndex + 1) % m_items.size());

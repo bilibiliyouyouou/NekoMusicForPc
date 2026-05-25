@@ -47,7 +47,7 @@ public:
         pp.addRoundedRect(0, 0, m_size, m_size, 6, 6);
         p.fillPath(pp, QColor(128, 128, 128, 40));
         p.setClipPath(pp);
-        auto iconPx = Icons::render(Icons::kMusic, 28, QColor(255, 255, 255, 100));
+        auto iconPx = Icons::renderNamed("Music", 28, QColor(255, 255, 255, 100));
         p.drawPixmap((m_size - 28) / 2, (m_size - 28) / 2, iconPx);
         update();
     }

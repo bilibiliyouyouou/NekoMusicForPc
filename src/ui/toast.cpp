@@ -4,6 +4,7 @@
  */
 
 #include "toast.h"
+#include "svgicon.h"
 #include "theme/theme.h"
 
 #include <QDebug>
@@ -140,12 +141,12 @@ void Toast::initUi(const QString &message, Type type)
     else if (type == Error) iconColor = QColor(239, 68, 68);
     else iconColor = QColor(59, 130, 246);
 
-    // 使用 PNG 图标
-    const char *iconRes = ":/icons/icon_heart.png";  // 默认
-    if (type == Success) iconRes = ":/icons/icon_play.png";  // 用 play 作为 success 图标
-    else if (type == Error) iconRes = ":/icons/icon_close.png";
-
-    iconLbl->setPixmap(QPixmap(iconRes));
+    const char *iconName = "Info";
+    if (type == Success)
+        iconName = "Check";
+    else if (type == Error)
+        iconName = "Close";
+    iconLbl->setPixmap(Icons::renderNamed(iconName, 20, iconColor));
     lay->addWidget(iconLbl);
 
     // 消息文本

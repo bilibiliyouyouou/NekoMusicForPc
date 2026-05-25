@@ -7,6 +7,7 @@
  */
 
 #include "sidebar.h"
+#include "svgicon.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/glasspaint.h"
@@ -25,18 +26,43 @@
 #include <QStyle>
 
 namespace {
-QString navIconName(const QString &key) {
-    if (key == "favorites") return "heart";
-    if (key == "recent") return "clock";
-    if (key == "upload") return "upload";
-    if (key == "settings") return "settings";
-    return key; // home, etc.
+
+QColor navIconNormalColor()
+{
+    return Theme::ThemeManager::instance().isDarkMode() ? QColor(245, 240, 255, 180)
+                                                        : QColor(33, 37, 41, 190);
 }
-QString navIconPath(const QString &key, bool active) {
-    QString name = navIconName(key);
-    return active ? QString(":/icons/nav_%1_active.png").arg(name) : QString(":/icons/nav_%1.png").arg(name);
+
+QColor navIconActiveColor()
+{
+    return QColor(255, 143, 158);
 }
+
+const char *navSvgName(const QString &key)
+{
+    if (key == QStringLiteral("home"))
+        return "Home";
+    if (key == QStringLiteral("favorites"))
+        return "Favorite";
+    if (key == QStringLiteral("recent"))
+        return "History";
+    if (key == QStringLiteral("upload"))
+        return "Cloud";
+    if (key == QStringLiteral("settings"))
+        return "Settings";
+    if (key == QStringLiteral("music"))
+        return "Music";
+    return "Home";
 }
+
+QIcon navIcon(const QString &key, bool active)
+{
+    const char *name = navSvgName(key);
+    return Icons::iconNamed(name, 20, active ? navIconActiveColor() : navIconNormalColor(),
+                            navIconActiveColor());
+}
+
+} // namespace
 
 Sidebar::Sidebar(ApiClient *apiClient, QWidget *parent) : QWidget(parent), m_apiClient(apiClient)
 {
@@ -65,8 +91,7 @@ void Sidebar::setupUi()
 
     auto *logoImg = new QLabel(logoRow);
     logoImg->setFixedSize(32, 32);
-    logoImg->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
-                           .scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    logoImg->setPixmap(Icons::renderNamed("SPlayer", 32, navIconActiveColor()));
     logoLay->addWidget(logoImg);
 
     auto *logoText = new QLabel(QStringLiteral("NekoMusic"), logoRow);
@@ -89,22 +114,18 @@ void Sidebar::setupUi()
     lay->setSpacing(10);
 
     // 主导航（带 PNG 图标）
-    lay->addWidget(createNavItem("home", I18n::instance().tr("home"),
-                                 QIcon(":/icons/nav_home_active.png")));
+    lay->addWidget(createNavItem("home", I18n::instance().tr("home"), navIcon("home", true)));
 
     // 我喜欢的（可点击导航）
-    m_favBtn = createNavItem("favorites", I18n::instance().tr("favorites"),
-                             QIcon(":/icons/nav_heart.png"));
+    m_favBtn = createNavItem("favorites", I18n::instance().tr("favorites"), navIcon("favorites", false));
     lay->addWidget(m_favBtn);
 
     // 最近播放（可点击导航）
-    m_recBtn = createNavItem("recent", I18n::instance().tr("recentPlay"),
-                             QIcon(":/icons/nav_clock.png"));
+    m_recBtn = createNavItem("recent", I18n::instance().tr("recentPlay"), navIcon("recent", false));
     lay->addWidget(m_recBtn);
 
     // 上传音乐（可点击导航）
-    m_uploadBtn = createNavItem("upload", I18n::instance().tr("uploadMusic"),
-                                QIcon(":/icons/nav_upload.png"));
+    m_uploadBtn = createNavItem("upload", I18n::instance().tr("uploadMusic"), navIcon("upload", false));
     lay->addWidget(m_uploadBtn);
 
     // 分隔线
@@ -439,7 +460,7 @@ void Sidebar::setActiveNav(const QString &key)
         it.value()->style()->unpolish(it.value());
         it.value()->style()->polish(it.value());
         // 更新图标
-        it.value()->setIcon(QIcon(navIconPath(it.key(), active)));
+        it.value()->setIcon(navIcon(it.key(), active));
     }
 }
 

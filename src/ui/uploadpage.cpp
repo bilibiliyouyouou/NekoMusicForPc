@@ -54,7 +54,7 @@ void UploadPage::setupUi()
     header->setSpacing(12);
 
     m_backBtn = new QPushButton(container);
-    m_backBtn->setIcon(Icons::render(Icons::kLeft, 24, QColor(Theme::kLavender)));
+    m_backBtn->setIcon(Icons::renderNamed("NavigateBefore", 24, QColor(Theme::kLavender)));
     m_backBtn->setCursor(Qt::PointingHandCursor);
     m_backBtn->setFixedSize(32, 32);
     m_backBtn->setObjectName("backBtn");
@@ -89,7 +89,7 @@ void UploadPage::setupUi()
     // Music file
     auto *musicRow = new QHBoxLayout();
     auto *musicIcon = new QLabel(cardBody);
-    musicIcon->setPixmap(Icons::render(Icons::kMusic, 20, QColor(Theme::kLavender)));
+    musicIcon->setPixmap(Icons::renderNamed("Music", 20, QColor(Theme::kLavender)));
     musicRow->addWidget(musicIcon);
 
     auto *musicLabel = new QLabel(I18n::instance().tr("musicFileInfo") + " " + I18n::instance().tr("required"), cardBody);
@@ -111,7 +111,7 @@ void UploadPage::setupUi()
     // Cover file with preview
     auto *coverRow = new QHBoxLayout();
     auto *coverIcon = new QLabel(cardBody);
-    coverIcon->setPixmap(QPixmap(":/icons/icon_heart_sakura.png"));
+    coverIcon->setPixmap(Icons::renderNamed("Album", 20, QColor(Theme::kLavender)));
     coverRow->addWidget(coverIcon);
 
     auto *coverLabel = new QLabel(I18n::instance().tr("coverInfo") + " " + I18n::instance().tr("optional"), cardBody);
@@ -135,13 +135,13 @@ void UploadPage::setupUi()
         "QLabel#coverPreview { background-color: rgba(45, 38, 65, 100); border-radius: 8px; }"
     );
     // Set default placeholder
-    m_coverPreview->setPixmap(Icons::render(Icons::kMusic, 40, QColor(Theme::kTextMuted)));
+    m_coverPreview->setPixmap(Icons::renderNamed("Music", 40, QColor(Theme::kTextMuted)));
     cardLay->addWidget(m_coverPreview, 0, Qt::AlignLeft);
 
     // Lyrics file with preview
     auto *lyricsRow = new QHBoxLayout();
     auto *lyricsIcon = new QLabel(cardBody);
-    lyricsIcon->setPixmap(Icons::render(Icons::kSearch, 20, QColor(Theme::kMint)));
+    lyricsIcon->setPixmap(Icons::renderNamed("Search", 20, QColor(Theme::kMint)));
     lyricsRow->addWidget(lyricsIcon);
 
     auto *lyricsLabel = new QLabel(I18n::instance().tr("lyricsInfo") + " " + I18n::instance().tr("optional"), cardBody);
@@ -324,7 +324,7 @@ void UploadPage::selectLyricsFile()
 void UploadPage::updateCoverPreview()
 {
     if (m_coverFilePath.isEmpty()) {
-        m_coverPreview->setPixmap(Icons::render(Icons::kMusic, 40, QColor(Theme::kTextMuted)));
+        m_coverPreview->setPixmap(Icons::renderNamed("Music", 40, QColor(Theme::kTextMuted)));
         return;
     }
     QPixmap pix(m_coverFilePath);
@@ -332,7 +332,7 @@ void UploadPage::updateCoverPreview()
         QPixmap scaled = pix.scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         m_coverPreview->setPixmap(scaled);
     } else {
-        m_coverPreview->setPixmap(Icons::render(Icons::kMusic, 40, QColor(Theme::kTextMuted)));
+        m_coverPreview->setPixmap(Icons::renderNamed("Music", 40, QColor(Theme::kTextMuted)));
     }
 }
 
@@ -435,7 +435,7 @@ void UploadPage::onUploadResult(bool success, const QString &message)
         m_coverFilePath.clear();
         m_lyricsFilePath.clear();
         m_musicFileLabel->setText(I18n::instance().tr("musicFileFormat"));
-        m_coverPreview->setPixmap(Icons::render(Icons::kMusic, 40, QColor(Theme::kTextMuted)));
+        m_coverPreview->setPixmap(Icons::renderNamed("Music", 40, QColor(Theme::kTextMuted)));
         m_lyricsPreview->clear();
         m_lyricsPreview->setPlaceholderText(I18n::instance().tr("lyricsFileFormat"));
     } else {

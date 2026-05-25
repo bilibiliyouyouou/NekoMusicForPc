@@ -54,6 +54,43 @@ QPixmap render(const char *pathD, int size, const QColor &color, int viewBox)
     return pix;
 }
 
+QPixmap renderNamed(const char *name, int size, const QColor &color)
+{
+    return renderResource(resourcePath(name), size, color);
+}
+
+QIcon iconNamed(const char *name, int size, const QColor &normal, const QColor &active)
+{
+    const QPixmap n = renderNamed(name, size, normal);
+    const QPixmap a = active.isValid() ? renderNamed(name, size, active) : n;
+
+    QIcon ic;
+    const QIcon::Mode modes[] = {QIcon::Normal, QIcon::Disabled, QIcon::Active, QIcon::Selected};
+    for (QIcon::Mode m : modes) {
+        const QPixmap &pm = (m == QIcon::Active && active.isValid()) ? a : n;
+        ic.addPixmap(pm, m, QIcon::Off);
+        ic.addPixmap(pm, m, QIcon::On);
+    }
+    ic.setIsMask(false);
+    return ic;
+}
+
+QIcon applicationIcon()
+{
+    QIcon ic;
+    for (int sz : {16, 24, 32, 48, 64, 128, 256}) {
+        const QPixmap pm = renderNamed("SPlayer", sz, QColor(230, 57, 80));
+        if (!pm.isNull())
+            ic.addPixmap(pm);
+    }
+    if (ic.isNull()) {
+        const QPixmap pm = renderNamed("Logo", 32, QColor(230, 57, 80));
+        if (!pm.isNull())
+            ic.addPixmap(pm);
+    }
+    return ic;
+}
+
 QPixmap renderResource(const QString &resourcePath, int size, const QColor &color)
 {
     QFile file(resourcePath);
