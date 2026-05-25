@@ -8,6 +8,7 @@
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/glasswidget.h"
+#include "ui/glasspaint.h"
 #include "ui/scrollareafix.h"
 #include "version.h"
 
@@ -34,6 +35,11 @@ SettingsPage::SettingsPage(QWidget *parent) : QWidget(parent)
     setAttribute(Qt::WA_StyledBackground, false);
     setAutoFillBackground(false);
     setupUi();
+    connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
+            [this](Theme::ThemeMode mode) {
+                if (auto *card = findChild<GlassWidget *>())
+                    GlassPaint::applyFlatSurface(card, Theme::ThemeManager::instance().isDarkMode());
+            });
 }
 
 void SettingsPage::setupUi()
@@ -51,7 +57,7 @@ void SettingsPage::setupUi()
 
     auto *card = new GlassWidget(container);
     card->setBorderRadius(Theme::kRXl);
-    card->setOpacity(0.58);
+    GlassPaint::applyFlatSurface(card, Theme::ThemeManager::instance().isDarkMode());
     QWidget *cardBody = card->contentWidget();
 
     auto *cardLay = new QVBoxLayout(cardBody);

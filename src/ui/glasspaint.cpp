@@ -1,4 +1,5 @@
 #include "glasspaint.h"
+#include "glasswidget.h"
 
 #include <QImage>
 #include <QPainter>
@@ -57,131 +58,45 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
 {
     p.setRenderHint(QPainter::Antialiasing);
 
-    /* 与 style.qss / style-light.qss 中 QMainWindow 渐变一致 */
-    QLinearGradient bg(r.topLeft(), QPoint(int(r.width() * 0.42), r.height()));
+    QLinearGradient bg(r.topLeft(), r.bottomLeft());
     if (darkMode) {
-        bg.setColorAt(0.0, QColor(8, 8, 16));
-        bg.setColorAt(0.38, QColor(14, 14, 28));
-        bg.setColorAt(1.0, QColor(21, 21, 42));
+        bg.setColorAt(0.0, QColor(24, 24, 24));
+        bg.setColorAt(1.0, QColor(20, 20, 20));
     } else {
         bg.setColorAt(0.0, QColor(251, 251, 252));
-        bg.setColorAt(0.45, QColor(241, 243, 246));
-        bg.setColorAt(1.0, QColor(232, 236, 241));
+        bg.setColorAt(1.0, QColor(241, 243, 246));
     }
     p.fillRect(r, bg);
-
-    QRadialGradient topGlow(QPointF(r.center().x(), r.top() + r.height() * 0.08), r.width() * 0.75);
-    if (darkMode) {
-        topGlow.setColorAt(0.0, QColor(255, 107, 139, 38));
-        topGlow.setColorAt(0.42, QColor(135, 206, 235, 18));
-        topGlow.setColorAt(1.0, Qt::transparent);
-    } else {
-        topGlow.setColorAt(0.0, QColor(255, 140, 160, 42));
-        topGlow.setColorAt(0.48, QColor(255, 255, 255, 88));
-        topGlow.setColorAt(1.0, Qt::transparent);
-    }
-    p.fillRect(r, topGlow);
-
-    const int vx = int(r.width() * 0.35);
-    const int vy = int(r.height() * 0.4);
-    QRadialGradient vLeft(r.bottomLeft(), qMax(vx, vy));
-    vLeft.setColorAt(0.0, darkMode ? QColor(8, 6, 14, 100) : QColor(108, 117, 125, 26));
-    vLeft.setColorAt(1.0, Qt::transparent);
-    p.fillRect(r, vLeft);
-
-    QRadialGradient vRight(r.bottomRight(), qMax(vx, vy));
-    vRight.setColorAt(0.0, darkMode ? QColor(8, 6, 14, 92) : QColor(108, 117, 125, 20));
-    vRight.setColorAt(1.0, Qt::transparent);
-    p.fillRect(r, vRight);
-
-    drawNoiseOverlay(p, r, darkMode ? 0.92 : 0.78);
 }
 
 void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode)
 {
-    p.setRenderHint(QPainter::Antialiasing);
+    const QColor surface = darkMode ? QColor(30, 30, 30) : QColor(255, 255, 255);
+    const QColor border = darkMode ? QColor(255, 255, 255, 18) : QColor(0, 0, 0, 22);
+    p.fillRect(r, surface);
 
-    QLinearGradient depth(r.topLeft(), r.bottomLeft());
-    if (darkMode) {
-        depth.setColorAt(0.0, QColor(22, 22, 42, 242));
-        depth.setColorAt(0.52, QColor(16, 16, 34, 234));
-        depth.setColorAt(1.0, QColor(12, 12, 26, 228));
-    } else {
-        depth.setColorAt(0.0, QColor(255, 255, 255, 250));
-        depth.setColorAt(0.5, QColor(248, 249, 250, 244));
-        depth.setColorAt(1.0, QColor(236, 239, 242, 238));
-    }
-    p.fillRect(r, depth);
-
-    QRadialGradient hi(QPointF(r.left() + r.width() * 0.08, r.top() + r.height() * 0.12), r.height() * 1.1);
-    if (darkMode) {
-        hi.setColorAt(0.0, QColor(255, 255, 255, 26));
-        hi.setColorAt(0.35, QColor(255, 183, 197, 28));
-        hi.setColorAt(1.0, Qt::transparent);
-    } else {
-        hi.setColorAt(0.0, QColor(255, 255, 255, 200));
-        hi.setColorAt(0.4, QColor(255, 183, 197, 38));
-        hi.setColorAt(1.0, Qt::transparent);
-    }
-    p.fillRect(r, hi);
-
-    drawNoiseOverlay(p, r, 0.9);
-
-    {
-        const int stripH = qBound(3, r.height() / 22, 18);
-        constexpr float kPi = 3.14159265f;
-        p.save();
-        for (int py = 0; py < stripH; ++py) {
-            const float t = qBound(0.f, 1.f - (py + 0.35f) / float(stripH), 1.f);
-            float lens = circleMap(t);
-            lens *= 0.88f + 0.12f * std::sin(kPi * float(py + 1) / float(stripH + 1));
-
-            const int a = qBound(0, int(std::lround(255.f * lens * (darkMode ? 0.21f : 0.36f))), 255);
-            if (a < 2)
-                continue;
-
-            const float hueShift = std::sin(float(py) * 0.85f) * 0.5f + 0.5f;
-            int r0, g0, b0;
-            if (darkMode) {
-                r0 = qBound(0, int(175 + 40 * hueShift), 255);
-                g0 = qBound(0, int(205 + 35 * (1.f - hueShift * 0.5f)), 255);
-                b0 = qBound(0, int(248 - 15 * hueShift), 255);
-            } else {
-                r0 = qBound(0, int(228 + 25 * hueShift), 255);
-                g0 = qBound(0, int(238 + 20 * (1.f - hueShift * 0.5f)), 255);
-                b0 = 255;
-            }
-            p.fillRect(r.left(), r.top() + py, r.width(), 1, QColor(r0, g0, b0, a));
-        }
-        p.restore();
-    }
-
-    QLinearGradient accent;
-    switch (kind) {
-    case BarKind::TitleBar:
-        accent = QLinearGradient(r.topLeft(), r.topRight());
-        accent.setColorAt(0.0, QColor(255, 107, 139, 0));
-        accent.setColorAt(0.5, QColor(255, 107, 139, darkMode ? 48 : 58));
-        accent.setColorAt(1.0, QColor(255, 107, 139, 0));
-        p.setPen(QPen(QBrush(accent), 1));
-        p.drawLine(r.bottomLeft(), r.bottomRight());
-        break;
-    case BarKind::Sidebar:
-        accent = QLinearGradient(r.topRight(), r.bottomRight());
-        accent.setColorAt(0.0, QColor(255, 183, 197, darkMode ? 55 : 65));
-        accent.setColorAt(1.0, QColor(255, 107, 139, darkMode ? 18 : 24));
-        p.setPen(QPen(QBrush(accent), 1));
+    p.setPen(QPen(border, 1));
+    if (kind == BarKind::Sidebar)
         p.drawLine(r.topRight(), r.bottomRight());
-        break;
-    case BarKind::PlayerBar:
-        accent = QLinearGradient(r.topLeft(), r.topRight());
-        accent.setColorAt(0.0, QColor(255, 107, 139, 0));
-        accent.setColorAt(0.5, QColor(255, 107, 139, darkMode ? 52 : 62));
-        accent.setColorAt(1.0, QColor(255, 107, 139, 0));
-        p.setPen(QPen(QBrush(accent), 1));
+    else if (kind == BarKind::PlayerBar)
         p.drawLine(r.topLeft(), r.topRight());
-        break;
+    else
+        p.drawLine(r.bottomLeft(), r.bottomRight());
+}
+
+void applyFlatSurface(GlassWidget *glass, bool darkMode)
+{
+    if (!glass)
+        return;
+    glass->setBackdropCaptureEnabled(false);
+    if (darkMode) {
+        glass->setBaseColor(QColor(36, 36, 36));
+        glass->setBorderColor(QColor(255, 255, 255, 18));
+    } else {
+        glass->setBaseColor(QColor(255, 255, 255));
+        glass->setBorderColor(QColor(0, 0, 0, 22));
     }
+    glass->setOpacity(1.0);
 }
 
 } // namespace GlassPaint

@@ -53,28 +53,28 @@ protected:
 
         const bool dark = Theme::ThemeManager::instance().isDarkMode();
         const qreal op = qBound(0.0, m_owner->m_opacity, 1.0);
-        const bool solidLight = !dark && !m_owner->m_backdropCaptureEnabled;
+        const bool flat = !m_owner->m_backdropCaptureEnabled;
 
-        if (!m_grab.isNull())
+        if (!flat && !m_grab.isNull())
             p.drawPixmap(r, m_grab);
         else {
             QColor fill = m_owner->m_base;
-            if (solidLight && fill.alpha() < 250)
+            if (flat || fill.alpha() < 250)
                 fill.setAlpha(255);
             p.fillRect(r, fill);
         }
 
-        if (!solidLight) {
+        if (!flat) {
             QColor tint = m_owner->m_base;
             tint.setAlphaF(op * (dark ? 0.42 : 0.38));
             p.fillRect(r, tint);
-        }
 
-        // 内缘高光（简化版折射感）
-        QLinearGradient hi(r.topLeft(), QPoint(r.left(), r.top() + qMin(r.height() / 3, 120)));
-        hi.setColorAt(0.0, dark ? QColor(255, 255, 255, int(28 * op + 8)) : QColor(255, 255, 255, int(55 * op + 15)));
-        hi.setColorAt(1.0, Qt::transparent);
-        p.fillRect(r, hi);
+            QLinearGradient hi(r.topLeft(), QPoint(r.left(), r.top() + qMin(r.height() / 3, 120)));
+            hi.setColorAt(0.0, dark ? QColor(255, 255, 255, int(28 * op + 8))
+                                    : QColor(255, 255, 255, int(55 * op + 15)));
+            hi.setColorAt(1.0, Qt::transparent);
+            p.fillRect(r, hi);
+        }
 
         p.setClipping(false);
         const qreal dpr = qMax(1.0, m_owner->devicePixelRatioF());

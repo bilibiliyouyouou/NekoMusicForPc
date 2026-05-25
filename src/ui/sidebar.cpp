@@ -2,8 +2,8 @@
  * @file sidebar.cpp
  * @brief 侧边栏实现
  *
- * 240px 重度毛玻璃，深紫黑半透 + 薰衣草微光。
- * 选中态：薰衣草背景 + 左侧薄荷绿竖条。
+ * 240px 侧栏，SPlayer 式扁平 surface + 顶栏 Logo。
+ * 选中态：主色半透明圆角底。
  */
 
 #include "sidebar.h"
@@ -52,6 +52,29 @@ Sidebar::Sidebar(ApiClient *apiClient, QWidget *parent) : QWidget(parent), m_api
 
 void Sidebar::setupUi()
 {
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->setSpacing(0);
+
+    auto *logoRow = new QWidget(this);
+    logoRow->setObjectName("sbLogoRow");
+    logoRow->setFixedHeight(70);
+    auto *logoLay = new QHBoxLayout(logoRow);
+    logoLay->setContentsMargins(16, 0, 16, 0);
+    logoLay->setSpacing(10);
+
+    auto *logoImg = new QLabel(logoRow);
+    logoImg->setFixedSize(32, 32);
+    logoImg->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
+                           .scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    logoLay->addWidget(logoImg);
+
+    auto *logoText = new QLabel(QStringLiteral("NekoMusic"), logoRow);
+    logoText->setObjectName("sbLogoText");
+    logoLay->addWidget(logoText);
+    logoLay->addStretch();
+    outer->addWidget(logoRow);
+
     auto *scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -62,7 +85,7 @@ void Sidebar::setupUi()
     auto *container = new QWidget(scroll);
     container->setObjectName("sbContainer");
     auto *lay = new QVBoxLayout(container);
-    lay->setContentsMargins(12, 14, 12, 14);
+    lay->setContentsMargins(8, 8, 8, 14);
     lay->setSpacing(10);
 
     // 主导航（带 PNG 图标）
@@ -137,9 +160,7 @@ void Sidebar::setupUi()
     scroll->setWidget(container);
     nekoPolishScrollAreaViewport(scroll);
 
-    auto *outer = new QVBoxLayout(this);
-    outer->setContentsMargins(0, 0, 0, 0);
-    outer->addWidget(scroll);
+    outer->addWidget(scroll, 1);
 }
 
 void Sidebar::refreshPlaylists()
@@ -397,7 +418,7 @@ QPushButton *Sidebar::createNavItem(const QString &key, const QString &label, co
 {
     auto *btn = new QPushButton(label, this);
     btn->setObjectName("sbNavItem");
-    btn->setFixedHeight(42);
+    btn->setFixedHeight(40);
     btn->setIcon(icon);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setProperty("navKey", key);

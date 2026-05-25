@@ -120,6 +120,7 @@ set(SOURCES
         src/ui/homepage.cpp
         src/ui/playlistcard.cpp
         src/ui/playerbar.cpp
+        src/ui/playerprogressslider.cpp
         src/ui/svgicon.cpp
         src/ui/settingspage.cpp
         src/ui/toast.cpp
@@ -172,6 +173,7 @@ set(HEADERS
         src/ui/homepage.h
         src/ui/playlistcard.h
         src/ui/playerbar.h
+        src/ui/playerprogressslider.h
         src/ui/svgicon.h
         src/ui/settingspage.h
         src/ui/recentpage.h

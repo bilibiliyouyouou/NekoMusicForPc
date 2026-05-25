@@ -69,6 +69,15 @@ int main(int argc, char *argv[])
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
+#if defined(Q_OS_LINUX)
+    // 纯 QWidget 应用：禁用 xcb 与 GLX/EGL 集成，避免加载 libGL
+    if (qgetenv("QT_XCB_GL_INTEGRATION").isEmpty())
+        qputenv("QT_XCB_GL_INTEGRATION", "none");
+#endif
+    // 无 QML/Quick；避免 RHI 走 OpenGL 后端
+    if (qgetenv("QSG_RHI_BACKEND").isEmpty())
+        qputenv("QSG_RHI_BACKEND", "software");
+
     QApplication app(argc, argv);
 
     // 直连：不读取系统/环境变量代理（如 http_proxy），避免本机代理干扰 API 与流媒体。

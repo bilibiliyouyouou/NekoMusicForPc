@@ -2,7 +2,7 @@
 
 /**
  * @file glasswidget.h
- * @brief 液态玻璃容器：底层 QPainter 抓取背后内容 + 圆角磨砂叠色（不依赖 OpenGL，Wayland 可用）。
+ * @brief 圆角面板容器：默认扁平实心底（QPainter）；可选 backdrop 抓取（已全局关闭）。
  */
 
 #include <QColor>
@@ -56,7 +56,7 @@ private:
 
     bool m_needCapture = true;
     bool m_inBackdropGrab = false;
-    bool m_backdropCaptureEnabled = true;
+    bool m_backdropCaptureEnabled = false;
 
     qreal m_opacity = 0.65;
     QColor m_base{26, 26, 46};

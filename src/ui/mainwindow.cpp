@@ -1,9 +1,8 @@
 /**
  * @file mainwindow.cpp
- * @brief 主窗口实现 — 日系动漫风
+ * @brief 主窗口实现 — SPlayer 式布局
  *
- * 无边框 + 自定义标题栏拖拽。
- * 深夜紫黑渐变背景，全层级毛玻璃。
+ * 侧栏全高 + 内容区顶栏 + 底栏播放器；简约扁平表面。
  */
 
 #include "mainwindow.h"
@@ -238,23 +237,28 @@ void MainWindow::setupUi()
     mainV->setContentsMargins(0, 0, 0, 0);
     mainV->setSpacing(0);
 
-    // 标题栏（横跨整个窗口顶部）
-    m_titleBar = new TitleBar(this);
-    mainV->addWidget(m_titleBar);
-
-    // 中间区域：侧边栏 + 页面
+    // 中间区域：侧栏（全高）+ 内容列（顶栏 + 页面）
     m_midWidget = new QWidget(this);
     m_midWidget->setObjectName("midWidget");
     m_midWidget->setAttribute(Qt::WA_StyledBackground, true);
     auto *midH = new QHBoxLayout(m_midWidget);
-    midH->setContentsMargins(0, 8, 16, 8);
-    midH->setSpacing(12);
+    midH->setContentsMargins(0, 0, 0, 0);
+    midH->setSpacing(0);
 
     m_apiClient = new ApiClient(this);
     m_sidebar = new Sidebar(m_apiClient, this);
     midH->addWidget(m_sidebar);
 
-    m_stack = new QStackedWidget(this);
+    auto *contentCol = new QWidget(m_midWidget);
+    contentCol->setObjectName("contentColumn");
+    auto *contentV = new QVBoxLayout(contentCol);
+    contentV->setContentsMargins(0, 0, 0, 0);
+    contentV->setSpacing(0);
+
+    m_titleBar = new TitleBar(contentCol);
+    contentV->addWidget(m_titleBar);
+
+    m_stack = new QStackedWidget(contentCol);
     m_stack->setObjectName("pageStack");
     m_homePage = new HomePage(this);
     m_settingsPage = new SettingsPage(this);
@@ -276,7 +280,8 @@ void MainWindow::setupUi()
     m_stack->addWidget(m_playlistDetailPage);
     m_stack->addWidget(m_searchPage);
     m_stack->addWidget(m_vipPage);
-    midH->addWidget(m_stack, 1);
+    contentV->addWidget(m_stack, 1);
+    midH->addWidget(contentCol, 1);
 
     mainV->addWidget(m_midWidget, 1);
 
@@ -1293,7 +1298,10 @@ void MainWindow::playMusicById(int musicId, const QString &title, const QString 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    if (m_playerPage && m_midWidget) m_playerPage->setGeometry(m_midWidget->rect());
+    if (m_playerPage && m_midWidget)
+        m_playerPage->setGeometry(m_midWidget->rect());
+    if (m_playerBar)
+        m_playerBar->relayoutChrome();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

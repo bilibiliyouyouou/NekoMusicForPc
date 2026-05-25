@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QRasterWindow>
+#include <QWidget>
 #include <QColor>
 #include <QFont>
 #include <QMap>
@@ -10,12 +10,12 @@ class QPaintEvent;
 class QMouseEvent;
 class QShowEvent;
 
-class DesktopLrc : public QRasterWindow
+class DesktopLrc : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit DesktopLrc(QWindow *parent = nullptr);
+    explicit DesktopLrc(QWidget *parent = nullptr);
     ~DesktopLrc() override;
 
     void loadLrcText(const QString &lrcText);

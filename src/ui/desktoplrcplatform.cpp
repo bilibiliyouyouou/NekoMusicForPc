@@ -1,6 +1,7 @@
 #include "desktoplrcplatform.h"
 
 #include <QByteArray>
+#include <QWidget>
 #include <QWindow>
 
 #if defined(NEKO_HAS_KDE_WINDOWSYSTEM)
@@ -72,7 +73,7 @@ bool desktopLrcIsWaylandSession()
     return !qgetenv("WAYLAND_DISPLAY").isEmpty();
 }
 
-void desktopLrcConfigureWindow(QWindow *window, bool useLayerShell)
+void desktopLrcConfigureWindow(QWidget *window, bool useLayerShell)
 {
     if (!window)
         return;
@@ -82,15 +83,16 @@ void desktopLrcConfigureWindow(QWindow *window, bool useLayerShell)
         return;
     }
 
-    window->setFlags(window->flags() | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    window->setWindowFlags(window->windowFlags() | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 }
 
-void desktopLrcKeepOnTop(QWindow *window)
+void desktopLrcKeepOnTop(QWidget *window)
 {
     if (!window || !window->isVisible())
         return;
 
-    window->raise();
+    if (QWindow *handle = window->windowHandle())
+        handle->raise();
 
 #if defined(NEKO_HAS_KDE_WINDOWSYSTEM)
     if (desktopLrcIsKdePlasmaSession() && KWindowSystem::platform() == KWindowSystem::Platform::X11) {

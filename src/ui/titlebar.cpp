@@ -195,28 +195,10 @@ void TitleBar::setupUi()
     setAutoFillBackground(false);
 
     auto *lay = new QHBoxLayout(this);
-    lay->setContentsMargins(16, 0, 12, 0);
-    lay->setSpacing(0);
+    lay->setContentsMargins(24, 0, 16, 0);
+    lay->setSpacing(12);
 
-    // ─── 左侧 Logo + 名称 ────────────────────────────
-    auto *left = new QWidget(this);
-    left->setFixedWidth(Theme::kSidebarW - 16);
-    auto *ll = new QHBoxLayout(left);
-    ll->setContentsMargins(0, 0, 0, 0);
-    ll->setSpacing(10);
-
-    m_logo = new QLabel(this);
-    m_logo->setFixedSize(24, 24);
-    m_logo->setPixmap(QPixmap(":/icons/app.png").scaled(24, 24, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    ll->addWidget(m_logo);
-
-    m_name = new QLabel(QStringLiteral("NekoMusic"), this);
-    m_name->setObjectName("tbAppName");
-    ll->addWidget(m_name);
-    ll->addStretch();
-    lay->addWidget(left);
-
-    // ─── 中间搜索框（对齐 old TitleBar.vue：圆角条 + 左图标 + 无边框透明输入）──
+    // ─── 搜索框（SPlayer Nav 居中条）────────────────
     m_searchWrap = new QWidget(this);
     m_searchWrap->setObjectName("tbSearchWrap");
     m_searchWrap->setAttribute(Qt::WA_StyledBackground, true);

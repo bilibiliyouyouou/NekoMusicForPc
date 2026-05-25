@@ -2,7 +2,7 @@
 
 /**
  * @file theme.h
- * @brief NekoMusic 桌面端主题常量（与 Android 端玫红主色 + 深夜蓝底对齐，现代 ACG）
+ * @brief NekoMusic 桌面端主题常量（参考 SPlayer 简约布局 + 玫红主色）
  *
  * 玫红强调 + 樱花粉描边 + 薄荷/天蓝焦点环；无 emoji。尺寸与动画集中于此。
  */
@@ -27,10 +27,10 @@ namespace Theme
     constexpr const char *kMintLt = "#9DD8D8";
     constexpr const char *kMintDk = "#5EAEAE";
 
-    // ─── 背景（深夜蓝紫，贴近 Android BackgroundDark / Surface）────────
-    constexpr const char *kBgDeep = "#0E0E1C";
-    constexpr const char *kBgMid = "#121228";
-    constexpr const char *kBgSurface = "#1A1A2E";
+    // ─── 背景（SPlayer 式中性深灰 + surface 容器）────────────────────
+    constexpr const char *kBgDeep = "#181818";
+    constexpr const char *kBgMid = "#1E1E1E";
+    constexpr const char *kBgSurface = "#242424";
 
     // ─── 文字 ────────────────────────────────────────────────────────
     constexpr const char *kTextMain = "#F4F6FF";
@@ -38,10 +38,10 @@ namespace Theme
     constexpr const char *kTextMuted = "rgba(244, 246, 255, 105)";
 
     // ─── 毛玻璃（基于新 surface）────────────────────────────────────
-    constexpr const char *kGlassBg = "rgba(26, 26, 46, 178)";
-    constexpr const char *kGlassSidebar = "rgba(18, 18, 40, 210)";
-    constexpr const char *kGlassPlayer = "rgba(18, 18, 40, 225)";
-    constexpr const char *kGlassOverlay = "rgba(14, 14, 28, 185)";
+    constexpr const char *kGlassBg = "rgba(36, 36, 36, 230)";
+    constexpr const char *kGlassSidebar = "rgba(30, 30, 30, 245)";
+    constexpr const char *kGlassPlayer = "rgba(30, 30, 30, 248)";
+    constexpr const char *kGlassOverlay = "rgba(24, 24, 24, 220)";
 
     // ─── 边框（樱花粉半透明，呼应 Android GlassSurface 描边）──────────
     constexpr const char *kBorderGlass = "rgba(255, 183, 197, 55)";
@@ -54,13 +54,17 @@ namespace Theme
                                           "stop:0 #FFD0DA, stop:1 #F2ACB9)";
     constexpr const char *kGradMint = "qlineargradient(x1:0,y1:0,x2:0.3,y2:1,"
                                         "stop:0 #7EC8C8, stop:1 #5EAEAE)";
-    constexpr const char *kGradBg = "qlineargradient(x1:0,y1:0,x2:0.45,y2:1,"
-                                    "stop:0 #080810, stop:0.35 #0E0E1C, stop:1 #15152A)";
+    constexpr const char *kGradBg = "qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 #181818, stop:1 #141414)";
 
-    // ─── 布局尺寸 ────────────────────────────────────────────────────
-    constexpr int kSidebarW = 248;
-    constexpr int kTitleBarH = 58;
-    constexpr int kPlayerBarH = 84;
+    // ─── 布局尺寸（对齐 SPlayer：侧栏 240 / 顶栏 56 / 底栏 80）────────
+    constexpr int kSidebarW = 240;
+    constexpr int kTitleBarH = 56;
+    /** 底栏可见高度（SPlayer .main-player height: 80px） */
+    constexpr int kPlayerBarBodyH = 80;
+    /** 进度条向上悬出，叠在内容区底边（SPlayer .player-slider top: -8px） */
+    constexpr int kPlayerBarSliderOverhang = 8;
+    constexpr int kPlayerBarH = kPlayerBarBodyH;
     constexpr int kCoverSmall = 144;
     constexpr int kCoverRadius = 14;
 

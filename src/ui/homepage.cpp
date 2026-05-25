@@ -14,6 +14,7 @@
 #include "theme/thememanager.h"
 #include "ui/playlistcard.h"
 #include "ui/glasswidget.h"
+#include "ui/glasspaint.h"
 #include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
 
@@ -38,22 +39,7 @@ namespace {
 
 void applyAggregateGlass(GlassWidget *glass)
 {
-    if (!glass)
-        return;
-    const bool dark = Theme::ThemeManager::instance().isDarkMode();
-    if (dark) {
-        glass->setBackdropCaptureEnabled(true);
-        glass->setBaseColor(QColor(45, 38, 65));
-        glass->setBorderColor(QColor(230, 57, 80, 58));
-        glass->setOpacity(0.60);
-    } else {
-        // 亮色主窗口仍是深色渐变底，抓取背后像素会让卡片发灰；改用实心浅底
-        glass->setBackdropCaptureEnabled(false);
-        glass->setBaseColor(QColor(252, 250, 255));
-        glass->setBorderColor(QColor(111, 66, 193, 70));
-        glass->setOpacity(0.98);
-    }
-    glass->refreshBackdrop();
+    GlassPaint::applyFlatSurface(glass, Theme::ThemeManager::instance().isDarkMode());
 }
 
 } // namespace

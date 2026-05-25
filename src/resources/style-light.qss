@@ -10,10 +10,7 @@ QWidget {
 }
 
 QMainWindow {
-    background: qlineargradient(x1:0,y1:0,x2:0.4,y2:1,
-        stop:0 #fbfbfc,
-        stop:0.45 #f1f3f6,
-        stop:1 #e8ecf1);
+    background: #f5f5f5;
 }
 
 QToolTip {
@@ -53,6 +50,10 @@ QMenu::separator {
 }
 
 #midWidget {
+    background: transparent;
+}
+
+#contentColumn {
     background: transparent;
 }
 
@@ -241,29 +242,22 @@ QTextEdit:focus {
     color: rgba(33, 37, 41, 0.65);
 }
 
-/* ─── 标题栏 ────────────────────────────────────────────── */
-#tbAppName {
-    font-size: 14px;
-    font-weight: 700;
-    color: #5a32a8;
-    letter-spacing: 0.35px;
-}
-
+/* ─── 标题栏（SPlayer Nav）──────────────────────────────── */
 #tbSearchWrap {
-    background: rgba(33, 37, 41, 0.055);
-    border: 1px solid rgba(111, 66, 193, 0.18);
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 18px;
     min-height: 34px;
 }
 
 #tbSearchWrap:hover {
-    background: rgba(33, 37, 41, 0.08);
-    border-color: rgba(111, 66, 193, 0.26);
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.12);
 }
 
 #tbSearchWrap[searchFocus="true"] {
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(12, 166, 120, 0.45);
+    background: #ffffff;
+    border-color: rgba(230, 57, 80, 0.45);
 }
 
 #tbSearchGlyph {
@@ -285,8 +279,8 @@ QTextEdit:focus {
 }
 
 #tbAvatarWidget {
-    background: rgba(33, 37, 41, 0.05);
-    border: 1px solid rgba(111, 66, 193, 0.28);
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 20px;
     min-height: 38px;
 }
@@ -379,52 +373,56 @@ QTextEdit:focus {
     background: rgba(232, 93, 117, 0.28);
 }
 
-/* ─── 侧边栏 ────────────────────────────────────────────── */
+/* ─── 侧边栏（SPlayer Sider）────────────────────────────── */
 #sbScroll, #sbContainer { background: transparent; }
+
+#sbLogoRow { background: transparent; }
+
+#sbLogoText {
+    font-size: 20px;
+    font-weight: 700;
+    color: #E63950;
+}
 
 #sbNavItem {
     background: transparent;
     border: none;
-    border-radius: 12px;
-    color: rgba(33, 37, 41, 0.68);
-    font-size: 13px;
-    font-weight: 600;
+    border-radius: 6px;
+    color: rgba(33, 37, 41, 0.72);
+    font-size: 14px;
+    font-weight: 500;
     text-align: left;
-    padding: 10px 16px;
-    border-left: 3px solid transparent;
+    padding: 8px 14px;
 }
 
 #sbNavItem:hover {
-    background: rgba(230, 57, 80, 0.14);
-    color: #16181c;
-    padding-left: 18px;
+    background: rgba(0, 0, 0, 0.04);
+    color: #212529;
 }
 
 #sbNavItem:pressed {
-    background: rgba(230, 57, 80, 0.08);
+    background: rgba(0, 0, 0, 0.02);
 }
 
 #sbNavItem[active="true"] {
-    background: rgba(230, 57, 80, 0.22);
-    color: #121417;
-    border-left-color: #0CA678;
+    background: rgba(255, 107, 139, 0.18);
+    color: #E63950;
+    font-weight: 600;
 }
 
 #sbNavItem:disabled {
     color: rgba(33, 37, 41, 0.4);
-    border-left-color: transparent;
 }
 
 #sbDivider {
-    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-        stop:0 transparent, stop:0.5 rgba(230, 57, 80, 0.3), stop:1 transparent);
+    background: rgba(0, 0, 0, 0.08);
 }
 
 #sbPlaylistTitle {
     font-size: 12px;
-    color: rgba(33, 37, 41, 0.6);
-    padding: 8px 14px 4px;
-    letter-spacing: 1px;
+    color: rgba(33, 37, 41, 0.55);
+    padding: 10px 14px 4px;
+    font-weight: 600;
 }
 
 #sbCreatePlaylist {
@@ -463,7 +461,7 @@ QTextEdit:focus {
 
 #carouselOverlay {
     background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
-        stop:0 transparent, stop:0.3 rgba(248, 249, 250, 0.6), stop:1 rgba(248, 249, 250, 0.9));
+        stop:0 transparent, stop:0.45 rgba(245, 245, 245, 0.5), stop:1 rgba(245, 245, 245, 0.92));
 }
 
 #carouselTitle {
@@ -659,18 +657,34 @@ QTextEdit:focus {
     color: rgba(33, 37, 41, 0.8);
 }
 
-/* ─── 播放栏 ────────────────────────────────────────────── */
-#pbCover { border-radius: 10px; }
+/* ─── 播放栏（SPlayer MainPlayer 布局）──────────────────── */
+#pbProgress::groove:horizontal,
+#pbProgress::handle:horizontal,
+#pbProgress::sub-page:horizontal,
+#pbProgress::add-page:horizontal {
+    height: 0;
+    width: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+}
+
+#pbTimeSep {
+    font-size: 12px;
+    color: rgba(230, 57, 80, 0.75);
+    background: transparent;
+}
+
+#pbCover { border-radius: 8px; }
 
 #pbSong {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     color: #121417;
-    letter-spacing: -0.1px;
 }
 
 #pbArtist {
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(33, 37, 41, 0.58);
 }
 

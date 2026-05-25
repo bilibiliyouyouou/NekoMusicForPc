@@ -9,6 +9,7 @@
 
 #include <QFont>
 #include <QGuiApplication>
+#include <QWindow>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
@@ -64,19 +65,27 @@ void migrateDesktopLyricsGeometry(QSettings &settings)
     settings.setValue(QStringLiteral("desktopLyricsGeomVersion"), kDesktopLyricsGeomVersion);
 }
 
+QWindow *desktopLrcWindowHandle(QWidget *widget)
+{
+    if (!widget)
+        return nullptr;
+    if (QWindow *handle = widget->windowHandle())
+        return handle;
+    widget->createWinId();
+    return widget->windowHandle();
+}
+
 } // namespace
 
-DesktopLrc::DesktopLrc(QWindow *parent)
-    : QRasterWindow(parent)
+DesktopLrc::DesktopLrc(QWidget *parent)
+    : QWidget(parent, Qt::Window | Qt::Tool)
 {
+    setAttribute(Qt::WA_TranslucentBackground, true);
+
     m_layerShellActive = useLayerShellPath();
     desktopLrcConfigureWindow(this, m_layerShellActive);
 
-    QSurfaceFormat fmt = format();
-    fmt.setAlphaBufferSize(8);
-    setFormat(fmt);
-
-    setTitle(QStringLiteral("NekoMusic — %1")
+    setWindowTitle(QStringLiteral("NekoMusic — %1")
                  .arg(I18n::instance().tr(QStringLiteral("desktopLyrics"))));
     resize(600, 80);
 
@@ -113,7 +122,7 @@ void DesktopLrc::ensureLayerShellConfigured()
         return;
 
     // 必须在首次 show/map 之前绑定 layer-shell，否则会与 xdg_toplevel 冲突导致 Wayland 崩溃
-    if (LayerShellQt::Window *layer = LayerShellQt::Window::get(this)) {
+    if (LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this))) {
         using LSWindow = LayerShellQt::Window;
         layer->setLayer(LSWindow::LayerOverlay);
         layer->setKeyboardInteractivity(LSWindow::KeyboardInteractivityNone);
@@ -129,7 +138,7 @@ void DesktopLrc::ensureLayerShellConfigured()
 
 void DesktopLrc::applyLayerShellGeometry()
 {
-    LayerShellQt::Window *layer = LayerShellQt::Window::get(this);
+    LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this));
     if (!layer)
         return;
 
@@ -167,7 +176,7 @@ void DesktopLrc::applyLayerShellGeometry()
 
 void DesktopLrc::saveLayerShellGeometry()
 {
-    LayerShellQt::Window *layer = LayerShellQt::Window::get(this);
+    LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this));
     if (!layer)
         return;
 
@@ -197,7 +206,7 @@ void DesktopLrc::saveLayerShellGeometry() {}
 
 void DesktopLrc::showEvent(QShowEvent *event)
 {
-    QRasterWindow::showEvent(event);
+    QWidget::showEvent(event);
     if (!m_layerShellActive)
         desktopLrcKeepOnTop(this);
 }
@@ -229,7 +238,7 @@ void DesktopLrc::restoreGeometry()
     auto placeDefault = [this]() {
         if (QScreen *screen = QGuiApplication::primaryScreen()) {
             const QRect g = screen->availableGeometry();
-            setPosition(QPoint((g.width() - width()) / 2 + g.x(), g.bottom() - height() - 48));
+            move((g.width() - width()) / 2 + g.x(), g.bottom() - height() - 48);
         }
     };
 
@@ -240,7 +249,7 @@ void DesktopLrc::restoreGeometry()
 
     const int x = settings.value(QStringLiteral("desktopLyricsX")).toInt();
     const int y = settings.value(QStringLiteral("desktopLyricsY")).toInt();
-    setPosition(QPoint(x, y));
+    move(x, y);
 
     const QRect frame = geometry();
     for (QScreen *screen : QGuiApplication::screens()) {
@@ -489,7 +498,7 @@ void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
 
 #if defined(NEKO_HAS_LAYERSHELL_QT)
     if (m_layerShellActive) {
-        LayerShellQt::Window *layer = LayerShellQt::Window::get(this);
+        LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this));
         QScreen *screen = QGuiApplication::screenAt(event->globalPosition().toPoint());
         if (layer && screen) {
             const QRect area = screen->availableGeometry();
@@ -507,7 +516,7 @@ void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
     }
 #endif
 
-    setPosition((event->globalPosition() - QPointF(m_dragPosition)).toPoint());
+    move((event->globalPosition() - QPointF(m_dragPosition)).toPoint());
     event->accept();
 }
 

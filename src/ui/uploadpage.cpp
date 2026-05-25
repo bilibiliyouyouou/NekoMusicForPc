@@ -9,6 +9,8 @@
 #include "core/usermanager.h"
 #include "theme/theme.h"
 #include "ui/glasswidget.h"
+#include "ui/glasspaint.h"
+#include "theme/thememanager.h"
 #include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
 
@@ -76,7 +78,7 @@ void UploadPage::setupUi()
     // Card
     auto *card = new GlassWidget(container);
     card->setBorderRadius(Theme::kRXl);
-    card->setOpacity(0.58);
+    GlassPaint::applyFlatSurface(card, Theme::ThemeManager::instance().isDarkMode());
     QWidget *cardBody = card->contentWidget();
 
     auto *cardLay = new QVBoxLayout(cardBody);

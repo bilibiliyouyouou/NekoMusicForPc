@@ -185,8 +185,8 @@ for pattern in 'avcodec-*.dll' 'avformat-*.dll' 'avutil-*.dll' 'swresample-*.dll
     shopt -u nullglob
 done
 
-# 图形栈常用同目录依赖（Qt 安装包 bin 内自带）
-for extra in d3dcompiler_47.dll opengl32sw.dll; do
+# 图形栈常用同目录依赖（Qt 安装包 bin 内自带；不打包 OpenGL 软渲染）
+for extra in d3dcompiler_47.dll; do
     if [ -f "$QT_BIN/$extra" ]; then
         cp "$QT_BIN/$extra" "$DEPLOY_DIR/"
         echo "  Copied $extra"
@@ -213,6 +213,9 @@ done
 if command -v x86_64-w64-mingw32-objdump &>/dev/null; then
     while IFS= read -r imp; do
         case "${imp,,}" in
+            qt6opengl*.dll|opengl32*.dll)
+                echo "  Skip $imp (no OpenGL)"
+                ;;
             qt6*.dll)
                 if [ -f "$QT_BIN/$imp" ] && [ ! -f "$DEPLOY_DIR/$imp" ]; then
                     cp "$QT_BIN/$imp" "$DEPLOY_DIR/"

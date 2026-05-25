@@ -11,10 +11,7 @@ QWidget {
 }
 
 QMainWindow {
-    background: qlineargradient(x1:0,y1:0,x2:0.45,y2:1,
-        stop:0 #080810,
-        stop:0.35 #0e0e1c,
-        stop:1 #15152a);
+    background: #181818;
 }
 
 QToolTip {
@@ -57,7 +54,15 @@ QMenu::separator {
     background: transparent;
 }
 
+#contentColumn {
+    background: transparent;
+}
+
 QStackedWidget#pageStack {
+    background: transparent;
+}
+
+QStackedWidget#pageStack > QWidget {
     background: transparent;
 }
 
@@ -246,30 +251,22 @@ QTextEdit:focus {
     color: rgba(245, 240, 255, 150);
 }
 
-/* ─── 标题栏 ────────────────────────────────────────────── */
-#tbAppName {
-    font-size: 14px;
-    font-weight: 700;
-    color: #FF8FA3;
-    letter-spacing: 0.4px;
-}
-
-/* 标题栏搜索条（暗色：深蓝底 + 2px 高对比描边，避免细边在玻璃顶栏上几乎看不见） */
+/* ─── 内容顶栏（SPlayer Nav）────────────────────────────── */
 #tbSearchWrap {
-    background: rgba(18, 18, 40, 198);
-    border: 2px solid rgba(255, 183, 197, 220);
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 8);
+    border: 1px solid rgba(255, 255, 255, 12);
+    border-radius: 18px;
     min-height: 36px;
 }
 
 #tbSearchWrap:hover {
-    background: rgba(28, 28, 52, 224);
-    border: 2px solid rgba(255, 210, 218, 245);
+    background: rgba(255, 255, 255, 12);
+    border-color: rgba(255, 255, 255, 20);
 }
 
 #tbSearchWrap[searchFocus="true"] {
-    background: rgba(36, 32, 58, 235);
-    border: 2px solid rgba(135, 206, 235, 240);
+    background: rgba(255, 107, 139, 18);
+    border-color: rgba(255, 107, 139, 55);
 }
 
 #tbSearchGlyph {
@@ -321,20 +318,20 @@ QTextEdit:focus {
 }
 
 #tbIconBtn {
-    background: rgba(245, 240, 255, 12);
+    background: rgba(255, 255, 255, 8);
     border: none;
-    border-radius: 12px;
-    color: rgba(245, 240, 255, 150);
+    border-radius: 16px;
+    color: rgba(244, 246, 255, 180);
     font-size: 14px;
 }
 
 #tbIconBtn:hover {
-    background: rgba(230, 57, 80, 38);
-    color: #FFE5EA;
+    background: rgba(255, 255, 255, 14);
+    color: #F4F6FF;
 }
 
 #tbIconBtn:pressed {
-    background: rgba(230, 57, 80, 22);
+    background: rgba(255, 255, 255, 6);
 }
 
 /* ─── 窗口控制按钮（低调，hover 时显色）────────────── */
@@ -386,72 +383,76 @@ QTextEdit:focus {
     background: rgba(232, 93, 117, 48);
 }
 
-/* ─── 侧边栏 ────────────────────────────────────────────── */
+/* ─── 侧边栏（SPlayer Sider）────────────────────────────── */
 #sbScroll, #sbContainer { background: transparent; }
+
+#sbLogoRow { background: transparent; }
+
+#sbLogoText {
+    font-size: 20px;
+    font-weight: 700;
+    color: #FF6B8B;
+}
 
 #sbNavItem {
     background: transparent;
     border: none;
-    border-radius: 14px;
-    color: rgba(245, 240, 255, 145);
-    font-size: 13px;
-    font-weight: 600;
+    border-radius: 6px;
+    color: rgba(244, 246, 255, 165);
+    font-size: 14px;
+    font-weight: 500;
     text-align: left;
-    padding: 11px 18px;
-    border-left: 3px solid transparent;
+    padding: 8px 14px;
 }
 
 #sbNavItem:hover {
-    background: rgba(230, 57, 80, 16);
+    background: rgba(255, 255, 255, 8);
     color: #F4F6FF;
-    padding-left: 18px;
 }
 
 #sbNavItem:pressed {
-    background: rgba(230, 57, 80, 10);
+    background: rgba(255, 255, 255, 5);
 }
 
 #sbNavItem[active="true"] {
-    background: rgba(230, 57, 80, 28);
-    color: #FFFFFF;
-    border-left-color: #9DD8D8;
+    background: rgba(255, 107, 139, 22);
+    color: #FF8FA3;
+    font-weight: 600;
 }
 
 #sbNavItem:disabled {
-    color: rgba(245, 240, 255, 60);
-    border-left-color: transparent;
+    color: rgba(244, 246, 255, 55);
 }
 
 #sbDivider {
-    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-        stop:0 transparent, stop:0.5 rgba(230, 57, 80, 30), stop:1 transparent);
+    background: rgba(255, 255, 255, 10);
 }
 
 #sbPlaylistTitle {
     font-size: 12px;
-    color: rgba(245, 240, 255, 100);
-    padding: 8px 14px 4px;
-    letter-spacing: 1px;
+    color: rgba(244, 246, 255, 90);
+    padding: 10px 14px 4px;
+    font-weight: 600;
 }
 
 #sbCreatePlaylist {
-    background: rgba(245, 240, 255, 10);
-    border: 1px dashed rgba(230, 57, 80, 45);
-    border-radius: 10px;
-    color: rgba(245, 240, 255, 200);
+    background: rgba(255, 255, 255, 6);
+    border: 1px dashed rgba(255, 255, 255, 18);
+    border-radius: 6px;
+    color: rgba(244, 246, 255, 180);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     padding: 0 12px;
 }
 
 #sbCreatePlaylist:hover {
-    background: rgba(230, 57, 80, 22);
-    border-style: solid;
+    background: rgba(255, 107, 139, 16);
+    border-color: rgba(255, 107, 139, 40);
     color: #F4F6FF;
 }
 
 #sbCreatePlaylist:pressed {
-    background: rgba(230, 57, 80, 14);
+    background: rgba(255, 107, 139, 10);
 }
 
 #sbEmpty, #sbEmptyPlaylist {
@@ -470,7 +471,7 @@ QTextEdit:focus {
 
 #carouselOverlay {
     background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
-        stop:0 transparent, stop:0.3 rgba(14,14,28,100), stop:1 rgba(14,14,28,215));
+        stop:0 transparent, stop:0.45 rgba(24, 24, 24, 80), stop:1 rgba(24, 24, 24, 210));
 }
 
 #carouselTitle {
@@ -666,19 +667,49 @@ QTextEdit:focus {
     color: rgba(245, 240, 255, 210);
 }
 
-/* ─── 播放栏 ────────────────────────────────────────────── */
-#pbCover { border-radius: 10px; }
+/* ─── 播放栏（SPlayer MainPlayer 布局）──────────────────── */
+#pbMainRow {
+    background: transparent;
+}
+
+#pbLeft, #pbCenter, #pbRight {
+    background: transparent;
+}
+
+/* 轨道/圆点由 PlayerProgressSlider 自绘；隐藏 Fusion 默认滑块外观 */
+#pbProgress::groove:horizontal,
+#pbProgress::handle:horizontal,
+#pbProgress::sub-page:horizontal,
+#pbProgress::add-page:horizontal {
+    height: 0;
+    width: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+}
+
+#pbTimeBlock {
+    background: transparent;
+}
+
+#pbTimeSep {
+    font-size: 12px;
+    color: rgba(255, 107, 139, 200);
+    background: transparent;
+    padding: 0 2px;
+}
+
+#pbCover { border-radius: 8px; }
 
 #pbSong {
-    font-size: 13px;
-    font-weight: 600;
-    color: #FFFFFF;
-    letter-spacing: -0.1px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #F4F6FF;
 }
 
 #pbArtist {
-    font-size: 11px;
-    color: rgba(245, 240, 255, 128);
+    font-size: 12px;
+    color: rgba(244, 246, 255, 140);
 }
 
 /* 勿对带 QIcon 的按钮设 color，否则 Fusion 等样式会把图标整颗染成单色（常见为纯黑） */
@@ -687,7 +718,7 @@ QTextEdit:focus {
     background: qlineargradient(x1:0,y1:0,x2:0.38,y2:1,
         stop:0 #FFB7C5, stop:1 #E63950);
     border: none;
-    border-radius: 24px;
+    border-radius: 22px;
 }
 
 #pbPlayBtn:hover {

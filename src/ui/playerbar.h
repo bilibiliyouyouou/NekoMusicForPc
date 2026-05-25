@@ -4,11 +4,13 @@
  * @file playerbar.h
  * @brief 底部播放控制栏 — 日系动漫风
  *
- * 80px 紧凑，重度毛玻璃 + 薰衣草紫顶线。
- * 进度条薰衣草填充，播放按钮渐变。
+ * 80px，对齐 SPlayer MainPlayer：顶栏进度条 + 左封面信息 / 中控 / 右时间工具。
  */
 
 #include <QWidget>
+
+class QResizeEvent;
+class QShowEvent;
 
 class PlayerEngine;
 class QSlider;
@@ -46,14 +48,20 @@ public:
     void setLoading(bool loading);
     void updatePlayModeBtn(const QString &mode);
 
+    /** 窗口尺寸变化时同步顶栏进度条几何（挂到主窗口并 top:-8px） */
+    void relayoutChrome();
+
     /** 切页等导致主内容变化时刷新底部栏磨砂采样 */
     void refreshGlassBackdrop();
 
 protected:
+    void showEvent(QShowEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setupUi();
+    void layoutPlayerBarChrome(); // relayoutChrome()
     void applyPlayerBarGlassStyle();
     void updateState();
     void setCoverPixmap(const QPixmap &pm);

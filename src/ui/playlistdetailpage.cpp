@@ -255,27 +255,11 @@ void PlaylistDetailPage::applyPlaylistDetailStyle()
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
 
     if (m_headerGlass) {
-        if (dark) {
-            m_headerGlass->setBaseColor(QColor(45, 38, 65));
-            m_headerGlass->setBorderColor(QColor(230, 57, 80, 58));
-            m_headerGlass->setOpacity(0.54);
-        } else {
-            m_headerGlass->setBaseColor(QColor(255, 255, 255));
-            m_headerGlass->setBorderColor(QColor(111, 66, 193, 72));
-            m_headerGlass->setOpacity(0.64);
-        }
+        GlassPaint::applyFlatSurface(m_headerGlass, dark);
         m_headerGlass->setBorderRadius(Theme::kRXl);
     }
     if (m_listGlass) {
-        if (dark) {
-            m_listGlass->setBaseColor(QColor(38, 33, 54));
-            m_listGlass->setBorderColor(QColor(230, 57, 80, 45));
-            m_listGlass->setOpacity(0.50);
-        } else {
-            m_listGlass->setBaseColor(QColor(255, 255, 255));
-            m_listGlass->setBorderColor(QColor(111, 66, 193, 55));
-            m_listGlass->setOpacity(0.58);
-        }
+        GlassPaint::applyFlatSurface(m_listGlass, dark);
         m_listGlass->setBorderRadius(Theme::kRLg);
     }
 

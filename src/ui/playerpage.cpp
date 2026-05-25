@@ -72,27 +72,11 @@ void PlayerPage::applyPlayerPageStyle()
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
 
     if (m_leftGlass) {
-        if (dark) {
-            m_leftGlass->setBaseColor(QColor(45, 38, 65));
-            m_leftGlass->setBorderColor(QColor(230, 57, 80, 58));
-            m_leftGlass->setOpacity(0.54);
-        } else {
-            m_leftGlass->setBaseColor(QColor(255, 255, 255));
-            m_leftGlass->setBorderColor(QColor(111, 66, 193, 70));
-            m_leftGlass->setOpacity(0.64);
-        }
+        GlassPaint::applyFlatSurface(m_leftGlass, dark);
         m_leftGlass->setBorderRadius(Theme::kRXl);
     }
     if (m_rightGlass) {
-        if (dark) {
-            m_rightGlass->setBaseColor(QColor(40, 34, 58));
-            m_rightGlass->setBorderColor(QColor(230, 57, 80, 48));
-            m_rightGlass->setOpacity(0.50);
-        } else {
-            m_rightGlass->setBaseColor(QColor(255, 255, 255));
-            m_rightGlass->setBorderColor(QColor(111, 66, 193, 55));
-            m_rightGlass->setOpacity(0.58);
-        }
+        GlassPaint::applyFlatSurface(m_rightGlass, dark);
         m_rightGlass->setBorderRadius(Theme::kRLg);
     }
 

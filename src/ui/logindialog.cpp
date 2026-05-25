@@ -207,7 +207,6 @@ void LoginDialog::setupUi()
     m_forgotBtn->setCursor(Qt::PointingHandCursor);
     connect(m_forgotBtn, &QPushButton::clicked, this, &LoginDialog::showForgotPassword);
     linksLay->addWidget(m_forgotBtn);
-
     mainLayout->addWidget(linksWrap);
 
     outer->addWidget(m_card);

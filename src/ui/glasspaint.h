@@ -4,11 +4,9 @@
 
 class QPainter;
 class QColor;
+class GlassWidget;
 
-/**
- * KDE Plasma 风格的「软件毛玻璃」绘制：主窗口背景与条带面板（QPainter）。
- * 圆角卡片液态效果由 GlassWidget（QPainter + backdrop 抓取）实现。
- */
+/** 主窗口背景与条带面板（纯 QPainter，无 OpenGL）。 */
 namespace GlassPaint {
 
 enum class BarKind {
@@ -20,5 +18,8 @@ enum class BarKind {
 void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode);
 
 void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode);
+
+/** SPlayer 式扁平卡片/面板：禁用 backdrop 抓取，实心 surface */
+void applyFlatSurface(GlassWidget *glass, bool darkMode);
 
 } // namespace GlassPaint
