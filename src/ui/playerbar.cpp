@@ -727,6 +727,21 @@ void PlayerBar::relayoutChrome()
     layoutPlayerBarChrome();
 }
 
+void PlayerBar::setChromeVisible(bool visible)
+{
+    if (m_chromeVisible == visible)
+        return;
+    m_chromeVisible = visible;
+    if (!m_progress)
+        return;
+    if (!visible) {
+        m_progress->hide();
+        return;
+    }
+    if (isVisible())
+        layoutPlayerBarChrome();
+}
+
 void PlayerBar::layoutPlayerBarChrome()
 {
     const int w = width();
@@ -738,6 +753,11 @@ void PlayerBar::layoutPlayerBarChrome()
 
     if (!m_progress)
         return;
+
+    if (!m_chromeVisible) {
+        m_progress->hide();
+        return;
+    }
 
     QWidget *host = window();
     if (!host)

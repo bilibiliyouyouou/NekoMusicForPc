@@ -1288,6 +1288,7 @@ void MainWindow::openPlayerPage()
 
     m_playerPageVisible = true;
     if (m_playerBar) {
+        m_playerBar->setChromeVisible(false);
         m_playerBar->setCoverVisible(false);
         m_playerBar->hide();
     }
@@ -1333,6 +1334,7 @@ void MainWindow::closePlayerPage()
         if (m_playerBar) {
             m_playerBar->show();
             m_playerBar->setCoverVisible(true);
+            m_playerBar->setChromeVisible(true);
             m_playerBar->relayoutChrome();
         }
     });

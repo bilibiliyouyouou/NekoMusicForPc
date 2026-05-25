@@ -51,6 +51,9 @@ public:
     /** 窗口尺寸变化时同步顶栏进度条几何（挂到主窗口并 top:-8px） */
     void relayoutChrome();
 
+    /** 全屏播放页时隐藏顶栏进度条（进度条 parent 为主窗口，hide 底栏不会带走） */
+    void setChromeVisible(bool visible);
+
     /** 切页等导致主内容变化时刷新底部栏磨砂采样 */
     void refreshGlassBackdrop();
 
@@ -83,6 +86,7 @@ private:
     void refreshBarLyricSlot();
 
     bool m_titleMarqueeUpdateScheduled = false;
+    bool m_chromeVisible = true;
 
     QWidget *m_pbLeft = nullptr;
     QWidget *m_pbCenter = nullptr;
