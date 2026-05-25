@@ -595,20 +595,56 @@ void PlayerPage::refreshTintedPalette()
     const QColor titleC = blendCoverTint(m_coverMainColor, titleBase, dark ? 78 : 55);
     const QColor subC = blendCoverTint(m_coverMainColor, subBase, dark ? 62 : 48);
     const QColor muteC = blendCoverTint(m_coverMainColor, muteBase, dark ? 50 : 40);
-    const QColor hiC = blendCoverTint(m_coverMainColor, kPpIconAccent, 88);
-    const QColor hiTrans = QColor(hiC.red(), hiC.green(), hiC.blue(), 178);
-
     m_clrTitle = titleC.name(QColor::HexRgb);
     m_clrArtist = subC.name(QColor::HexArgb);
     m_clrAlbum = muteC.name(QColor::HexArgb);
-    m_clrLyricDim = muteC.name(QColor::HexArgb);
-    m_clrLyricHi = hiC.name(QColor::HexRgb);
-    m_clrLyricHiTrans = hiTrans.name(QColor::HexArgb);
-    m_clrLyricHiBg = QStringLiteral("rgba(%1,%2,%3,36)")
-                         .arg(hiC.red())
-                         .arg(hiC.green())
-                         .arg(hiC.blue());
+    // SPlayer DefaultLyric：默认继承浅色；当前行 .on opacity 1，其余 .is-lrc opacity 0.3
+    Q_UNUSED(dark);
+    m_clrLyricDim = QStringLiteral("rgba(255,255,255,77)");
+    m_clrLyricHi = QStringLiteral("#FFFFFF");
+    m_clrLyricHiTrans = QStringLiteral("rgba(255,255,255,153)");
+    m_clrLyricHiBg = QStringLiteral("rgba(255,255,255,36)");
     updateMetaIcons();
+
+    if (m_engine && !m_lyrics.isEmpty()) {
+        m_currentLyricLine = -1;
+        updateLyricHighlight(m_engine->position());
+    }
+}
+
+void PlayerPage::applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent) const
+{
+    if (!textLabel)
+        return;
+    const int mainPx = lyricMainFontPx(height());
+    const int tranPx = qMax(14, mainPx - 12);
+    if (isCurrent) {
+        textLabel->setStyleSheet(QString::fromUtf8(
+                                   "color: %1; font-size: %2px; font-weight: 700; "
+                                   "background: transparent; padding: 0;")
+                                   .arg(m_clrLyricHi)
+                                   .arg(mainPx));
+        if (transLabel) {
+            transLabel->setStyleSheet(QString::fromUtf8(
+                                          "color: %1; font-size: %2px; font-weight: 400; "
+                                          "background: transparent; padding: 0;")
+                                          .arg(m_clrLyricHiTrans)
+                                          .arg(tranPx));
+        }
+    } else {
+        textLabel->setStyleSheet(QString::fromUtf8(
+                                   "color: %1; font-size: %2px; font-weight: 400; "
+                                   "background: transparent; padding: 0;")
+                                   .arg(m_clrLyricDim)
+                                   .arg(mainPx));
+        if (transLabel) {
+            transLabel->setStyleSheet(QString::fromUtf8(
+                                          "color: %1; font-size: %2px; font-weight: 400; "
+                                          "background: transparent; padding: 0;")
+                                          .arg(m_clrLyricDim)
+                                          .arg(tranPx));
+        }
+    }
 }
 
 void PlayerPage::updateMetaIcons()
@@ -1383,7 +1419,7 @@ void PlayerPage::setupUi()
     m_lyricsContainer->setObjectName(QStringLiteral("lyricsContainer"));
     m_lyricsLayout = new QVBoxLayout(m_lyricsContainer);
     m_lyricsLayout->setAlignment(Qt::AlignTop);
-    m_lyricsLayout->setSpacing(16);
+    m_lyricsLayout->setSpacing(12);
     m_lyricsLayout->setContentsMargins(0, 0, 16, 0);
 
     m_lyricsScroll->setWidget(m_lyricsContainer);
@@ -1896,32 +1932,26 @@ void PlayerPage::rebuildLyricLabels()
         auto *lineWidget = new QWidget(m_lyricsContainer);
         lineWidget->setObjectName(QString("lyricWidget_%1").arg(i));
         auto *lineLayout = new QVBoxLayout(lineWidget);
-        lineLayout->setContentsMargins(10, 8, 16, 8);
-        lineLayout->setSpacing(2);
+        lineLayout->setContentsMargins(16, 10, 16, 10);
+        lineLayout->setSpacing(8);
 
-        const int mainPx = lyricMainFontPx(height());
         auto *textLabel = new QLabel(m_lyrics[i].text, lineWidget);
         textLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         textLabel->setObjectName("lyricText");
         textLabel->setProperty("lyricIndex", i);
         textLabel->setWordWrap(true);
-        textLabel->setStyleSheet(QString::fromUtf8(
-            "color: %1; font-size: %2px; font-weight: normal; "
-            "background: transparent; padding: 0;"
-        ).arg(m_clrLyricDim).arg(mainPx));
         lineLayout->addWidget(textLabel);
 
+        QLabel *transLabel = nullptr;
         if (!m_lyrics[i].translation.isEmpty()) {
-            auto *transLabel = new QLabel(m_lyrics[i].translation, lineWidget);
+            transLabel = new QLabel(m_lyrics[i].translation, lineWidget);
             transLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
             transLabel->setObjectName("lyricTranslation");
             transLabel->setProperty("lyricIndex", i);
             transLabel->setWordWrap(true);
-            transLabel->setStyleSheet(QString::fromUtf8(
-                "color: %1; font-size: 14px; background: transparent; padding: 0;"
-            ).arg(m_clrLyricDim));
             lineLayout->addWidget(transLabel);
         }
+        applyLyricLineStyle(textLabel, transLabel, false);
 
         m_lyricsLayout->addWidget(lineWidget);
     }
@@ -2006,23 +2036,8 @@ void PlayerPage::updateLyricHighlight(qint64 positionMs)
         auto *transLabel = widget->findChild<QLabel *>("lyricTranslation");
         if (!textLabel) continue;
 
-        int idx = textLabel->property("lyricIndex").toInt();
-        bool isCurrent = (idx == line);
-
-        const int mainPx = lyricMainFontPx(height());
-        textLabel->setStyleSheet(QString::fromUtf8(
-            "color: %1; font-size: %2px; font-weight: %3; "
-            "background: transparent; padding: 0;"
-        ).arg(isCurrent ? m_clrLyricHi : m_clrLyricDim)
-         .arg(mainPx)
-         .arg(isCurrent ? "bold" : "normal"));
-
-        if (transLabel) {
-            transLabel->setStyleSheet(QString::fromUtf8(
-                "color: %1; font-size: %2px; background: transparent; padding: 0;"
-            ).arg(isCurrent ? m_clrLyricHiTrans : m_clrLyricDim)
-             .arg(isCurrent ? 16 : qMax(14, mainPx - 12)));
-        }
+        const int idx = textLabel->property("lyricIndex").toInt();
+        applyLyricLineStyle(textLabel, transLabel, idx == line);
     }
 
     if (line >= 0 && m_lyricsScroll) {
