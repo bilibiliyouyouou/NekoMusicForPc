@@ -75,22 +75,6 @@ QIcon iconNamed(const char *name, int size, const QColor &normal, const QColor &
     return ic;
 }
 
-QIcon applicationIcon()
-{
-    QIcon ic;
-    for (int sz : {16, 24, 32, 48, 64, 128, 256}) {
-        const QPixmap pm = renderNamed("SPlayer", sz, QColor(230, 57, 80));
-        if (!pm.isNull())
-            ic.addPixmap(pm);
-    }
-    if (ic.isNull()) {
-        const QPixmap pm = renderNamed("Logo", 32, QColor(230, 57, 80));
-        if (!pm.isNull())
-            ic.addPixmap(pm);
-    }
-    return ic;
-}
-
 QPixmap renderResource(const QString &resourcePath, int size, const QColor &color)
 {
     QFile file(resourcePath);

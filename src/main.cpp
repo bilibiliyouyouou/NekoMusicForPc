@@ -15,7 +15,6 @@
 #include <QNetworkProxy>
 #include <QNetworkProxyFactory>
 #include "ui/mainwindow.h"
-#include "ui/svgicon.h"
 #include "core/i18n.h"
 #include "core/playlistdb.h"
 #include "core/localmusicmeta.h"
@@ -108,7 +107,7 @@ int main(int argc, char *argv[])
     QFont font(QStringLiteral("Segoe UI"), 14);
     font.setStyleHint(QFont::SansSerif);
     app.setFont(font);
-    app.setWindowIcon(Icons::applicationIcon());
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/app.png")));
 
     QApplication::setQuitOnLastWindowClosed(false);
 

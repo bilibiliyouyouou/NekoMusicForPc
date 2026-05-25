@@ -25,9 +25,6 @@ QPixmap renderNamed(const char *name, int size, const QColor &color);
 QIcon iconNamed(const char *name, int size, const QColor &normal,
                 const QColor &active = QColor());
 
-/** 应用窗口图标（多尺寸） */
-QIcon applicationIcon();
-
 /** 从 Qt 资源路径加载 SVG（支持 fill="currentColor" 着色） */
 QPixmap renderResource(const QString &resourcePath, int size, const QColor &color);
 

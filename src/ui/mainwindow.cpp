@@ -23,7 +23,6 @@
 #include "ui/addtoplaylistdialog.h"
 #include "ui/playlistpanel.h"
 #include "ui/toast.h"
-#include "ui/svgicon.h"
 #include "ui/updatedialog.h"
 #include "ui/defaultmusicplayerdialog.h"
 #include "ui/searchpage.h"
@@ -141,7 +140,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground, false);
 
-    setWindowIcon(Icons::applicationIcon());
+    setWindowIcon(QIcon(QStringLiteral(":/icons/app.png")));
     m_engine = new PlayerEngine(this);
     m_downloader = &MusicDownloader::instance();
     setupUi();
@@ -1418,7 +1417,7 @@ void MainWindow::createTrayIcon()
         m_trayMenu = new QMenu(this);
         
         // 设置托盘图标
-        QIcon trayIcon = Icons::applicationIcon();
+        QIcon trayIcon(QStringLiteral(":/icons/app.png"));
         if (trayIcon.isNull())
             trayIcon = QApplication::windowIcon();
         m_trayIcon->setIcon(trayIcon);

@@ -2,6 +2,7 @@
     <qresource prefix="/">
         <file>icons/AddList.svg</file>
         <file>icons/Add.svg</file>
+        <file>icons/app.png</file>
         <file>icons/Album.svg</file>
         <file>icons/Artist.svg</file>
         <file>icons/AutoFix.svg</file>

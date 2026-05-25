@@ -91,7 +91,8 @@ void Sidebar::setupUi()
 
     auto *logoImg = new QLabel(logoRow);
     logoImg->setFixedSize(32, 32);
-    logoImg->setPixmap(Icons::renderNamed("SPlayer", 32, navIconActiveColor()));
+    logoImg->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
+                           .scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     logoLay->addWidget(logoImg);
 
     auto *logoText = new QLabel(QStringLiteral("NekoMusic"), logoRow);

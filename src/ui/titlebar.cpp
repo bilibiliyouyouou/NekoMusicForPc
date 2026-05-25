@@ -261,7 +261,8 @@ void TitleBar::setupUi()
     m_avatarIcon = new QLabel(m_avatarWidget);
     m_avatarIcon->setFixedSize(kTbAvatarPx, kTbAvatarPx);
     m_avatarIcon->setScaledContents(false);
-    m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
+    m_avatarIcon->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
+                               .scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     avatarLay->addWidget(m_avatarIcon, 0, Qt::AlignVCenter);
 
     m_usernameLabel = new QLabel(m_avatarWidget);
@@ -418,7 +419,8 @@ void TitleBar::updateAvatar()
                 .arg(Theme::kApiBase).arg(userId);
             loadAvatarAsync(avatarUrl, userId);
         } else {
-            m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
+            m_avatarIcon->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
+                               .scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         }
         elideUsername();
     } else {
@@ -428,7 +430,8 @@ void TitleBar::updateAvatar()
             m_avatarReply->deleteLater();
             m_avatarReply = nullptr;
         }
-        m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
+        m_avatarIcon->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
+                               .scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         m_usernameLabel->setText(I18n::instance().tr("goToLogin"));
         m_usernameLabel->setToolTip(I18n::instance().tr("goToLogin"));
     }
@@ -455,7 +458,8 @@ void TitleBar::updateVipPill()
 
 void TitleBar::loadAvatarAsync(const QString &url, int userId)
 {
-    m_avatarIcon->setPixmap(Icons::renderNamed("SPlayer", kTbAvatarPx, QColor(255, 143, 158)));
+    m_avatarIcon->setPixmap(QPixmap(QStringLiteral(":/icons/app.png"))
+                               .scaled(kTbAvatarPx, kTbAvatarPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     if (m_avatarReply) {
         m_avatarReply->disconnect();
