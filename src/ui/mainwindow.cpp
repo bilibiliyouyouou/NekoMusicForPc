@@ -585,21 +585,7 @@ void MainWindow::setupUi()
         showAddToPlaylistDialog(mInfo);
     });
 
-    // 封面点击切换到播放页面（全屏覆盖侧边栏和标题栏）
-    connect(m_playerBar, &PlayerBar::coverClicked, this, [this]() {
-        m_playerBar->setCoverVisible(false);
-        m_playerPage->setGeometry(m_midWidget->rect());
-        m_playerPage->move(0, m_midWidget->height());
-        m_playerPage->show();
-        m_playerPage->raise();
-
-        auto *anim = new QPropertyAnimation(m_playerPage, "pos");
-        anim->setDuration(Theme::kAnimNormal);
-        anim->setStartValue(QPoint(0, m_midWidget->height()));
-        anim->setEndValue(QPoint(0, 0));
-        anim->setEasingCurve(QEasingCurve::OutCubic);
-        anim->start(QAbstractAnimation::DeleteWhenStopped);
-    });
+    connect(m_playerBar, &PlayerBar::coverClicked, this, &MainWindow::openPlayerPage);
 
     // 播放队列按钮
     connect(m_playerBar, &PlayerBar::playlistClicked, this, &MainWindow::togglePlaylistPanel);
@@ -621,20 +607,9 @@ void MainWindow::setupUi()
     // 初始化播放模式按钮状态
     m_playerBar->updatePlayModeBtn(PlaylistManager::instance().playMode());
 
-    // 播放页面返回
-    connect(m_playerPage, &PlayerPage::backRequested, this, [this]() {
-        auto *anim = new QPropertyAnimation(m_playerPage, "pos");
-        anim->setDuration(Theme::kAnimNormal);
-        anim->setStartValue(QPoint(0, 0));
-        anim->setEndValue(QPoint(0, m_midWidget->height()));
-        anim->setEasingCurve(QEasingCurve::InCubic);
-        connect(anim, &QPropertyAnimation::finished, this, [this]() {
-            m_playerBar->setCoverVisible(true);
-            m_playerPage->hide();
-            m_playerPage->move(0, 0);
-        });
-        anim->start(QAbstractAnimation::DeleteWhenStopped);
-    });
+    connect(m_playerPage, &PlayerPage::backRequested, this, &MainWindow::closePlayerPage);
+    connect(m_playerPage, &PlayerPage::previousClicked, this, &MainWindow::playPrevious);
+    connect(m_playerPage, &PlayerPage::nextClicked, this, &MainWindow::playNext);
 
     // 播放位置变化时更新歌词高亮
     connect(m_engine, &PlayerEngine::positionChanged, m_playerPage, &PlayerPage::updateLyricHighlight);
@@ -1296,12 +1271,84 @@ void MainWindow::playMusicById(int musicId, const QString &title, const QString 
     startRemotePlaybackWithBackgroundCache(musicId, playSeq, url, false);
 }
 
+QRect MainWindow::playerPageOverlayGeometry() const
+{
+    if (QWidget *central = centralWidget())
+        return central->rect();
+    return rect();
+}
+
+void MainWindow::openPlayerPage()
+{
+    if (!m_playerPage || m_playerPageVisible)
+        return;
+
+    if (m_playlistPanel && m_playlistPanel->isVisible())
+        m_playlistPanel->hide();
+
+    m_playerPageVisible = true;
+    if (m_playerBar) {
+        m_playerBar->setCoverVisible(false);
+        m_playerBar->hide();
+    }
+
+    QWidget *host = centralWidget();
+    if (!host)
+        host = this;
+    m_playerPage->setParent(host);
+    const QRect area = playerPageOverlayGeometry();
+    m_playerPage->setGeometry(area);
+    m_playerPage->move(0, area.height());
+    m_playerPage->show();
+    m_playerPage->raise();
+
+    auto *anim = new QPropertyAnimation(m_playerPage, "pos", this);
+    anim->setDuration(Theme::kAnimNormal);
+    anim->setStartValue(QPoint(0, area.height()));
+    anim->setEndValue(QPoint(0, 0));
+    anim->setEasingCurve(QEasingCurve::OutCubic);
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void MainWindow::closePlayerPage()
+{
+    if (!m_playerPage || !m_playerPageVisible)
+        return;
+
+    const QRect area = playerPageOverlayGeometry();
+    auto *anim = new QPropertyAnimation(m_playerPage, "pos", this);
+    anim->setDuration(Theme::kAnimNormal);
+    anim->setStartValue(m_playerPage->pos());
+    anim->setEndValue(QPoint(0, area.height()));
+    anim->setEasingCurve(QEasingCurve::InCubic);
+    connect(anim, &QPropertyAnimation::finished, this, [this]() {
+        m_playerPageVisible = false;
+        if (m_playerPage) {
+            m_playerPage->hide();
+            if (m_midWidget)
+                m_playerPage->setParent(m_midWidget);
+            m_playerPage->move(0, 0);
+            m_playerPage->setGeometry(m_midWidget ? m_midWidget->rect() : QRect());
+        }
+        if (m_playerBar) {
+            m_playerBar->show();
+            m_playerBar->setCoverVisible(true);
+            m_playerBar->relayoutChrome();
+        }
+    });
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    if (m_playerPage && m_midWidget)
-        m_playerPage->setGeometry(m_midWidget->rect());
-    if (m_playerBar)
+    if (m_playerPage) {
+        if (m_playerPageVisible)
+            m_playerPage->setGeometry(playerPageOverlayGeometry());
+        else if (m_midWidget)
+            m_playerPage->setGeometry(m_midWidget->rect());
+    }
+    if (m_playerBar && m_playerBar->isVisible())
         m_playerBar->relayoutChrome();
 }
 

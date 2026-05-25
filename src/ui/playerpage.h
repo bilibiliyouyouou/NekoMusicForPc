@@ -1,7 +1,5 @@
 #pragma once
 
-#include "glasswidget.h"
-
 #include <QWidget>
 #include <QResizeEvent>
 #include <QLabel>
@@ -47,6 +45,8 @@ protected:
 
 signals:
     void backRequested();
+    void previousClicked();
+    void nextClicked();
     /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
     void lyricsPayloadReady(const QString &lrcText);
     /** 底栏艺人行：当前歌词行（含翻译括号）；lineIndex&lt;0 表示尚无对应当前时间的行 */
@@ -54,6 +54,9 @@ signals:
 
 private:
     void setupUi();
+    void setupPlayerControl();
+    void connectPlayerControlEngine();
+    void updatePlayControlState();
     void applyPlayerPageStyle();
     void applyMetaLabelFonts();
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
@@ -79,10 +82,12 @@ private:
     PlayerEngine *m_engine;
     ApiClient *m_apiClient = nullptr;
 
-    GlassWidget *m_leftGlass = nullptr;
-    GlassWidget *m_rightGlass = nullptr;
+    QWidget *m_leftPanel = nullptr;
+    QWidget *m_rightPanel = nullptr;
     QWidget *m_leftInfoColumn = nullptr;
     QWidget *m_metaPanel = nullptr;
+    QWidget *m_artistRow = nullptr;
+    QWidget *m_albumRow = nullptr;
 
     QString m_clrTitle;
     QString m_clrArtist;
@@ -93,6 +98,13 @@ private:
     QString m_clrLyricHiBg;
 
     QPushButton *m_backBtn;
+    QWidget *m_controlBar = nullptr;
+    QPushButton *m_ppPrevBtn = nullptr;
+    QPushButton *m_ppPlayBtn = nullptr;
+    QPushButton *m_ppNextBtn = nullptr;
+    class PlayerProgressSlider *m_ppProgress = nullptr;
+    QLabel *m_ppCurTime = nullptr;
+    QLabel *m_ppDurTime = nullptr;
     QLabel *m_coverLabel;
     QLabel *m_titleLabel;
     QLabel *m_artistLabel;

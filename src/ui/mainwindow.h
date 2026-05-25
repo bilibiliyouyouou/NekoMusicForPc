@@ -94,6 +94,11 @@ private:
     void resumePlaybackForSystemUi();
     void pausePlaybackForSystemUi();
 
+    /** 打开/关闭全屏播放页（SPlayer：隐藏底栏 MainPlayer，播放页铺满窗口） */
+    void openPlayerPage();
+    void closePlayerPage();
+    QRect playerPageOverlayGeometry() const;
+
 private:
     void maybePromptDefaultMusicPlayer();
 
@@ -109,6 +114,7 @@ private:
     void handleRemoteStreamFailure(int musicId, quint64 playSeq);
 
     bool m_switching = false;
+    bool m_playerPageVisible = false;
     TitleBar *m_titleBar = nullptr;
     Sidebar *m_sidebar = nullptr;
     HomePage *m_homePage = nullptr;

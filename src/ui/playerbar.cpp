@@ -298,7 +298,7 @@ public:
         if (m_lineMaxW == width)
             return;
         m_lineMaxW = width;
-        setMaximumWidth(width);
+        setFixedWidth(width);
         if (m_artist)
             m_artist->setMaxDisplayWidth(width);
         if (m_lyricPrimary)
@@ -473,21 +473,23 @@ int titleRowWidthBesidesSong(QWidget *titleRow, QWidget *songWidget)
     return w;
 }
 
-/** 第二行限宽：与上一行标题行右缘（收藏按钮最右侧）对齐 */
+/** 第二行限宽：与标题行右缘（收藏按钮）对齐；用 maximumWidth，不用收缩后的实际 width */
 int titleRowLineMaxWidth(QWidget *titleRow, QWidget *songWidget)
 {
     if (!titleRow)
         return 0;
-    if (titleRow->width() > 0)
-        return titleRow->width();
-
-    int w = titleRowWidthBesidesSong(titleRow, songWidget);
-    if (songWidget)
-        w += widgetEffectiveWidth(songWidget);
 
     const int cap = titleRow->maximumWidth();
     if (cap > 0 && cap < 10000)
-        w = qMax(w, cap);
+        return cap;
+
+    int w = titleRowWidthBesidesSong(titleRow, songWidget);
+    if (songWidget) {
+        if (auto *marquee = pbSongMarquee(qobject_cast<QLabel *>(songWidget)))
+            w += marquee->maxDisplayWidth();
+        else
+            w += widgetEffectiveWidth(songWidget);
+    }
     return w;
 }
 
@@ -1546,9 +1548,7 @@ void PlayerBar::updateTitleMarqueeWidth()
         m_titleRow->adjustSize();
     }
 
-    int secondLineMax = titleRowLineMaxWidth(m_titleRow, m_songName);
-    if (secondLineMax <= 0)
-        secondLineMax = titleRowW;
+    const int secondLineMax = qMax(titleRowW, titleRowLineMaxWidth(m_titleRow, m_songName));
 
     if (m_lyricSlot)
         static_cast<PbLyricArtistSlot *>(m_lyricSlot)->setLineMaxWidth(secondLineMax);
