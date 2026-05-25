@@ -736,9 +736,9 @@ void PlayerPage::setupPlayerControl()
         emit desktopLyricsToggled(on);
     });
 
-    rightLay->addWidget(m_ppPlaylistBtn);
-    rightLay->addWidget(m_ppVolumeBtn);
     rightLay->addWidget(m_ppDesktopLrcBtn);
+    rightLay->addWidget(m_ppVolumeBtn);
+    rightLay->addWidget(m_ppPlaylistBtn);
 
     m_ppRightOpacity = new QGraphicsOpacityEffect(m_ppRightTools);
     m_ppRightOpacity->setOpacity(0.0);

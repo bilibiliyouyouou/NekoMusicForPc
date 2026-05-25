@@ -1044,18 +1044,6 @@ void PlayerBar::setupUi()
     });
     rl->addWidget(m_desktopLrcBtn);
 
-    auto *playlistBtn = new PlayerBarInkButton(right);
-    playlistBtn->setObjectName("pbPlaylistBtn");
-    playlistBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
-    playlistBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
-    playlistBtn->setProperty("pbInk", int(PbInk::Playlist));
-    playlistBtn->setCursor(Qt::PointingHandCursor);
-    playlistBtn->setToolTip(I18n::instance().tr("playlist"));
-    connect(playlistBtn, &QPushButton::clicked, this, [this]() {
-        emit playlistClicked();
-    });
-    rl->addWidget(playlistBtn);
-
     // 音量控制
     auto *volWrapper = new QWidget(right);
     volWrapper->setObjectName("pbVolumeWrapper");
@@ -1072,6 +1060,18 @@ void PlayerBar::setupUi()
     m_volumeBtn->setCursor(Qt::PointingHandCursor);
     volLay->addWidget(m_volumeBtn);
     rl->addWidget(volWrapper);
+
+    auto *playlistBtn = new PlayerBarInkButton(right);
+    playlistBtn->setObjectName("pbPlaylistBtn");
+    playlistBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
+    playlistBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
+    playlistBtn->setProperty("pbInk", int(PbInk::Playlist));
+    playlistBtn->setCursor(Qt::PointingHandCursor);
+    playlistBtn->setToolTip(I18n::instance().tr("playlist"));
+    connect(playlistBtn, &QPushButton::clicked, this, [this]() {
+        emit playlistClicked();
+    });
+    rl->addWidget(playlistBtn);
 
     // 音量面板 (垂直弹出) — 父级用顶层窗口，避免面板在播放栏上方时被父控件裁剪
     QWidget *volHost = window();
