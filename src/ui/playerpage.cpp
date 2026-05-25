@@ -43,6 +43,8 @@ constexpr int kPpMenuPad = 20;
 constexpr int kControlHideMs = 3000;
 /** 对齐 SPlayer overlay blur(80px) */
 constexpr qreal kBackdropBlurRadius = 80.0;
+/** SPlayer PlayerBackground.blur .bg-img transform: scale(1.5) */
+constexpr qreal kCoverBgBlurScale = 1.5;
 constexpr int kBackdropBlurMaxSide = 900;
 /** 遮罩：SPlayer .full-player #00000060；PlayerBackground ::after rgba(0,0,0,0.5) 取较轻一层 */
 constexpr int kBackdropOverlayAlpha = 0x60;
@@ -181,7 +183,8 @@ static QSize backdropWorkSize(const QSize &target)
 }
 
 /** 高斯模糊（QGraphicsBlurEffect），避免缩小-放大带来的马赛克 */
-static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target)
+static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target,
+                                  qreal blurRadius = kBackdropBlurRadius)
 {
     if (src.isNull() || target.isEmpty())
         return {};
@@ -199,14 +202,14 @@ static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target)
     QGraphicsScene scene;
     QGraphicsPixmapItem item(cover);
     QGraphicsBlurEffect effect;
-    effect.setBlurRadius(kBackdropBlurRadius);
+    effect.setBlurRadius(blurRadius);
     effect.setBlurHints(QGraphicsBlurEffect::QualityHint);
     item.setGraphicsEffect(&effect);
     scene.addItem(&item);
     const QRectF bounds = item.boundingRect();
     scene.setSceneRect(bounds);
 
-    const int pad = int(kBackdropBlurRadius * 2);
+    const int pad = int(blurRadius * 2);
     QPixmap blurred(work.width() + pad * 2, work.height() + pad * 2);
     blurred.fill(Qt::transparent);
     {
@@ -237,6 +240,39 @@ static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target)
         }
     }
     return QPixmap::fromImage(img);
+}
+
+/** 顶/底常驻暗角（与 SPlayer 一致：整页统一 backdrop，边缘略压暗，非二次模糊块） */
+static void paintChromeEdgeGradients(QPainter &p, const QRect &pageRect)
+{
+    if (pageRect.width() < 1 || pageRect.height() < 1)
+        return;
+    {
+        QLinearGradient g(0, pageRect.top(), 0, pageRect.top() + kPlayerMenuH);
+        g.setColorAt(0.0, QColor(0, 0, 0, 72));
+        g.setColorAt(1.0, QColor(0, 0, 0, 0));
+        p.fillRect(QRect(pageRect.x(), pageRect.y(), pageRect.width(), kPlayerMenuH), g);
+    }
+    {
+        const int y0 = pageRect.bottom() - kPlayerControlH + 1;
+        QLinearGradient g(0, y0, 0, pageRect.bottom());
+        g.setColorAt(0.0, QColor(0, 0, 0, 0));
+        g.setColorAt(1.0, QColor(0, 0, 0, 72));
+        p.fillRect(QRect(pageRect.x(), y0, pageRect.width(), kPlayerControlH), g);
+    }
+}
+
+/** SPlayer .bg-img：width 100%、scale(1.5)、blur(80px)，居中铺放勿拉伸铺满 */
+static void drawCoverBlurBackground(QPainter &p, const QPixmap &blur, const QRect &pageRect)
+{
+    if (blur.isNull() || pageRect.isEmpty())
+        return;
+    const QSize target(qMax(1, int(pageRect.width() * kCoverBgBlurScale)),
+                       qMax(1, int(pageRect.height() * kCoverBgBlurScale)));
+    QPixmap layer = blur.scaled(target, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    const int x = pageRect.x() + (pageRect.width() - layer.width()) / 2;
+    const int y = pageRect.y() + (pageRect.height() - layer.height()) / 2;
+    p.drawPixmap(x, y, layer);
 }
 
 enum class PpInk : int {
@@ -443,7 +479,6 @@ void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSiz
     if (target.width() < 1)
         target = shot.size();
     m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, target);
-    updateChromeBlurStrips();
     update();
 }
 
@@ -466,12 +501,10 @@ void PlayerPage::paintEvent(QPaintEvent *event)
     if (!m_underlayBlurPixmap.isNull())
         p.drawPixmap(rect(), m_underlayBlurPixmap);
 
-    // SPlayer PlayerBackground.blur：封面模糊叠在上层
+    // SPlayer PlayerBackground.blur：封面模糊居中 scale(1.5)，避免整页拉伸成中心色块
     if (!m_bgBlurPixmap.isNull())
-        p.drawPixmap(rect(), m_bgBlurPixmap);
-    else if (!m_underlayBlurPixmap.isNull()) {
-        // 仅有界面模糊时不再叠一层
-    } else if (m_coverMainColor.isValid()) {
+        drawCoverBlurBackground(p, m_bgBlurPixmap, rect());
+    else if (m_coverMainColor.isValid()) {
         QColor fill = m_coverMainColor;
         if (dark)
             fill = fill.darker(160);
@@ -485,18 +518,8 @@ void PlayerPage::paintEvent(QPaintEvent *event)
     // SPlayer .full-player background-color: #00000060
     p.fillRect(rect(), QColor(0, 0, 0, kBackdropOverlayAlpha));
 
-    // 顶/底常驻毛玻璃（对齐 SPlayer 顶栏/底栏 backdrop，不随播控淡入淡出）
-    const int menuH = kPlayerMenuH;
-    const int controlH = kPlayerControlH;
-    if (!m_topChromeBlur.isNull() && menuH > 0) {
-        p.drawPixmap(QRect(0, 0, width(), menuH), m_topChromeBlur);
-        p.fillRect(QRect(0, 0, width(), menuH), QColor(0, 0, 0, 0x40));
-    }
-    if (!m_bottomChromeBlur.isNull() && controlH > 0) {
-        const int y0 = qMax(0, height() - controlH);
-        p.drawPixmap(QRect(0, y0, width(), controlH), m_bottomChromeBlur);
-        p.fillRect(QRect(0, y0, width(), controlH), QColor(0, 0, 0, 0x40));
-    }
+    // 顶/底 80px 常驻暗角（不随播控隐藏，非独立模糊图层）
+    paintChromeEdgeGradients(p, rect());
 
     QWidget::paintEvent(event);
 }
@@ -515,43 +538,6 @@ int PlayerPage::coverSideLength() const
     const int byPanel = int(panelW * 0.70);
     const int byVh = int(pageH * 0.50);
     return qBound(200, qMin(byPanel, byVh), 480);
-}
-
-void PlayerPage::updateChromeBlurStrips()
-{
-    const int w = qMax(1, width());
-    const int h = qMax(1, height());
-    const QPixmap *src = nullptr;
-    if (!m_bgBlurPixmap.isNull())
-        src = &m_bgBlurPixmap;
-    else if (!m_underlayBlurPixmap.isNull())
-        src = &m_underlayBlurPixmap;
-
-    if (!src || src->isNull()) {
-        m_topChromeBlur = QPixmap();
-        m_bottomChromeBlur = QPixmap();
-        return;
-    }
-
-    const QPixmap &full = *src;
-    const int fw = full.width();
-    const int fh = full.height();
-    if (fw < 1 || fh < 1)
-        return;
-
-    auto makeStrip = [&](int y, int stripH) -> QPixmap {
-        if (stripH <= 0)
-            return {};
-        const int sy = qBound(0, fh * y / h, fh - 1);
-        const int sh = qMax(1, qMin(fh - sy, fh * stripH / h));
-        QPixmap crop = full.copy(0, sy, fw, sh);
-        if (crop.isNull())
-            return {};
-        return crop.scaled(w, stripH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    };
-
-    m_topChromeBlur = makeStrip(0, kPlayerMenuH);
-    m_bottomChromeBlur = makeStrip(qMax(0, h - kPlayerControlH), kPlayerControlH);
 }
 
 void PlayerPage::refreshCoverLayout()
@@ -619,11 +605,6 @@ void PlayerPage::applyPlayerPageStyle()
     const int backBdA = dark ? 32 : 40;
     const int backHiA = dark ? 42 : 55;
     const int backHiBdA = dark ? 62 : 75;
-    const int sepA = dark ? 40 : 48;
-    const int sbA = dark ? 60 : 85;
-    const int sbHiA = dark ? 100 : 120;
-    const QString scrollHandleBg = QStringLiteral("rgba(230,57,80,%1)").arg(sbA);
-    const QString scrollHoverBg = QStringLiteral("rgba(230,57,80,%1)").arg(sbHiA);
 
     setStyleSheet(QString::fromUtf8(
                       "#playerPage { background: transparent; }"
@@ -669,9 +650,10 @@ void PlayerPage::applyPlayerPageStyle()
                       "  background: transparent; border: none; }"
                       "#lyricsScroll > QWidget { background: transparent; }"
 
-                      "QScrollBar:vertical { width: 4px; background: transparent; }"
-                      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-                      "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }"
+                      "#lyricsScroll QScrollBar:vertical { width: 0px; max-width: 0px; background: transparent; }"
+                      "#lyricsScroll QScrollBar::handle:vertical { width: 0px; min-height: 0; background: transparent; }"
+                      "#lyricsScroll QScrollBar::add-line:vertical, #lyricsScroll QScrollBar::sub-line:vertical { height: 0; width: 0; }"
+                      "#lyricsScroll QScrollBar::add-page:vertical, #lyricsScroll QScrollBar::sub-page:vertical { background: transparent; }"
 
                       "#playerContentHost, #playerLeftPanel, #playerRightPanel { "
                       "  background: transparent; }"
@@ -697,10 +679,6 @@ void PlayerPage::applyPlayerPageStyle()
                       .arg(backHiA)
                       .arg(backHiBdA)
                       .arg(m_clrAlbum)
-        + QString::fromUtf8(
-              "QScrollBar::handle:vertical { background: %1; border-radius: 2px; min-height: 50px; }"
-              "QScrollBar::handle:vertical:hover { background: %2; }")
-              .arg(scrollHandleBg, scrollHoverBg)
         + QString::fromUtf8("#playerCoverLabel { border-radius: %1px; }").arg(kPlayerCoverRadius));
 
     applyMetaLabelFonts();
@@ -1005,6 +983,8 @@ void PlayerPage::layoutPlayerPageChrome()
         m_controlBar->raise();
         m_controlBar->show();
     }
+    if (m_menuBar)
+        m_menuBar->raise();
 }
 
 void PlayerPage::updateCoverBackdrop(const QPixmap &source)
@@ -1016,12 +996,12 @@ void PlayerPage::updateCoverBackdrop(const QPixmap &source)
     }
     m_coverMainColor = pixmapAverageColor(source);
     m_coverSecondColor = QColor(m_coverMainColor.red(), m_coverMainColor.green(), m_coverMainColor.blue(), 32);
-    m_bgBlurPixmap = makeBlurredBackdrop(source, size().isEmpty() ? QSize(1280, 720) : size());
+    const QSize pageSize = size().isEmpty() ? QSize(1280, 720) : size();
+    m_bgBlurPixmap = makeBlurredBackdrop(source, pageSize);
     refreshTintedPalette();
     applyPlayerPageStyle();
     applyMetaTextElide();
     updatePlayModeBtn(PlaylistManager::instance().playMode());
-    updateChromeBlurStrips();
     update();
 }
 
@@ -1353,6 +1333,7 @@ void PlayerPage::setupUi()
     m_lyricsScroll->setObjectName("lyricsScroll");
     m_lyricsScroll->setWidgetResizable(true);
     m_lyricsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_lyricsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_lyricsScroll->setFrameShape(QFrame::NoFrame);
 
     m_lyricsContainer = new QWidget();
@@ -1540,7 +1521,6 @@ void PlayerPage::resizeEvent(QResizeEvent *event)
     layoutPlayerPageChrome();
     if (!m_underlaySnapshot.isNull())
         m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, size());
-    updateChromeBlurStrips();
     if (!m_coverBackdropSource.isNull())
         updateCoverBackdrop(m_coverBackdropSource);
     refreshCoverLayout();
@@ -1558,7 +1538,6 @@ void PlayerPage::showEvent(QShowEvent *event)
     QWidget::showEvent(event);
     layoutPlayerPageChrome();
     bumpControlShowTimer();
-    updateChromeBlurStrips();
     QTimer::singleShot(0, this, &PlayerPage::refreshCoverLayout);
     QTimer::singleShot(380, this, &PlayerPage::refreshCoverLayout);
 
