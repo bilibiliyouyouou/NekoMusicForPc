@@ -45,17 +45,192 @@
 #include <QUrl>
 #include <QResizeEvent>
 #include <QShowEvent>
+#include <QTimer>
+#include <QFontMetrics>
 
 namespace {
 
-QPixmap makeUnknownCover48(bool dark)
+/** 底栏封面边长（略大于 SPlayer 56px，仍适配 80px 栏高） */
+constexpr int kPbCoverSize = 64;
+constexpr int kPbCoverRadius = 8;
+constexpr int kPbTitleLineH = 22;
+constexpr int kPbArtistLineH = 18;
+constexpr int kPbInfoLineGap = 1;
+constexpr int kPbHeartBtn = 24;
+constexpr int kPbHeartIcon = 20;
+constexpr int kPbMarqueeGap = 48;
+constexpr int kPbMarqueeIntervalMs = 32;
+constexpr int kPbMarqueePauseTicks = 45;
+
+/** 底栏歌名：限宽显示，超出后向左循环滚动 */
+class PbMarqueeLabel final : public QLabel {
+public:
+    explicit PbMarqueeLabel(QWidget *parent = nullptr)
+        : QLabel(parent)
+    {
+        setAttribute(Qt::WA_TranslucentBackground);
+        setAutoFillBackground(false);
+        setWordWrap(false);
+        setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        setContentsMargins(0, 0, 0, 0);
+        m_timer.setInterval(kPbMarqueeIntervalMs);
+        connect(&m_timer, &QTimer::timeout, this, [this]() { advanceScroll(); });
+    }
+
+    QString fullText() const { return m_fullText; }
+
+    void setText(const QString &text)
+    {
+        m_fullText = text;
+        QLabel::clear();
+        m_offset = 0;
+        m_pauseTicks = kPbMarqueePauseTicks;
+        rebuildMetrics();
+    }
+
+    QString text() const { return m_fullText; }
+
+    void setMaxDisplayWidth(int width)
+    {
+        width = qMax(24, width);
+        if (m_maxWidth == width)
+            return;
+        m_maxWidth = width;
+        rebuildMetrics();
+    }
+
+    int maxDisplayWidth() const { return m_maxWidth; }
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        Q_UNUSED(event);
+        if (m_fullText.isEmpty())
+            return;
+
+        QPainter p(this);
+        p.setRenderHint(QPainter::TextAntialiasing, true);
+        p.setFont(font());
+        p.setPen(palette().color(QPalette::WindowText));
+
+        const QRect clip = rect();
+        p.setClipRect(clip);
+
+        if (!m_scrolling) {
+            p.drawText(clip, Qt::AlignLeft | Qt::AlignVCenter, m_fullText);
+            return;
+        }
+
+        const int baseY = (clip.height() + m_ascent - m_descent) / 2;
+
+        auto drawAt = [&](int x) {
+            p.drawText(x, baseY, m_fullText);
+        };
+
+        drawAt(-m_offset);
+        drawAt(-m_offset + m_loopWidth);
+    }
+
+private:
+    void advanceScroll()
+    {
+        if (!m_scrolling)
+            return;
+        if (m_pauseTicks > 0) {
+            --m_pauseTicks;
+            return;
+        }
+        ++m_offset;
+        if (m_offset >= m_loopWidth) {
+            m_offset = 0;
+            m_pauseTicks = kPbMarqueePauseTicks;
+        }
+        update();
+    }
+
+    void rebuildMetrics()
+    {
+        const QFontMetrics fm(font());
+        m_textWidth = fm.horizontalAdvance(m_fullText);
+        m_textHeight = fm.height();
+        m_ascent = fm.ascent();
+        m_descent = fm.descent();
+        m_scrolling = m_textWidth > m_maxWidth;
+        m_loopWidth = m_textWidth + kPbMarqueeGap;
+
+        setFixedHeight(kPbTitleLineH);
+        setFixedWidth(m_scrolling ? m_maxWidth : qMin(m_textWidth, m_maxWidth));
+
+        if (m_scrolling) {
+            setToolTip(m_fullText);
+            if (!m_timer.isActive())
+                m_timer.start();
+        } else {
+            setToolTip(QString());
+            m_timer.stop();
+            m_offset = 0;
+        }
+        update();
+    }
+
+    QString m_fullText;
+    int m_maxWidth = 120;
+    int m_textWidth = 0;
+    int m_textHeight = 0;
+    int m_ascent = 0;
+    int m_descent = 0;
+    int m_offset = 0;
+    int m_loopWidth = 0;
+    int m_pauseTicks = 0;
+    bool m_scrolling = false;
+    QTimer m_timer;
+};
+
+inline PbMarqueeLabel *pbSongMarquee(QLabel *label)
 {
-    QPixmap pm(48, 48);
+    return static_cast<PbMarqueeLabel *>(label);
+}
+
+int widgetEffectiveWidth(QWidget *w)
+{
+    if (!w)
+        return 0;
+    if (w->width() > 0)
+        return w->width();
+    return w->sizeHint().width();
+}
+
+int titleRowWidthBesidesSong(QWidget *titleRow, QWidget *songWidget)
+{
+    if (!titleRow)
+        return 0;
+    auto *hl = qobject_cast<QHBoxLayout *>(titleRow->layout());
+    if (!hl)
+        return 0;
+
+    int w = hl->contentsMargins().left() + hl->contentsMargins().right();
+    const int spacing = hl->spacing();
+    bool first = true;
+    for (int i = 0; i < hl->count(); ++i) {
+        QWidget *item = hl->itemAt(i)->widget();
+        if (!item || item == songWidget)
+            continue;
+        if (!first)
+            w += spacing;
+        w += widgetEffectiveWidth(item);
+        first = false;
+    }
+    return w;
+}
+
+QPixmap makeUnknownCover(int size, bool dark)
+{
+    QPixmap pm(size, size);
     pm.fill(Qt::transparent);
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
     QPainterPath path;
-    path.addRoundedRect(0, 0, 48, 48, 8, 8);
+    path.addRoundedRect(0, 0, size, size, kPbCoverRadius, kPbCoverRadius);
     p.fillPath(path, dark ? QColor(26, 26, 46) : QColor(255, 240, 244));
     p.setPen(dark ? QColor(230, 57, 80, 200) : QColor(111, 66, 193, 180));
     QFont f = p.font();
@@ -314,12 +489,25 @@ void PlayerBar::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     layoutPlayerBarChrome();
+    scheduleTitleMarqueeWidthUpdate();
 }
 
 void PlayerBar::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     layoutPlayerBarChrome();
+    scheduleTitleMarqueeWidthUpdate();
+}
+
+void PlayerBar::scheduleTitleMarqueeWidthUpdate()
+{
+    if (m_titleMarqueeUpdateScheduled)
+        return;
+    m_titleMarqueeUpdateScheduled = true;
+    QTimer::singleShot(0, this, [this]() {
+        m_titleMarqueeUpdateScheduled = false;
+        updateTitleMarqueeWidth();
+    });
 }
 
 void PlayerBar::setupUi()
@@ -349,44 +537,55 @@ void PlayerBar::setupUi()
 
     // ─── 左侧：封面 + 曲名/歌手（max 640px，对齐 play-data）────
     auto *left = new QWidget(mainRow);
+    m_pbLeft = left;
     left->setObjectName(QStringLiteral("pbLeft"));
-    left->setMaximumWidth(640);
     left->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto *ll = new QHBoxLayout(left);
     ll->setContentsMargins(0, 0, 0, 0);
     ll->setSpacing(12);
+    ll->setAlignment(Qt::AlignVCenter);
 
     auto *coverBtn = new QPushButton(left);
     coverBtn->setObjectName("pbCover");
-    coverBtn->setFixedSize(56, 56);
+    coverBtn->setFixedSize(kPbCoverSize, kPbCoverSize);
     coverBtn->setCursor(Qt::PointingHandCursor);
     coverBtn->setFlat(true);
-    QPixmap ph(56, 56);
+    QPixmap ph(kPbCoverSize, kPbCoverSize);
     ph.fill(Qt::transparent);
     QPainter pp(&ph);
     QPainterPath ppp;
-    ppp.addRoundedRect(0, 0, 56, 56, 8, 8);
-    QLinearGradient g(0, 0, 48, 48);
+    ppp.addRoundedRect(0, 0, kPbCoverSize, kPbCoverSize, kPbCoverRadius, kPbCoverRadius);
+    QLinearGradient g(0, 0, kPbCoverSize, kPbCoverSize);
     g.setColorAt(0.0, QColor(230, 57, 80));
     g.setColorAt(1.0, QColor(214, 40, 57));
     pp.fillPath(ppp, g);
     pp.end();
     coverBtn->setIcon(QIcon(ph));
-    coverBtn->setIconSize(QSize(56, 56));
+    coverBtn->setIconSize(QSize(kPbCoverSize, kPbCoverSize));
     m_cover = coverBtn;
     connect(coverBtn, &QPushButton::clicked, this, [this]() {
         emit coverClicked();
     });
-    ll->addWidget(coverBtn);
+    ll->addWidget(coverBtn, 0, Qt::AlignVCenter);
 
-    auto *infoL = new QVBoxLayout();
-    infoL->setSpacing(2);
+    auto *infoBlock = new QWidget(left);
+    infoBlock->setObjectName(QStringLiteral("pbInfoBlock"));
+    infoBlock->setFixedHeight(kPbCoverSize);
+    infoBlock->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    auto *infoL = new QVBoxLayout(infoBlock);
+    infoL->setContentsMargins(0, 0, 0, 0);
+    infoL->setSpacing(kPbInfoLineGap);
+    infoL->setAlignment(Qt::AlignVCenter);
 
-    auto *titleRow = new QWidget(left);
+    auto *titleRow = new QWidget(infoBlock);
+    m_titleRow = titleRow;
+    titleRow->setObjectName(QStringLiteral("pbTitleRow"));
     titleRow->setAttribute(Qt::WA_TranslucentBackground);
+    titleRow->setFixedHeight(kPbTitleLineH);
+    titleRow->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     auto *titleRowLay = new QHBoxLayout(titleRow);
     titleRowLay->setContentsMargins(0, 0, 0, 0);
-    titleRowLay->setSpacing(6);
+    titleRowLay->setSpacing(8);
 
     m_localBadge = new QLabel(titleRow);
     m_localBadge->setObjectName(QStringLiteral("pbLocalBadge"));
@@ -394,19 +593,19 @@ void PlayerBar::setupUi()
     applyLocalBadgeChrome();
     titleRowLay->addWidget(m_localBadge, 0, Qt::AlignVCenter);
 
-    m_songName = new QLabel(I18n::instance().tr("notPlaying"), titleRow);
+    m_songName = new PbMarqueeLabel(titleRow);
     m_songName->setObjectName("pbSong");
     QFont songFont = m_songName->font();
     songFont.setPixelSize(16);
     songFont.setWeight(QFont::Bold);
     m_songName->setFont(songFont);
-    m_songName->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    titleRowLay->addWidget(m_songName, 1, Qt::AlignVCenter);
+    pbSongMarquee(m_songName)->setText(I18n::instance().tr("notPlaying"));
+    titleRowLay->addWidget(m_songName, 0, Qt::AlignVCenter);
 
     m_heartBtn = new PlayerBarInkButton(titleRow);
     m_heartBtn->setObjectName("pbHeartBtn");
-    m_heartBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
-    m_heartBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
+    m_heartBtn->setFixedSize(kPbHeartBtn, kPbHeartBtn);
+    m_heartBtn->setIconSize(QSize(kPbHeartIcon, kPbHeartIcon));
     m_heartBtn->setProperty("pbInk", int(PbInk::Heart));
     m_heartBtn->setProperty("pbHeartOn", false);
     m_heartBtn->setCursor(Qt::PointingHandCursor);
@@ -416,19 +615,21 @@ void PlayerBar::setupUi()
     });
     titleRowLay->addWidget(m_heartBtn, 0, Qt::AlignVCenter);
 
-    infoL->addWidget(titleRow);
+    infoL->addWidget(titleRow, 0, Qt::AlignLeft);
 
-    m_artist = new QLabel(I18n::instance().tr("unknown"), left);
+    m_artist = new QLabel(I18n::instance().tr("unknown"), infoBlock);
     m_artist->setObjectName("pbArtist");
-    m_artist->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_artist->setFixedHeight(kPbArtistLineH);
+    m_artist->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     m_songName->setWordWrap(false);
     m_artist->setWordWrap(false);
-    infoL->addWidget(m_artist);
-    ll->addLayout(infoL, 1);
+    infoL->addWidget(m_artist, 0, Qt::AlignLeft);
+    ll->addWidget(infoBlock, 1, Qt::AlignVCenter);
     lay->addWidget(left, 1);
 
     // ─── 中间：播放控制（SPlayer play-control）────────────────
     auto *center = new QWidget(mainRow);
+    m_pbCenter = center;
     center->setObjectName(QStringLiteral("pbCenter"));
     center->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
     auto *ctrlL = new QHBoxLayout(center);
@@ -488,6 +689,7 @@ void PlayerBar::setupUi()
 
     // ─── 右侧：时间 + 工具（SPlayer play-menu）────────────────
     auto *right = new QWidget(mainRow);
+    m_pbRight = right;
     right->setObjectName(QStringLiteral("pbRight"));
     right->setMaximumWidth(640);
     right->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -642,6 +844,7 @@ void PlayerBar::setupUi()
 
     layoutPlayerBarChrome();
     applyPlayerBarGlassStyle();
+    scheduleTitleMarqueeWidthUpdate();
 
     // 连接引擎
     if (m_engine) {
@@ -858,8 +1061,11 @@ void PlayerBar::updateVolumeIcon(int value)
 void PlayerBar::retranslate()
 {
     // Update default labels if still showing defaults
-    if (m_songName && (m_songName->text() == "未在播放" || m_songName->text() == I18n::instance().tr("notPlaying")))
-        m_songName->setText(I18n::instance().tr("notPlaying"));
+    if (m_songName) {
+        const QString cur = pbSongMarquee(m_songName)->fullText();
+        if (cur == QStringLiteral("未在播放") || cur == I18n::instance().tr("notPlaying"))
+            pbSongMarquee(m_songName)->setText(I18n::instance().tr("notPlaying"));
+    }
     if (m_artist && (m_artist->text() == "--" || m_artist->text() == I18n::instance().tr("unknown")))
         m_artist->setText(I18n::instance().tr("unknown"));
 
@@ -889,8 +1095,12 @@ void PlayerBar::retranslate()
 
 void PlayerBar::setSongInfo(const QString &title, const QString &artist, const QString &coverUrl)
 {
-    if (m_songName) m_songName->setText(title.isEmpty() ? I18n::instance().tr("unknown") : title);
-    if (m_artist) m_artist->setText(artist.isEmpty() ? I18n::instance().tr("unknown") : artist);
+    if (m_songName) {
+        pbSongMarquee(m_songName)->setText(title.isEmpty() ? I18n::instance().tr("unknown") : title);
+        scheduleTitleMarqueeWidthUpdate();
+    }
+    if (m_artist)
+        m_artist->setText(artist.isEmpty() ? I18n::instance().tr("unknown") : artist);
     refreshLocalBadge();
 
     if (!m_cover)
@@ -1013,6 +1223,52 @@ void PlayerBar::refreshLocalBadge()
         m_localBadge->setText(I18n::instance().tr(QStringLiteral("localMusicBadge")));
         applyLocalBadgeChrome();
     }
+    scheduleTitleMarqueeWidthUpdate();
+}
+
+void PlayerBar::updateTitleMarqueeWidth()
+{
+    if (!m_songName)
+        return;
+
+    auto *marquee = pbSongMarquee(m_songName);
+    if (!marquee)
+        return;
+
+    // 优先用布局完成后的实际宽度；首帧尚未 layout 时再按当前底栏宽度估算
+    int leftW = m_pbLeft ? widgetEffectiveWidth(m_pbLeft) : 0;
+
+    int marginH = 0;
+    if (m_glass) {
+        if (QWidget *body = m_glass->contentWidget()) {
+            if (QLayout *bodyLay = body->layout())
+                marginH = bodyLay->contentsMargins().left() + bodyLay->contentsMargins().right();
+        }
+    }
+
+    const int barInner = qMax(0, width() - marginH);
+    if (leftW < kPbCoverSize + 40) {
+        const int centerW = m_pbCenter
+            ? qMax(widgetEffectiveWidth(m_pbCenter), m_pbCenter->minimumSizeHint().width())
+            : 0;
+        const int rightW = m_pbRight
+            ? qMax(widgetEffectiveWidth(m_pbRight), m_pbRight->minimumSizeHint().width())
+            : 0;
+        int estimated = barInner - centerW - rightW;
+        if (estimated < kPbCoverSize + 40 && m_pbCenter)
+            estimated = qMax(0, (barInner - centerW) / 2);
+        leftW = qMax(leftW, estimated);
+    }
+
+    const int besideSong = titleRowWidthBesidesSong(m_titleRow, m_songName);
+    const int infoW = qMax(0, leftW - kPbCoverSize - 12);
+    const int titleMax = qMax(24, infoW - besideSong);
+
+    marquee->setMaxDisplayWidth(titleMax);
+    if (m_titleRow)
+        m_titleRow->setMaximumWidth(besideSong + titleMax);
+    if (m_artist)
+        m_artist->setMaximumWidth(infoW);
 }
 
 void PlayerBar::setFavoriteStatus(bool isFavorited)
@@ -1070,20 +1326,20 @@ void PlayerBar::setLoading(bool loading)
 void PlayerBar::setCoverUnknownPlaceholder()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
-    setCoverPixmap(makeUnknownCover48(dark));
+    setCoverPixmap(makeUnknownCover(kPbCoverSize, dark));
 }
 
 void PlayerBar::setCoverPixmap(const QPixmap &pm)
 {
     auto *btn = qobject_cast<QPushButton *>(m_cover);
     if (!btn || pm.isNull()) return;
-    QPixmap scaled = pm.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    QPixmap rounded(48, 48);
+    QPixmap scaled = pm.scaled(kPbCoverSize, kPbCoverSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QPixmap rounded(kPbCoverSize, kPbCoverSize);
     rounded.fill(Qt::transparent);
     QPainter p(&rounded);
     p.setRenderHint(QPainter::Antialiasing);
     QPainterPath path;
-    path.addRoundedRect(0, 0, 48, 48, 8, 8);
+    path.addRoundedRect(0, 0, kPbCoverSize, kPbCoverSize, kPbCoverRadius, kPbCoverRadius);
     p.setClipPath(path);
     p.drawPixmap(0, 0, scaled);
     btn->setIcon(QIcon(rounded));

@@ -74,6 +74,15 @@ private:
     void removeVolumePanelAppFilter();
     void applyLocalBadgeChrome();
     void refreshLocalBadge();
+    void updateTitleMarqueeWidth();
+    void scheduleTitleMarqueeWidthUpdate();
+
+    bool m_titleMarqueeUpdateScheduled = false;
+
+    QWidget *m_pbLeft = nullptr;
+    QWidget *m_pbCenter = nullptr;
+    QWidget *m_pbRight = nullptr;
+    QWidget *m_titleRow = nullptr;
 
     PlayerEngine *m_engine = nullptr;
     class GlassWidget *m_glass = nullptr;
