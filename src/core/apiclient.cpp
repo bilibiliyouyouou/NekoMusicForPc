@@ -13,9 +13,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QHttpMultiPart>
-#include <QHttpPart>
-#include <QFile>
 #include <QDir>
 #include <QStandardPaths>
 #include <QSaveFile>
@@ -702,66 +699,6 @@ void ApiClient::fetchFavoritePlaylistMusic(int playlistId, PlaylistMusicCb cb) {
         if (ok) for (const auto &v : doc.object().value("music").toArray())
             res.append(v.toObject().toVariantMap());
         if (cb) cb(ok, res.size(), res);
-    });
-}
-
-void ApiClient::uploadMusic(const QString &musicFilePath, const QString &title,
-                             const QString &artist, const QString &language, int duration,
-                             int uploadUserId, const QString &album,
-                             const QString &tags, const QString &coverFilePath,
-                             const QString &lyricsFilePath, UploadCb cb) {
-    QUrl url(QString::fromUtf8("%1/api/user/upload").arg(Theme::kApiBase));
-    QNetworkRequest req(url);
-    if (UserManager::instance().isLoggedIn()) {
-        req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
-    }
-    auto *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-    
-    auto addTextPart = [multiPart](const QString &name, const QString &value) {
-        QHttpPart textPart;
-        textPart.setHeader(QNetworkRequest::ContentDispositionHeader,
-                           QString("form-data; name=\"%1\"").arg(name));
-        textPart.setBody(value.toUtf8());
-        multiPart->append(textPart);
-    };
-    
-    addTextPart("title", title);
-    addTextPart("artist", artist);
-    addTextPart("language", language);
-    addTextPart("duration", QString::number(duration));
-    addTextPart("uploadUserId", QString::number(uploadUserId));
-    if (!album.isEmpty()) addTextPart("album", album);
-    if (!tags.isEmpty()) addTextPart("tags", tags);
-    
-    QFile *musicFile = new QFile(musicFilePath);
-    if (musicFile->open(QIODevice::ReadOnly)) {
-        QHttpPart musicPart;
-        musicPart.setHeader(QNetworkRequest::ContentTypeHeader, "audio/mpeg");
-        musicPart.setHeader(QNetworkRequest::ContentDispositionHeader,
-                            QString("form-data; name=\"musicFile\"; filename=\"%1\"")
-                                .arg(musicFilePath.mid(musicFilePath.lastIndexOf('/') + 1)));
-        musicPart.setBodyDevice(musicFile);
-        musicFile->setParent(multiPart);
-        multiPart->append(musicPart);
-    } else {
-        delete musicFile;
-        if (cb) cb(false, "无法打开音乐文件");
-        multiPart->deleteLater();
-        return;
-    }
-    
-    auto *reply = m_nam.post(req, multiPart);
-    multiPart->setParent(reply);
-    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            if (cb) cb(false, reply->errorString());
-            return;
-        }
-        auto doc = QJsonDocument::fromJson(reply->readAll());
-        bool ok = doc.object().value("success").toBool();
-        QString message = doc.object().value("message").toString();
-        if (cb) cb(ok, message);
     });
 }
 

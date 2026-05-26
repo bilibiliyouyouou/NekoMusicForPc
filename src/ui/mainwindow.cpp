@@ -15,7 +15,6 @@
 #include "ui/playerbar.h"
 #include "ui/logindialog.h"
 #include "ui/musiclistpage.h"
-#include "ui/uploadpage.h"
 #include "ui/playerpage.h"
 #include "ui/playlistdetailpage.h"
 #include "ui/searchpage.h"
@@ -390,7 +389,6 @@ void MainWindow::setupUi()
     m_recentPage = new RecentPage(this);
     m_hotMusicPage = new MusicListPage(MusicListPage::Hot, this);
     m_latestMusicPage = new MusicListPage(MusicListPage::Latest, this);
-    m_uploadPage = new UploadPage(this);
     m_playlistDetailPage = new PlaylistDetailPage(m_apiClient, this);
     m_searchPage = new SearchPage(m_apiClient, this);
     m_vipPage = new VipPage(m_apiClient, this);
@@ -400,7 +398,6 @@ void MainWindow::setupUi()
     m_stack->addWidget(m_recentPage);
     m_stack->addWidget(m_hotMusicPage);
     m_stack->addWidget(m_latestMusicPage);
-    m_stack->addWidget(m_uploadPage);
     m_stack->addWidget(m_playlistDetailPage);
     m_stack->addWidget(m_searchPage);
     m_stack->addWidget(m_vipPage);
@@ -486,7 +483,6 @@ void MainWindow::setupUi()
             m_recentPage->refresh();
             switchPage(m_recentPage);
         }
-        else if (key == "upload") switchPage(m_uploadPage);
         else if (key == "search") switchPage(m_searchPage);
     });
     connect(m_favoritesPage, &FavoritesPage::playRequested, this, &MainWindow::playMusicById);
@@ -668,11 +664,6 @@ void MainWindow::setupUi()
         m_playlistDetailPage->loadPlaylist(playlistId);
         switchPage(m_playlistDetailPage);
     });
-    // 上传页面返回
-    connect(m_uploadPage, &UploadPage::backRequested, this, [this]() {
-        switchPage(m_homePage);
-    });
-
     // 音乐列表页面播放
     connect(m_hotMusicPage, &MusicListPage::playMusic, this, [this](const MusicListPage::MusicInfo &info) {
         playMusicById(info.id, info.title, info.artist, info.coverUrl);
@@ -771,7 +762,6 @@ void MainWindow::setupUi()
     // 语言切换
     connect(m_settingsPage, &SettingsPage::languageChanged, m_hotMusicPage, &MusicListPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_latestMusicPage, &MusicListPage::retranslate);
-    connect(m_settingsPage, &SettingsPage::languageChanged, m_uploadPage, &UploadPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_playlistDetailPage, &PlaylistDetailPage::retranslate);
     connect(m_settingsPage, &SettingsPage::checkForUpdatesRequested, this, [this]() {
         checkForUpdates(true);
@@ -819,11 +809,6 @@ void MainWindow::setupUi()
 
     connect(m_playlistPanel, &PlaylistPanel::playRequested, this, [this](int musicId) {
         playMusicFromPlaylist(musicId);
-    });
-
-    // 登录状态变化 - 控制上传导航项可见性
-    connect(&UserManager::instance(), &UserManager::loginStateChanged, this, [this]() {
-        m_sidebar->setUploadVisible(UserManager::instance().isLoggedIn());
     });
 
     connect(m_vipPage, &VipPage::loginRequested, this, [this]() {

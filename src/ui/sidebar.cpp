@@ -46,8 +46,6 @@ const char *navSvgName(const QString &key)
         return "Favorite";
     if (key == QStringLiteral("recent"))
         return "History";
-    if (key == QStringLiteral("upload"))
-        return "Cloud";
     if (key == QStringLiteral("settings"))
         return "Settings";
     if (key == QStringLiteral("music"))
@@ -71,8 +69,6 @@ Sidebar::Sidebar(ApiClient *apiClient, QWidget *parent) : QWidget(parent), m_api
     setAutoFillBackground(false);
     setupUi();
     setActiveNav("home");
-    // Upload nav only visible when logged in
-    setUploadVisible(UserManager::instance().isLoggedIn());
     loadPlaylists();
 }
 
@@ -124,10 +120,6 @@ void Sidebar::setupUi()
     // 最近播放（可点击导航）
     m_recBtn = createNavItem("recent", I18n::instance().tr("recentPlay"), navIcon("recent", false));
     lay->addWidget(m_recBtn);
-
-    // 上传音乐（可点击导航）
-    m_uploadBtn = createNavItem("upload", I18n::instance().tr("uploadMusic"), navIcon("upload", false));
-    lay->addWidget(m_uploadBtn);
 
     // 分隔线
     auto *div = new QWidget(container);
@@ -472,7 +464,6 @@ void Sidebar::retranslate()
 
     if (m_favBtn) m_favBtn->setText(I18n::instance().tr("favorites"));
     if (m_recBtn) m_recBtn->setText(I18n::instance().tr("recentPlay"));
-    if (m_uploadBtn) m_uploadBtn->setText(I18n::instance().tr("uploadMusic"));
 
     auto headers = findChildren<QLabel *>("sbPlaylistTitle");
     if (headers.size() >= 1) headers[0]->setText(I18n::instance().tr("myPlaylistsTitle"));
@@ -488,9 +479,3 @@ void Sidebar::paintEvent(QPaintEvent *)
                               Theme::ThemeManager::instance().isDarkMode());
 }
 
-void Sidebar::setUploadVisible(bool visible)
-{
-    if (m_uploadBtn) {
-        m_uploadBtn->setVisible(visible);
-    }
-}

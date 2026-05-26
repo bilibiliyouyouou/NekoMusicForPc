@@ -34,7 +34,6 @@ public:
     explicit Sidebar(ApiClient *apiClient, QWidget *parent = nullptr);
     void setActiveNav(const QString &key);
     void retranslate();
-    void setUploadVisible(bool visible);
     void refreshPlaylists();
     void loadPlaylists();
 
@@ -59,7 +58,6 @@ private:
     QString m_activeKey;
     QPushButton *m_favBtn = nullptr;
     QPushButton *m_recBtn = nullptr;
-    QPushButton *m_uploadBtn = nullptr;
     QPushButton *m_searchBtn = nullptr;
 
     QWidget *m_playlistContainer = nullptr;

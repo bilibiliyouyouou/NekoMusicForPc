@@ -69,7 +69,6 @@ QScrollArea#playlistScroll,
 QScrollArea#ppScroll,
 QScrollArea#lyricsScroll,
 QScrollArea#settingsScroll,
-QScrollArea#uploadScroll,
 QScrollArea#searchScroll,
 QScrollArea#vipScroll {
     background: transparent;
@@ -84,7 +83,6 @@ QScrollArea#playlistScroll > QWidget > QWidget,
 QScrollArea#ppScroll > QWidget > QWidget,
 QScrollArea#lyricsScroll > QWidget > QWidget,
 QScrollArea#settingsScroll > QWidget > QWidget,
-QScrollArea#uploadScroll > QWidget > QWidget,
 QScrollArea#searchScroll > QWidget > QWidget,
 QScrollArea#vipScroll > QWidget > QWidget {
     background: transparent;

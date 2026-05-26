@@ -130,7 +130,6 @@ set(SOURCES
         src/ui/captchasliderrail.cpp
         src/ui/forgotpassworddialog.cpp
         src/ui/musiclistpage.cpp
-        src/ui/uploadpage.cpp
         src/ui/playerpage.cpp
         src/ui/videorenderdialog.cpp
         src/ui/vippage.cpp
@@ -185,7 +184,6 @@ set(HEADERS
         src/ui/captchasliderrail.h
         src/ui/forgotpassworddialog.h
         src/ui/musiclistpage.h
-        src/ui/uploadpage.h
         src/ui/playerpage.h
         src/ui/videorenderdialog.h
         src/ui/vippage.h

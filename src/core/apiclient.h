@@ -102,16 +102,6 @@ public:
     void resetPassword(const QString &email, const QString &verificationCode,
                        const QString &newPassword, std::function<void(bool, const QString&)> cb);
 
-    // ─── 用户上传 ────────────────────────────────────
-    using UploadCb = std::function<void(bool, const QString&)>;
-    void uploadMusic(const QString &musicFilePath, const QString &title,
-                     const QString &artist, const QString &language, int duration,
-                     int uploadUserId, const QString &album = QString(),
-                     const QString &tags = QString(),
-                     const QString &coverFilePath = QString(),
-                     const QString &lyricsFilePath = QString(),
-                     UploadCb cb = nullptr);
-
     // ─── 会员中心 ────────────────────────────────────
     using VipPricingCb = std::function<void(bool, const QString &, const QList<QVariantMap> &)>;
     void fetchVipPricing(VipPricingCb cb);

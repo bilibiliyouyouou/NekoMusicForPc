@@ -27,7 +27,6 @@ class PlayerBar;
 class PlayerEngine;
 class MusicDownloader;
 class MusicListPage;
-class UploadPage;
 class PlayerPage;
 class QMenu;
 class QTimer;
@@ -131,7 +130,6 @@ private:
     RecentPage *m_recentPage = nullptr;
     MusicListPage *m_hotMusicPage = nullptr;
     MusicListPage *m_latestMusicPage = nullptr;
-    UploadPage *m_uploadPage = nullptr;
     PlayerPage *m_playerPage = nullptr;
     PlaylistDetailPage *m_playlistDetailPage = nullptr;
     SearchPage *m_searchPage = nullptr;
