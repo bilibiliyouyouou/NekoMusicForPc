@@ -97,31 +97,20 @@ static void configureLyricLabel(QLabel *label)
     if (!label)
         return;
     label->setWordWrap(true);
-    label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
     label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    label->setContentsMargins(0, 0, 0, 0);
 }
 
-static int lyricLabelWrappedHeight(QLabel *label, int textW)
+/** 仅约束宽度，高度由 sizeHint 决定，避免多行歌词与翻译之间被撑出空隙 */
+static void applyLyricLabelWrapWidth(QLabel *label, int textW)
 {
     if (!label || textW <= 0)
-        return 0;
+        return;
     configureLyricLabel(label);
     label->setFixedWidth(textW);
-    int h = label->heightForWidth(textW);
-    if (h <= 0) {
-        const QFontMetrics fm(label->font());
-        const QRect br =
-            fm.boundingRect(QRect(0, 0, textW, 100000), Qt::AlignLeft | Qt::TextWordWrap, label->text());
-        h = br.height();
-    }
-    return qMax(h, label->fontMetrics().height());
-}
-
-static void applyLyricLabelWrapSize(QLabel *label, int textW)
-{
-    const int h = lyricLabelWrappedHeight(label, textW);
-    if (h > 0)
-        label->setFixedSize(textW, h);
+    label->setMinimumHeight(0);
+    label->setMaximumHeight(QWIDGETSIZE_MAX);
 }
 
 static QWidget *lyricLineInnerHost(QWidget *lineWidget)
@@ -139,8 +128,10 @@ static void relayoutSingleLyricLine(QWidget *lineWidget, int textW)
         return;
     for (auto *label : lineWidget->findChildren<QLabel *>()) {
         const QString on = label->objectName();
-        if (on == QLatin1String("lyricText") || on == QLatin1String("lyricTranslation"))
-            applyLyricLabelWrapSize(label, textW);
+        if (on == QLatin1String("lyricText") || on == QLatin1String("lyricTranslation")) {
+            applyLyricLabelWrapWidth(label, textW);
+            label->adjustSize();
+        }
     }
     if (auto *inner = lyricLineInnerHost(lineWidget))
         inner->adjustSize();
@@ -687,34 +678,33 @@ void PlayerPage::applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool
 {
     if (!textLabel)
         return;
-    const int mainPx = lyricMainFontPx(height());
+
+    int pageH = height();
+    if (pageH < 480 && m_lyricsScroll && m_lyricsScroll->viewport())
+        pageH = qMax(pageH, m_lyricsScroll->viewport()->height());
+    const int mainPx = lyricMainFontPx(pageH);
     const int tranPx = qMax(14, mainPx - 12);
-    if (isCurrent) {
-        textLabel->setStyleSheet(QString::fromUtf8(
-                                   "color: %1; font-size: %2px; font-weight: 700; "
-                                   "background: transparent; padding: 0;")
-                                   .arg(m_clrLyricHi)
-                                   .arg(mainPx));
-        if (transLabel) {
-            transLabel->setStyleSheet(QString::fromUtf8(
-                                          "color: %1; font-size: %2px; font-weight: 400; "
-                                          "background: transparent; padding: 0;")
-                                          .arg(m_clrLyricHiTrans)
-                                          .arg(tranPx));
-        }
-    } else {
-        textLabel->setStyleSheet(QString::fromUtf8(
-                                   "color: %1; font-size: %2px; font-weight: 400; "
-                                   "background: transparent; padding: 0;")
-                                   .arg(m_clrLyricDim)
-                                   .arg(mainPx));
-        if (transLabel) {
-            transLabel->setStyleSheet(QString::fromUtf8(
-                                          "color: %1; font-size: %2px; font-weight: 400; "
-                                          "background: transparent; padding: 0;")
-                                          .arg(m_clrLyricDim)
-                                          .arg(tranPx));
-        }
+    const QString chrome = QStringLiteral("background: transparent; padding: 0; margin: 0; border: none;");
+
+    textLabel->setStyleSheet(QString::fromUtf8("color: %1; font-size: %2px; font-weight: %3; %4")
+                               .arg(isCurrent ? m_clrLyricHi : m_clrLyricDim)
+                               .arg(mainPx)
+                               .arg(isCurrent ? 700 : 400)
+                               .arg(chrome));
+    QFont mainFont = textLabel->font();
+    mainFont.setPixelSize(mainPx);
+    mainFont.setWeight(isCurrent ? QFont::Bold : QFont::Normal);
+    textLabel->setFont(mainFont);
+
+    if (transLabel) {
+        transLabel->setStyleSheet(QString::fromUtf8("color: %1; font-size: %2px; font-weight: 400; %3")
+                                      .arg(isCurrent ? m_clrLyricHiTrans : m_clrLyricDim)
+                                      .arg(tranPx)
+                                      .arg(chrome));
+        QFont tranFont = transLabel->font();
+        tranFont.setPixelSize(tranPx);
+        tranFont.setWeight(QFont::Normal);
+        transLabel->setFont(tranFont);
     }
 }
 
@@ -2180,14 +2170,14 @@ void PlayerPage::rebuildLyricLabels()
 
         auto *lineLayout = new QVBoxLayout(inner);
         lineLayout->setContentsMargins(16, 10, 16, 10);
-        lineLayout->setSpacing(8);
+        lineLayout->setSpacing(0);
         outerLay->addWidget(inner);
 
         auto *textLabel = new QLabel(m_lyrics[i].text, inner);
         textLabel->setObjectName(QStringLiteral("lyricText"));
         textLabel->setProperty("lyricIndex", i);
         configureLyricLabel(textLabel);
-        lineLayout->addWidget(textLabel);
+        lineLayout->addWidget(textLabel, 0, Qt::AlignTop);
 
         QLabel *transLabel = nullptr;
         if (!m_lyrics[i].translation.isEmpty()) {
@@ -2195,7 +2185,7 @@ void PlayerPage::rebuildLyricLabels()
             transLabel->setObjectName(QStringLiteral("lyricTranslation"));
             transLabel->setProperty("lyricIndex", i);
             configureLyricLabel(transLabel);
-            lineLayout->addWidget(transLabel);
+            lineLayout->addWidget(transLabel, 0, Qt::AlignTop);
         }
         applyLyricLineStyle(textLabel, transLabel, false);
 
