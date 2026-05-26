@@ -196,6 +196,14 @@ void SongCardWidget::setPaused(bool paused)
     update();
 }
 
+void SongCardWidget::setRemoveMode(bool remove)
+{
+    if (m_removeMode == remove)
+        return;
+    m_removeMode = remove;
+    applyTheme();
+}
+
 void SongCardWidget::applyTheme()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
@@ -214,7 +222,12 @@ void SongCardWidget::applyTheme()
     m_timeLbl->setStyleSheet(QStringLiteral(
         "QLabel { color: %1; font-size: 13px; }").arg(subFg));
 
-    m_heartBtn->setIcon(Icons::renderNamed("Favorite", 20, QColor(255, 69, 69)));
+    if (m_removeMode) {
+        const QColor delIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+        m_heartBtn->setIcon(Icons::renderNamed("Delete", 20, delIc));
+    } else {
+        m_heartBtn->setIcon(Icons::renderNamed("Favorite", 20, QColor(255, 69, 69)));
+    }
     m_heartBtn->setIconSize(QSize(20, 20));
     m_heartBtn->setStyleSheet(QStringLiteral(
         "QPushButton { background: transparent; border: none; border-radius: 8px; }"

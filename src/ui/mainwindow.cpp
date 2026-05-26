@@ -544,6 +544,9 @@ void MainWindow::setupUi()
         if (m_favoritesPage) {
             m_favoritesPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
+        if (m_playlistDetailPage) {
+            m_playlistDetailPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
     });
 
     // 记录最近播放
@@ -770,6 +773,15 @@ void MainWindow::setupUi()
     connect(m_playlistDetailPage, &PlaylistDetailPage::playMusic, this, [this](const MusicInfo &info) {
         playMusicFromInfo(info);
     });
+    connect(m_playlistDetailPage, &PlaylistDetailPage::playAllRequested, this,
+            [this](const QList<MusicInfo> &songs) {
+                if (songs.isEmpty())
+                    return;
+                const MusicInfo &first = songs.first();
+                playMusicById(first.id, first.title, first.artist, first.coverUrl);
+            });
+    connect(m_playlistDetailPage, &PlaylistDetailPage::playPauseRequested, this,
+            &MainWindow::togglePlaybackForSystemUi);
 
     // 搜索页面返回
     connect(m_searchPage, &SearchPage::backRequested, this, [this]() {

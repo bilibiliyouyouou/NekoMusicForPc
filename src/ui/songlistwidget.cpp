@@ -107,6 +107,17 @@ void SongListWidget::setupUi()
     applyTheme();
 }
 
+void SongListWidget::setRemoveMode(bool remove)
+{
+    if (m_removeMode == remove)
+        return;
+    m_removeMode = remove;
+    for (SongCardWidget *card : m_rowCards)
+        card->setRemoveMode(remove);
+    for (SongCardWidget *card : m_cardPool)
+        card->setRemoveMode(remove);
+}
+
 bool SongListWidget::hasCurrentPlaying() const
 {
     if (m_currentId < 0)
@@ -319,6 +330,7 @@ void SongListWidget::updateVisibleRows()
         if (!card) {
             card = acquireCard();
             card->bind(m_songs[row], row);
+            card->setRemoveMode(m_removeMode);
             card->onActivate = onSongActivate;
             card->onPlayNext = onSongPlayNext;
             card->onUnfavorite = onUnfavorite;

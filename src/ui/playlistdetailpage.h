@@ -2,20 +2,20 @@
 
 /**
  * @file playlistdetailpage.h
- * @brief 播放列表详情页 — 显示歌单内的歌曲列表
- *
- * 从 API 加载播放列表的音乐，以列表形式展示。
- * 支持点击播放、右键移除歌曲等操作。
+ * @brief 歌单详情 — 1:1 SPlayer playlist.vue (ListDetail + SongList + SongCard)
  */
 
 #include <QWidget>
 #include <QList>
-#include "core/musicinfo.h"
-#include "glasswidget.h"
 
-class QScrollArea;
-class QVBoxLayout;
+#include "core/musicinfo.h"
+
 class QLabel;
+class QPushButton;
+class QLineEdit;
+class RoundCoverLabel;
+class QVariantAnimation;
+class SongListWidget;
 class ApiClient;
 
 class PlaylistDetailPage : public QWidget
@@ -25,55 +25,68 @@ class PlaylistDetailPage : public QWidget
 public:
     explicit PlaylistDetailPage(ApiClient *apiClient, QWidget *parent = nullptr);
 
+    void loadPlaylist(int playlistId);
+    void retranslate();
+    void setPlaybackPaused(bool paused);
+
 signals:
     void playMusic(const MusicInfo &info);
+    void playAllRequested(const QList<MusicInfo> &songs);
+    void playPauseRequested();
     void backRequested();
     void refreshSidebarPlaylists();
 
-public slots:
-    void loadPlaylist(int playlistId);
-    void retranslate();
-
 protected:
     void paintEvent(QPaintEvent *event) override;
-    bool eventFilter(QObject *watched, QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     void setupUi();
-    void applyPlaylistDetailStyle();
-    void buildList();
-    void updateHeader();
-    void setPlaceholderCover();
+    void applyPageStyle();
+    void applyFilter();
+    void updateHeaderMeta();
+    void updateCoverImage();
+    void setHeaderCompact(bool compact);
+    void onListScrolled(int scrollTop);
+    void updatePlayingHighlight();
+    int currentPlayingMusicId() const;
+    void showPageStatus(const QString &text, const char *iconName = nullptr);
+    void hidePageStatus();
+    void reloadPlaylist();
+    void editPlaylistDescription();
 
     ApiClient *m_apiClient = nullptr;
     int m_playlistId = 0;
     int m_firstMusicId = 0;
     QString m_playlistName;
     QString m_playlistDesc;
-    QScrollArea *m_scroll = nullptr;
-    QWidget *m_contentWidget = nullptr;
-    QVBoxLayout *m_listLayout = nullptr;
-    QWidget *m_listContainer = nullptr;
-    
-    // Header elements
-    GlassWidget *m_headerGlass = nullptr;
-    GlassWidget *m_listGlass = nullptr;
-    QLabel *m_coverLbl = nullptr;
-    QLabel *m_typeLbl = nullptr;
-    QLabel *m_nameLbl = nullptr;
-    QLabel *m_descLbl = nullptr;
-    QLabel *m_creatorAvatarLbl = nullptr;
-    QLabel *m_creatorNameLbl = nullptr;
-    QLabel *m_countLbl = nullptr;
-    
-    // List header
-    QWidget *m_listHeaderWidget = nullptr;
-    QLabel *m_listTitleLbl = nullptr;
-    QLabel *m_listCountLbl = nullptr;
-    
-    int m_creatorId = 0;
     QString m_creatorUsername;
-    
-    QList<MusicInfo> m_musicList;
-    QList<QWidget *> m_musicItems;
+
+    QWidget *m_detailHeader = nullptr;
+    QWidget *m_coverWrap = nullptr;
+    RoundCoverLabel *m_coverImg = nullptr;
+    RoundCoverLabel *m_coverShadow = nullptr;
+    QWidget *m_coverMask = nullptr;
+    QWidget *m_playCountRow = nullptr;
+    QLabel *m_playCountLbl = nullptr;
+    QLabel *m_titleLbl = nullptr;
+    QWidget *m_metaRow = nullptr;
+    QLabel *m_creatorLbl = nullptr;
+    QPushButton *m_playBtn = nullptr;
+    QPushButton *m_moreBtn = nullptr;
+    QLineEdit *m_searchEdit = nullptr;
+    QWidget *m_searchWrap = nullptr;
+
+    SongListWidget *m_songList = nullptr;
+    QWidget *m_emptyWrap = nullptr;
+    QLabel *m_statusLabel = nullptr;
+    QLabel *m_emptyIcon = nullptr;
+
+    QVariantAnimation *m_headerAnim = nullptr;
+    bool m_headerCompact = false;
+
+    QList<MusicInfo> m_allSongs;
+    QList<MusicInfo> m_displaySongs;
+    QString m_coverMusicId;
 };

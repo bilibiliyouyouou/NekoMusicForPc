@@ -19,6 +19,8 @@ public:
     void bind(const MusicInfo &info, int index);
     void setPlaying(bool playing);
     void setPaused(bool paused);
+    /** false = 收藏心形；true = 从歌单移除（Delete） */
+    void setRemoveMode(bool remove);
     void applyTheme();
 
     const MusicInfo &info() const { return m_info; }
@@ -48,6 +50,7 @@ private:
     bool m_playing = false;
     bool m_paused = false;
     bool m_hover = false;
+    bool m_removeMode = false;
 
     QWidget *m_content = nullptr;
     QWidget *m_numCol = nullptr;

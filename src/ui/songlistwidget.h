@@ -28,6 +28,7 @@ public:
     void scrollToTop();
     void scrollToPlaying();
     bool hasCurrentPlaying() const;
+    void setRemoveMode(bool remove);
 
     /** 行高 90px + 行间距 12px（对齐 SPlayer SongList） */
     static constexpr int kRowHeight = 90;
@@ -60,6 +61,7 @@ private:
     QList<MusicInfo> m_songs;
     int m_currentId = -1;
     bool m_paused = false;
+    bool m_removeMode = false;
 
     QWidget *m_header = nullptr;
     QLabel *m_hdrNum = nullptr;
