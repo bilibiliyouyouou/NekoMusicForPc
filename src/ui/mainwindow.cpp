@@ -927,6 +927,7 @@ void MainWindow::showMusicListPage(bool isHot)
 
 void MainWindow::showPlaylistDetailPage(int localId)
 {
+    syncFavoritesToPlaylistPage();
     m_playlistDetailPage->loadPlaylist(localId);
     switchPage(m_playlistDetailPage);
 }
