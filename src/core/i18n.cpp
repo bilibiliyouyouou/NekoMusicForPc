@@ -71,7 +71,7 @@ static QMap<QString, QString> zhCN()
     m["playAll"] = QStringLiteral("播放全部");
     m["playlist"] = QStringLiteral("播放列表");
     m["playQueue"] = QStringLiteral("播放队列");
-    m["playlistSongCount"] = QStringLiteral("%1 首歌曲");
+    m["playlistSongCount"] = QStringLiteral("%1 首音乐");
     m["scrollToCurrentPlay"] = QStringLiteral("当前播放");
     m["emptyPlaylist"] = QStringLiteral("播放列表为空");
     m["emptyPlaylistHint"] = QStringLiteral("播放列表暂无歌曲，快去添加吧");
@@ -228,8 +228,11 @@ static QMap<QString, QString> zhCN()
     m["uncollectPlaylist"] = QStringLiteral("取消收藏");
     m["removeFromPlaylist"] = QStringLiteral("从歌单中移除");
     m["addToPlaylist"] = QStringLiteral("添加到歌单");
+    m["addToLocalPlaylist"] = QStringLiteral("添加到本地歌单");
     m["addToQueue"] = QStringLiteral("添加到播放队列");
     m["addToPlaylistTitle"] = QStringLiteral("添加到歌单");
+    m["createNewPlaylistRow"] = QStringLiteral("创建新歌单");
+    m["addingToPlaylist"] = QStringLiteral("正在添加歌曲至歌单");
     m["selectPlaylist"] = QStringLiteral("选择歌单");
     m["orCreateNewPlaylist"] = QStringLiteral("或创建新歌单");
     m["addMusicToPlaylist"] = QStringLiteral("添加音乐到歌单");
@@ -933,8 +936,11 @@ static QMap<QString, QString> enUS()
     m["uncollectPlaylist"] = "Uncollect";
     m["removeFromPlaylist"] = "Remove from Playlist";
     m["addToPlaylist"] = "Add to Playlist";
+    m["addToLocalPlaylist"] = "Add to Local Playlist";
     m["addToQueue"] = "Add to Queue";
     m["addToPlaylistTitle"] = "Add to Playlist";
+    m["createNewPlaylistRow"] = "Create New Playlist";
+    m["addingToPlaylist"] = "Adding to playlist…";
     m["selectPlaylist"] = "Select Playlist";
     m["orCreateNewPlaylist"] = "Or create new playlist";
     m["addMusicToPlaylist"] = "Add music to playlist";

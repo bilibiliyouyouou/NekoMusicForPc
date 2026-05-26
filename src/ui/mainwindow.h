@@ -168,6 +168,7 @@ private:
     QMetaObject::Connection m_bgCacheErrorConn;
     QMetaObject::Connection m_streamPlayConn;
     QMetaObject::Connection m_streamErrorConn;
+    AddToPlaylistDialog *m_addToPlaylistOverlay = nullptr;
     QTimer *m_streamAttemptTimer = nullptr;
     bool m_streamRetryActive = false;
     QUrl m_streamRemoteUrl;

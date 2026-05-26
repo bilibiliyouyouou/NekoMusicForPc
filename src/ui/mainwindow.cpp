@@ -1058,10 +1058,26 @@ void MainWindow::createPlaylist()
 
 void MainWindow::showAddToPlaylistDialog(const MusicInfo &music)
 {
-    AddToPlaylistDialog dialog(music, this);
-    if (dialog.exec() == QDialog::Accepted) {
-        m_sidebar->refreshPlaylists();
+    QWidget *host = centralWidget();
+    if (!host)
+        return;
+
+    if (m_addToPlaylistOverlay) {
+        m_addToPlaylistOverlay->close();
+        m_addToPlaylistOverlay = nullptr;
     }
+
+    auto *overlay = new AddToPlaylistDialog(music, m_apiClient, host);
+    m_addToPlaylistOverlay = overlay;
+    connect(overlay, &AddToPlaylistDialog::playlistsChanged, this, [this]() {
+        if (m_sidebar)
+            m_sidebar->refreshPlaylists();
+    });
+    connect(overlay, &AddToPlaylistDialog::closed, this, [this]() {
+        m_addToPlaylistOverlay = nullptr;
+    });
+    overlay->openOn(host);
+    overlay->raise();
 }
 
 void MainWindow::addToPlaylistFromPlayer(int musicId)
