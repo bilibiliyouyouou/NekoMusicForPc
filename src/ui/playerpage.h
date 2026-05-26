@@ -102,6 +102,8 @@ private:
     /** 将一段 LRC 或纯文本歌词写入 m_lyrics（无时间轴时整段作为 t=0 一行） */
     void applyLyricsRawText(const QString &raw);
     void rebuildLyricLabels();
+    void updateLyricCountdown(qint64 positionMs);
+    QColor lyricCountdownDotColor() const;
     QString serializeLyricsForDesktop() const;
     void emitDesktopLyricsPayload();
     void emitBarLyricUpdate(int lineIndex);
@@ -198,6 +200,7 @@ private:
     QMetaObject::Connection m_coverConn;
     int m_currentLyricLine = -1;
     QVector<QWidget *> m_lyricLineWidgets;
+    QWidget *m_lyricIntroCountdown = nullptr;
     QPropertyAnimation *m_scrollAnim = nullptr;
     bool m_lyricUserScrolling = false;
     QTimer *m_lyricScrollResumeTimer = nullptr;

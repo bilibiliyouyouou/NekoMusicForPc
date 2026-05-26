@@ -85,6 +85,91 @@ inline int lyricMainFontPx(int pageH)
 constexpr int kLyricScrollAnimMs = 500;
 constexpr int kLyricUserScrollPauseMs = 3000;
 constexpr qreal kLyricScrollCenterOffset = 0.5;
+/** SPlayer INTRO_THRESHOLD：首句歌词 ≥3s 时在顶部显示三圆点倒计时 */
+constexpr qint64 kLyricIntroCountdownMs = 3000;
+
+/** SPlayer DefaultLyric .countdown-line */
+class LyricCountdownWidget final : public QWidget {
+public:
+    explicit LyricCountdownWidget(QWidget *parent = nullptr)
+        : QWidget(parent)
+    {
+        setAttribute(Qt::WA_TranslucentBackground);
+        setAutoFillBackground(false);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    }
+
+    void configure(qint64 startMs, qint64 durationMs, const QColor &dotColor)
+    {
+        m_startMs = startMs;
+        m_durationMs = qMax<qint64>(1, durationMs);
+        m_dotColor = dotColor.isValid() ? dotColor : QColor(230, 57, 80);
+        updatePosition(startMs);
+    }
+
+    void setDotColor(const QColor &c)
+    {
+        if (c.isValid())
+            m_dotColor = c;
+    }
+
+    bool shouldShow(qint64 positionMs) const
+    {
+        return positionMs + 500 < m_startMs + m_durationMs;
+    }
+
+    void updatePosition(qint64 positionMs)
+    {
+        const qint64 local = positionMs - m_startMs;
+        for (int i = 0; i < 3; ++i)
+            m_opacities[i] = pointOpacity(local, i);
+        update();
+    }
+
+    QSize sizeHint() const override { return {280, 48}; }
+    QSize minimumSizeHint() const override { return sizeHint(); }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing, true);
+
+        constexpr int dotPx = 28;
+        constexpr int dotGap = 12;
+        constexpr int leftPad = 16;
+        const int y = (height() - dotPx) / 2;
+
+        for (int visual = 0; visual < 3; ++visual) {
+            const int index = 2 - visual;
+            QColor c = m_dotColor;
+            c.setAlphaF(qBound(0.0, m_opacities[index], 1.0));
+            p.setBrush(c);
+            p.setPen(Qt::NoPen);
+            const int x = leftPad + visual * (dotPx + dotGap);
+            p.drawEllipse(QRectF(x, y, dotPx, dotPx));
+        }
+    }
+
+private:
+    qreal pointOpacity(qint64 localMs, int index) const
+    {
+        if (localMs <= 0 || index < 0 || index > 2)
+            return 0.0;
+        const qreal perPoint = qreal(m_durationMs) / 3.0;
+        const qreal current = qreal(localMs);
+        if (current < perPoint * (index + 1)) {
+            const qreal percentage = (current - perPoint * qreal(index)) / perPoint;
+            return 0.1 + 0.7 * (1.0 - percentage);
+        }
+        return 0.1;
+    }
+
+    qint64 m_startMs = 0;
+    qint64 m_durationMs = 1;
+    QColor m_dotColor = QColor(230, 57, 80);
+    qreal m_opacities[3] = {0.0, 0.0, 0.0};
+};
 
 /** SPlayer smoothScrollTo：easeInOutQuad */
 static QEasingCurve splayerLyricScrollCurve()
@@ -670,7 +755,11 @@ void PlayerPage::refreshTintedPalette()
 
     if (m_engine && !m_lyrics.isEmpty()) {
         m_currentLyricLine = -1;
-        updateLyricHighlight(m_engine->position());
+        const qint64 pos = m_engine->position();
+        updateLyricCountdown(pos);
+        updateLyricHighlight(pos);
+    } else {
+        updateLyricCountdown(m_engine ? m_engine->position() : 0);
     }
 }
 
@@ -2112,8 +2201,28 @@ void PlayerPage::parseLrc(const QString &lrc)
               [](const LyricLine &a, const LyricLine &b) { return a.time < b.time; });
 }
 
+QColor PlayerPage::lyricCountdownDotColor() const
+{
+    if (m_coverMainColor.isValid())
+        return m_coverMainColor;
+    return QColor(230, 57, 80);
+}
+
+void PlayerPage::updateLyricCountdown(qint64 positionMs)
+{
+    auto *cd = static_cast<LyricCountdownWidget *>(m_lyricIntroCountdown);
+    if (!cd)
+        return;
+    cd->setDotColor(lyricCountdownDotColor());
+    const bool show = cd->shouldShow(positionMs);
+    cd->setVisible(show);
+    if (show)
+        cd->updatePosition(positionMs);
+}
+
 void PlayerPage::rebuildLyricLabels()
 {
+    m_lyricIntroCountdown = nullptr;
     m_lyricLineWidgets.clear();
     QLayoutItem *item;
     while ((item = m_lyricsLayout->takeAt(0)) != nullptr) {
@@ -2148,6 +2257,14 @@ void PlayerPage::rebuildLyricLabels()
     topPad->setFixedHeight(kLyricTopPad);
     topPad->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_lyricsLayout->addWidget(topPad);
+
+    if (!m_lyrics.isEmpty() && m_lyrics.first().time >= kLyricIntroCountdownMs) {
+        auto *countdown = new LyricCountdownWidget(m_lyricsContainer);
+        countdown->setObjectName(QStringLiteral("lyricIntroCountdown"));
+        countdown->configure(0, m_lyrics.first().time, lyricCountdownDotColor());
+        m_lyricsLayout->addWidget(countdown);
+        m_lyricIntroCountdown = countdown;
+    }
 
     for (int i = 0; i < m_lyrics.size(); ++i) {
         auto *lineWidget = new QWidget(m_lyricsContainer);
@@ -2204,8 +2321,11 @@ void PlayerPage::rebuildLyricLabels()
     QTimer::singleShot(0, this, [this]() {
         updateLyricWrapWidth();
         m_currentLyricLine = -1;
-        if (m_engine && !m_lyrics.isEmpty())
-            updateLyricHighlight(m_engine->position());
+        if (m_engine && !m_lyrics.isEmpty()) {
+            const qint64 pos = m_engine->position();
+            updateLyricCountdown(pos);
+            updateLyricHighlight(pos);
+        }
     });
 }
 
@@ -2249,6 +2369,8 @@ void PlayerPage::emitDesktopLyricsPayload()
 
 void PlayerPage::updateLyricHighlight(qint64 positionMs)
 {
+    updateLyricCountdown(positionMs);
+
     if (m_lyrics.isEmpty()) {
         if (m_currentLyricLine != -1) {
             m_currentLyricLine = -1;
