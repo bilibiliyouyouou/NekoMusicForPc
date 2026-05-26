@@ -482,6 +482,7 @@ void MainWindow::setupUi()
             switchPage(m_favoritesPage);
         }
         else if (key == "recent") {
+            syncListPageFavoriteIds();
             m_recentPage->refresh();
             switchPage(m_recentPage);
         }
@@ -516,6 +517,8 @@ void MainWindow::setupUi()
         if (!results.isEmpty())
             playMusicFromInfo(results.first());
     });
+    connect(m_recentPage, &RecentPage::favoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_recentPage, &RecentPage::playPauseRequested, this, &MainWindow::togglePlaybackForSystemUi);
     connect(m_sidebar, &Sidebar::playlistClicked, this, &MainWindow::showPlaylistDetailPage);
     connect(m_sidebar, &Sidebar::playlistCreateRequested, this, &MainWindow::createPlaylist);
     connect(m_titleBar, &TitleBar::settingsClicked, this, [this]() {
@@ -548,6 +551,9 @@ void MainWindow::setupUi()
         if (m_playlistDetailPage) {
             m_playlistDetailPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
+        if (m_recentPage) {
+            m_recentPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
     });
 
     // 记录最近播放，并刷新列表页正在播放高亮
@@ -557,6 +563,8 @@ void MainWindow::setupUi()
             m_favoritesPage->updatePlayingHighlight();
         if (m_playlistDetailPage)
             m_playlistDetailPage->updatePlayingHighlight();
+        if (m_recentPage)
+            m_recentPage->updatePlayingHighlight();
     });
 
     // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
@@ -931,7 +939,7 @@ void MainWindow::showMusicListPage(bool isHot)
 
 void MainWindow::showPlaylistDetailPage(int localId)
 {
-    syncFavoritesToPlaylistPage();
+    syncListPageFavoriteIds();
     m_playlistDetailPage->loadPlaylist(localId);
     switchPage(m_playlistDetailPage);
 }
@@ -1709,7 +1717,7 @@ void MainWindow::toggleFavorite(int musicId)
                     m_playerPage->setFavoriteStatus(false);
                 if (m_favoritesPage)
                     m_favoritesPage->refresh();
-                syncFavoritesToPlaylistPage();
+                syncListPageFavoriteIds();
                 Toast::show(this, I18n::instance().tr("cancelFavoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已从缓存移除并更新UI";
             } else {
@@ -1749,7 +1757,7 @@ void MainWindow::toggleFavorite(int musicId)
                 m_playerBar->setFavoriteStatus(true);
                 if (m_playerPage)
                     m_playerPage->setFavoriteStatus(true);
-                syncFavoritesToPlaylistPage();
+                syncListPageFavoriteIds();
                 Toast::show(this, I18n::instance().tr("favoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已加入缓存并更新UI";
             } else {
@@ -1831,17 +1839,18 @@ void MainWindow::loadFavoritesCache()
                     self->m_playerPage->setFavoriteStatus(isFavorited);
                 qDebug() << "[收藏] 缓存加载后更新收藏状态, id =" << currentId << ", favorited =" << isFavorited;
             }
-            self->syncFavoritesToPlaylistPage();
+            self->syncListPageFavoriteIds();
         }
     });
 }
 
-void MainWindow::syncFavoritesToPlaylistPage()
+void MainWindow::syncListPageFavoriteIds()
 {
-    if (!m_playlistDetailPage)
-        return;
     const QSet<int> ids(m_favoritesCache.begin(), m_favoritesCache.end());
-    m_playlistDetailPage->setFavoritedMusicIds(ids);
+    if (m_playlistDetailPage)
+        m_playlistDetailPage->setFavoritedMusicIds(ids);
+    if (m_recentPage)
+        m_recentPage->setFavoritedMusicIds(ids);
 }
 
 void MainWindow::maybePromptDefaultMusicPlayer()

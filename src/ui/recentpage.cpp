@@ -1,251 +1,192 @@
 /**
  * @file recentpage.cpp
- * @brief "最近播放"页面 — 显示最近播放的 100 条音乐记录
+ * @brief 最近播放 — 1:1 SPlayer History.vue + SongList + SongCard
  */
 
 #include "recentpage.h"
+#include "songlistwidget.h"
 #include "core/i18n.h"
 #include "core/playlistdb.h"
-#include "core/covercache.h"
-#include "core/musicinfo.h"
+#include "core/playlistmanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
-#include "ui/scrollareafix.h"
+#include "ui/toast.h"
 
-#include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QScrollArea>
 #include <QLabel>
 #include <QPushButton>
-#include <QPainter>
-#include <QPainterPath>
-#include <QMenu>
-#include <QMouseEvent>
-#include <QContextMenuEvent>
-#include <QGraphicsOpacityEffect>
-#include <QPropertyAnimation>
+#include <QMessageBox>
+#include <QShowEvent>
 
-// ─── 单曲封面标签（圆角 6px + 异步加载）─────────────────
-class RecentCoverLabel : public QLabel
+RecentPage::RecentPage(QWidget *parent)
+    : QWidget(parent)
 {
-public:
-    explicit RecentCoverLabel(int size, QWidget *parent = nullptr) : QLabel(parent), m_size(size)
-    {
-        setFixedSize(size, size);
-        setScaledContents(false);
-        setPlaceholder();
-    }
-
-    void setPlaceholder()
-    {
-        m_pixmap = QPixmap(m_size, m_size);
-        m_pixmap.fill(Qt::transparent);
-        QPainter p(&m_pixmap);
-        QPainterPath pp;
-        pp.addRoundedRect(0, 0, m_size, m_size, 6, 6);
-        p.fillPath(pp, QColor(128, 128, 128, 40));
-        p.setClipPath(pp);
-        auto iconPx = Icons::renderNamed("Music", 28, QColor(255, 255, 255, 100));
-        p.drawPixmap((m_size - 28) / 2, (m_size - 28) / 2, iconPx);
-        update();
-    }
-
-    void loadCover(const QString &url)
-    {
-        if (url.isEmpty()) { setPlaceholder(); return; }
-        QString musicId = url.mid(url.lastIndexOf(QLatin1Char('/')) + 1);
-
-        QPixmap cached = CoverCache::instance()->get(musicId);
-        if (!cached.isNull()) {
-            applyPixmap(cached);
-            return;
-        }
-
-        connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
-                [this, musicId](const QString &id, const QPixmap &pix) {
-            if (id == musicId) applyPixmap(pix);
-        });
-        CoverCache::instance()->fetchCover(musicId, url);
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        QPainterPath pp;
-        pp.addRoundedRect(0, 0, m_size, m_size, 6, 6);
-        p.setClipPath(pp);
-        p.drawPixmap(0, 0, m_pixmap);
-    }
-
-private:
-    void applyPixmap(const QPixmap &pix)
-    {
-        int s = qMin(pix.width(), pix.height());
-        m_pixmap = pix.copy((pix.width()-s)/2, (pix.height()-s)/2, s, s)
-            .scaled(m_size, m_size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-        update();
-    }
-
-    QPixmap m_pixmap;
-    int m_size;
-};
-
-// ─── 最近播放音乐卡片 ────────────────────────
-class RecentMusicCard : public QWidget
-{
-public:
-    explicit RecentMusicCard(const MusicInfo &info, QWidget *parent = nullptr)
-        : QWidget(parent), m_musicId(info.id), m_info(info)
-    {
-        setFixedHeight(70);
-        setCursor(Qt::PointingHandCursor);
-        setAttribute(Qt::WA_StyledBackground, false);
-
-        auto *lay = new QHBoxLayout(this);
-        lay->setContentsMargins(12, 8, 12, 8);
-        lay->setSpacing(14);
-
-        // 封面
-        auto *coverLbl = new RecentCoverLabel(54, this);
-        coverLbl->loadCover(info.coverUrl);
-        lay->addWidget(coverLbl);
-
-        // 信息
-        auto *infoV = new QWidget(this);
-        auto *infoLay = new QVBoxLayout(infoV);
-        infoLay->setContentsMargins(0, 0, 0, 0);
-        infoLay->setSpacing(4);
-
-        auto *titleRow = new QWidget(infoV);
-        titleRow->setAttribute(Qt::WA_TranslucentBackground);
-        auto *titleRowLay = new QHBoxLayout(titleRow);
-        titleRowLay->setContentsMargins(0, 0, 0, 0);
-        titleRowLay->setSpacing(8);
-
-        auto *titleLbl = new QLabel(info.title, titleRow);
-        titleLbl->setStyleSheet("QLabel { font-size: 14px; font-weight: 600; color: " + QString(Theme::kTextMain) + "; }");
-        titleLbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        titleRowLay->addWidget(titleLbl, 1);
-
-        if (info.isLocalFile()) {
-            auto *localBadge = new QLabel(I18n::instance().tr(QStringLiteral("localMusicBadge")), titleRow);
-            localBadge->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-            const bool dark = Theme::ThemeManager::instance().isDarkMode();
-            const QString fg = dark ? QString::fromUtf8(Theme::kLavenderLt) : QStringLiteral("#6F42C1");
-            const QString bg = dark ? QStringLiteral("rgba(230,57,80,0.18)") : QStringLiteral("rgba(111,66,193,0.12)");
-            const QString bd = dark ? QStringLiteral("rgba(230,57,80,0.45)") : QStringLiteral("rgba(111,66,193,0.35)");
-            localBadge->setStyleSheet(QStringLiteral(
-                "QLabel { font-size: 10px; font-weight: 700; color: %1; padding: 2px 8px; border-radius: 6px; "
-                "background: %2; border: 1px solid %3; }")
-                                          .arg(fg, bg, bd));
-            titleRowLay->addWidget(localBadge, 0, Qt::AlignRight | Qt::AlignVCenter);
-        }
-        infoLay->addWidget(titleRow);
-
-        auto *artistLbl = new QLabel(info.artist, infoV);
-        artistLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextSub) + "; }");
-        infoLay->addWidget(artistLbl);
-
-        infoLay->addStretch();
-        lay->addWidget(infoV, 1);
-
-        // 时长：始终占位一列，避免部分有条目有、部分无导致不齐（duration 为 0 时多为写入最近播放时尚未带上时长）
-        QString timeText;
-        if (info.duration > 0) {
-            const int totalMins = info.duration / 60;
-            const int secs = info.duration % 60;
-            timeText = QStringLiteral("%1:%2")
-                           .arg(totalMins, 2, 10, QChar('0'))
-                           .arg(secs, 2, 10, QChar('0'));
-        } else {
-            timeText = QStringLiteral("--:--");
-        }
-        auto *timeLbl = new QLabel(timeText, this);
-        timeLbl->setMinimumWidth(52);
-        timeLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        timeLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextMuted) + "; }");
-        lay->addWidget(timeLbl);
-    }
-
-    int musicId() const { return m_musicId; }
-    const MusicInfo& info() const { return m_info; }
-
-    std::function<void(int)> onClicked;
-    std::function<void(int)> onRemove;
-
-protected:
-    void paintEvent(QPaintEvent *event) override
-    {
-        QWidget::paintEvent(event);
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        QPainterPath path;
-        path.addRoundedRect(rect().adjusted(2, 2, -2, -2), 8, 8);
-        p.fillPath(path, QColor(45, 38, 65, 100));
-    }
-
-    void mousePressEvent(QMouseEvent *e) override
-    {
-        if (e->button() == Qt::LeftButton && onClicked) {
-            onClicked(m_musicId);
-        }
-        QWidget::mousePressEvent(e);
-    }
-
-    void contextMenuEvent(QContextMenuEvent *event) override
-    {
-        QMenu menu(this);
-        menu.setStyleSheet(
-            "QMenu { background-color: rgba(40, 40, 50, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 4px; }"
-            "QMenu::item { color: #e0e0e0; padding: 8px 24px; border-radius: 4px; }"
-            "QMenu::item:selected { background-color: rgba(255, 255, 255, 0.1); }"
-        );
-
-        QAction *removeAction = menu.addAction(I18n::instance().tr("remove"));
-        QAction *selected = menu.exec(event->globalPos());
-        if (selected == removeAction && onRemove) {
-            onRemove(m_musicId);
-        }
-    }
-
-private:
-    int m_musicId;
-    MusicInfo m_info;
-};
-
-// ─── RecentPage ────────────────────────────────────────
-
-RecentPage::RecentPage(QWidget *parent) : QWidget(parent)
-{
-    setAttribute(Qt::WA_StyledBackground, false);
-    setAutoFillBackground(false);
+    setObjectName(QStringLiteral("recentPage"));
     setupUi();
 
-    // 入场淡入
-    auto *eff = new QGraphicsOpacityEffect(this);
-    eff->setOpacity(0.0);
-    setGraphicsEffect(eff);
-    auto *anim = new QPropertyAnimation(eff, "opacity");
-    anim->setDuration(600);
-    anim->setStartValue(0.0);
-    anim->setEndValue(1.0);
-    anim->setEasingCurve(QEasingCurve::OutCubic);
-    connect(anim, &QPropertyAnimation::finished, this, [this]() {
-        setGraphicsEffect(nullptr);
+    connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
+            [this](Theme::ThemeMode) { applyPageStyle(); });
+
+    connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this,
+            &RecentPage::updatePlayingHighlight);
+    connect(&PlaylistManager::instance(), &PlaylistManager::currentIndexChanged, this,
+            &RecentPage::updatePlayingHighlight);
+}
+
+void RecentPage::setupUi()
+{
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(24, 12, 24, 24);
+    root->setSpacing(0);
+
+    m_header = new QWidget(this);
+    auto *headerLay = new QVBoxLayout(m_header);
+    headerLay->setContentsMargins(0, 0, 0, 0);
+    headerLay->setSpacing(12);
+
+    auto *titleRow = new QWidget(m_header);
+    auto *titleLay = new QHBoxLayout(titleRow);
+    titleLay->setContentsMargins(0, 0, 0, 0);
+    titleLay->setSpacing(8);
+    titleLay->setAlignment(Qt::AlignBottom);
+
+    m_titleLbl = new QLabel(I18n::instance().tr(QStringLiteral("recentPlay")), titleRow);
+    titleLay->addWidget(m_titleLbl);
+
+    m_countLbl = new QLabel(titleRow);
+    titleLay->addWidget(m_countLbl);
+    titleLay->addStretch();
+    headerLay->addWidget(titleRow);
+
+    auto *menuRow = new QWidget(m_header);
+    menuRow->setFixedHeight(40);
+    auto *menuLay = new QHBoxLayout(menuRow);
+    menuLay->setContentsMargins(0, 0, 0, 0);
+    menuLay->setSpacing(12);
+
+    m_playBtn = new QPushButton(I18n::instance().tr(QStringLiteral("play")), menuRow);
+    m_playBtn->setCursor(Qt::PointingHandCursor);
+    m_playBtn->setFixedHeight(40);
+    connect(m_playBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_allRecent.isEmpty())
+            emit playAllRequested(m_allRecent);
     });
-    anim->start(QAbstractAnimation::DeleteWhenStopped);
+    menuLay->addWidget(m_playBtn);
+
+    m_clearBtn = new QPushButton(I18n::instance().tr(QStringLiteral("clearRecentList")), menuRow);
+    m_clearBtn->setCursor(Qt::PointingHandCursor);
+    m_clearBtn->setFixedHeight(40);
+    connect(m_clearBtn, &QPushButton::clicked, this, &RecentPage::confirmClearRecent);
+    menuLay->addWidget(m_clearBtn);
+
+    menuLay->addStretch();
+    headerLay->addWidget(menuRow);
+    root->addWidget(m_header);
+
+    m_songList = new SongListWidget(this);
+    m_songList->onSongActivate = [this](const MusicInfo &info) { emit playRequested(info); };
+    m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playRequested(info); };
+    m_songList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
+    m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
+    m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
+    root->addWidget(m_songList, 1);
+
+    m_emptyWrap = new QWidget(this);
+    auto *emptyLay = new QVBoxLayout(m_emptyWrap);
+    emptyLay->setAlignment(Qt::AlignCenter);
+    emptyLay->setSpacing(12);
+    m_emptyIcon = new QLabel(m_emptyWrap);
+    m_emptyIcon->setAlignment(Qt::AlignCenter);
+    m_emptyIcon->hide();
+    emptyLay->addWidget(m_emptyIcon);
+    m_statusLabel = new QLabel(m_emptyWrap);
+    m_statusLabel->setAlignment(Qt::AlignCenter);
+    m_statusLabel->hide();
+    emptyLay->addWidget(m_statusLabel);
+    m_emptyWrap->hide();
+    root->addWidget(m_emptyWrap);
+
+    applyPageStyle();
+    loadRecentPlays();
+}
+
+void RecentPage::applyPageStyle()
+{
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    const QString titleFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    const QString metaFg = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.72)");
+    const QString statusFg = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.55)");
+
+    if (m_titleLbl) {
+        m_titleLbl->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 30px; font-weight: 700; color: %1; }").arg(titleFg));
+    }
+    if (m_countLbl) {
+        m_countLbl->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 15px; font-weight: 400; color: %1; padding-bottom: 2px; }")
+                                      .arg(metaFg));
+    }
+    if (m_playBtn) {
+        m_playBtn->setIcon(Icons::renderNamed("Play", 18, QColor(255, 255, 255)));
+        m_playBtn->setIconSize(QSize(18, 18));
+        m_playBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: #E63950;"
+            "  color: #ffffff;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 20px;"
+            "}"
+            "QPushButton:hover { background: #ff5070; }"
+            "QPushButton:disabled { background: rgba(230,57,80,0.35); color: rgba(255,255,255,0.6); }"));
+    }
+
+    const QString secondaryBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString secondaryFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    const QColor secondaryIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    if (m_clearBtn) {
+        m_clearBtn->setIcon(Icons::renderNamed("Delete", 18, secondaryIc));
+        m_clearBtn->setIconSize(QSize(18, 18));
+        m_clearBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: %1;"
+            "  color: %2;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 20px;"
+            "}"
+            "QPushButton:hover { background: rgba(230,57,80,0.15); }"
+            "QPushButton:disabled { color: rgba(128,128,128,0.8); }")
+                                     .arg(secondaryBg, secondaryFg));
+    }
+
+    if (m_statusLabel) {
+        m_statusLabel->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 14px; color: %1; padding: 60px 24px; }").arg(statusFg));
+    }
+
+    if (m_songList)
+        m_songList->applyTheme();
 }
 
 void RecentPage::retranslate()
 {
-    if (m_titleLabel)
-        m_titleLabel->setText(I18n::instance().tr("recentPlay"));
-    if (m_playAllBtn)
-        m_playAllBtn->setText(I18n::instance().tr("playAll"));
+    if (m_titleLbl)
+        m_titleLbl->setText(I18n::instance().tr(QStringLiteral("recentPlay")));
+    if (m_playBtn)
+        m_playBtn->setText(I18n::instance().tr(QStringLiteral("play")));
+    if (m_clearBtn)
+        m_clearBtn->setText(I18n::instance().tr(QStringLiteral("clearRecentList")));
+    if (m_songList)
+        m_songList->retranslate();
+    updateHeaderMeta();
+    applyPageStyle();
 }
 
 void RecentPage::refresh()
@@ -253,115 +194,123 @@ void RecentPage::refresh()
     loadRecentPlays();
 }
 
-void RecentPage::setupUi()
+void RecentPage::setPlaybackPaused(bool paused)
 {
-    m_scroll = new QScrollArea(this);
-    m_scroll->setWidgetResizable(true);
-    m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_scroll->setFrameShape(QFrame::NoFrame);
-    m_scroll->setObjectName("recentScroll");
+    if (m_songList)
+        m_songList->setPlaybackPaused(paused);
+}
 
-    m_container = new QWidget(m_scroll);
-    m_container->setObjectName("recentContainer");
-    m_mainLay = new QVBoxLayout(m_container);
-    m_mainLay->setContentsMargins(24, 24, 24, 24);
-    m_mainLay->setSpacing(16);
+void RecentPage::setFavoritedMusicIds(const QSet<int> &ids)
+{
+    m_favoritedIds = ids;
+    if (m_songList)
+        m_songList->refreshFavoriteDisplay();
+}
 
-    // 标题行：标题 + 播放全部
-    auto *titleRow = new QWidget(m_container);
-    auto *titleRowLay = new QHBoxLayout(titleRow);
-    titleRowLay->setContentsMargins(0, 0, 0, 0);
-    titleRowLay->setSpacing(12);
+void RecentPage::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    updatePlayingHighlight();
+}
 
-    m_titleLabel = new QLabel(I18n::instance().tr("recentPlay"), titleRow);
-    m_titleLabel->setObjectName("recentTitle");
-    titleRowLay->addWidget(m_titleLabel);
+void RecentPage::updateHeaderMeta()
+{
+    if (m_countLbl) {
+        m_countLbl->setText(I18n::instance().tr(QStringLiteral("favoritePageSongCount"))
+                                .arg(m_allRecent.size()));
+    }
+    const bool hasSongs = !m_allRecent.isEmpty();
+    if (m_playBtn)
+        m_playBtn->setEnabled(hasSongs);
+    if (m_clearBtn)
+        m_clearBtn->setEnabled(hasSongs);
+}
 
-    titleRowLay->addStretch();
+int RecentPage::currentPlayingMusicId() const
+{
+    const auto &mgr = PlaylistManager::instance();
+    const int idx = mgr.currentIndex();
+    if (idx < 0 || idx >= mgr.playlist().size())
+        return -1;
+    return mgr.playlist()[idx].id;
+}
 
-    m_playAllBtn = new QPushButton(I18n::instance().tr("playAll"), titleRow);
-    m_playAllBtn->setFixedHeight(36);
-    m_playAllBtn->setCursor(Qt::PointingHandCursor);
-    m_playAllBtn->setVisible(false);
-    m_playAllBtn->setStyleSheet(
-        "QPushButton { background: " + QString(Theme::kMint) + "; border: none; border-radius: 18px; "
-        "color: " + QString(Theme::kBgMid) + "; font-size: 13px; font-weight: 600; padding: 0 20px; }"
-        "QPushButton:hover { background: " + QString(Theme::kMintLt) + "; }"
-    );
-    connect(m_playAllBtn, &QPushButton::clicked, this, [this]() {
-        if (!m_loadedRecent.isEmpty())
-            emit playAllRequested(m_loadedRecent);
-    });
-    titleRowLay->addWidget(m_playAllBtn);
+void RecentPage::updatePlayingHighlight()
+{
+    if (m_songList)
+        m_songList->setCurrentPlayingId(currentPlayingMusicId());
+}
 
-    m_mainLay->addWidget(titleRow);
+void RecentPage::showPageStatus(const QString &text, const char *iconName)
+{
+    if (m_emptyIcon) {
+        if (iconName) {
+            const bool dark = Theme::ThemeManager::instance().isDarkMode();
+            const QColor ic = dark ? QColor(244, 246, 255, 90) : QColor(33, 37, 41, 90);
+            m_emptyIcon->setPixmap(Icons::renderNamed(iconName, 64, ic));
+            m_emptyIcon->show();
+        } else {
+            m_emptyIcon->hide();
+        }
+    }
+    if (m_statusLabel) {
+        m_statusLabel->setText(text);
+        m_statusLabel->show();
+    }
+    if (m_emptyWrap)
+        m_emptyWrap->show();
+    if (m_songList)
+        m_songList->hide();
+}
 
-    // 列表区域
-    m_listLay = new QVBoxLayout();
-    m_listLay->setContentsMargins(0, 0, 0, 0);
-    m_listLay->setSpacing(8);
-    m_listLay->setAlignment(Qt::AlignTop);
-    m_mainLay->addLayout(m_listLay);
+void RecentPage::hidePageStatus()
+{
+    if (m_emptyIcon)
+        m_emptyIcon->hide();
+    if (m_statusLabel)
+        m_statusLabel->hide();
+    if (m_emptyWrap)
+        m_emptyWrap->hide();
+}
 
-    m_mainLay->addStretch();
+void RecentPage::confirmClearRecent()
+{
+    if (m_allRecent.isEmpty())
+        return;
 
-    m_scroll->setWidget(m_container);
-    nekoPolishScrollAreaViewport(m_scroll);
+    const auto ret = QMessageBox::question(
+        this, I18n::instance().tr(QStringLiteral("clearRecentList")),
+        I18n::instance().tr(QStringLiteral("clearRecentConfirm")),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (ret != QMessageBox::Yes)
+        return;
 
-    auto *outer = new QVBoxLayout(this);
-    outer->setContentsMargins(0, 0, 0, 0);
-    outer->addWidget(m_scroll);
-
-    // 加载数据
+    PlaylistDatabase::instance().clearRecentPlays();
+    Toast::show(this, I18n::instance().tr(QStringLiteral("clearRecentSuccess")), Toast::Success);
     loadRecentPlays();
 }
 
 void RecentPage::loadRecentPlays()
 {
-    m_loadedRecent.clear();
-    if (m_playAllBtn)
-        m_playAllBtn->setVisible(false);
+    m_allRecent = PlaylistDatabase::instance().getRecentPlays();
+    updateHeaderMeta();
 
-    QLayoutItem *item;
-    while ((item = m_listLay->takeAt(0)) != nullptr) {
-        if (QWidget *w = item->widget())
-            w->deleteLater();
-        delete item;
-    }
-
-    auto recentPlays = PlaylistDatabase::instance().getRecentPlays();
-
-    if (recentPlays.isEmpty()) {
-        auto *emptyLbl = new QLabel(I18n::instance().tr("emptyRecent"), m_container);
-        emptyLbl->setObjectName("recentEmpty");
-        emptyLbl->setAlignment(Qt::AlignCenter);
-        emptyLbl->setStyleSheet("QLabel { font-size: 14px; color: " + QString(Theme::kTextMuted) + "; padding: 40px 0; }");
-        m_listLay->addWidget(emptyLbl);
-        m_listLay->addStretch(1);
+    if (m_allRecent.isEmpty()) {
+        if (m_songList)
+            m_songList->setSongs({});
+        showPageStatus(I18n::instance().tr(QStringLiteral("emptyRecent")), "SearchOff");
         return;
     }
 
-    m_loadedRecent = recentPlays;
-    if (m_playAllBtn)
-        m_playAllBtn->setVisible(true);
-
-    for (const auto &info : recentPlays) {
-        auto *card = new RecentMusicCard(info, m_container);
-        card->onClicked = [this, info](int musicId) {
-            Q_UNUSED(musicId);
-            emit playRequested(info);
-        };
-        card->onRemove = [this](int musicId) {
-            // For now, we don't have a remove single item method, so just refresh
-            // In the future we could add a removeRecentPlay method
-            Q_UNUSED(musicId);
-        };
-        m_listLay->addWidget(card);
+    hidePageStatus();
+    if (m_songList) {
+        m_songList->setSongs(m_allRecent);
+        m_songList->refreshFavoriteDisplay();
+        m_songList->show();
     }
-    m_listLay->addStretch(1);
+    updatePlayingHighlight();
 }
 
 void RecentPage::paintEvent(QPaintEvent *)
 {
-    // 透明，由父窗口渐变背景透出
 }
