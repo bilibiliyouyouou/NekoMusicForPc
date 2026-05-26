@@ -87,9 +87,13 @@ private:
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
     void applyMetaTextElide();
     void updateMetaIcons();
-    void applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent,
-                             int mainPxOverride = -1) const;
-    void animateLyricLine(QWidget *lineWidget, QLabel *textLabel, QLabel *transLabel, bool isCurrent);
+    void applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent) const;
+    void syncLyricLinesVisual(int activeLine, int previousLine = -1);
+    void scrollLyricsToActiveLine(int line);
+    void pauseLyricAutoScroll();
+    /** 按歌词区视口宽度约束换行（长句自动折行） */
+    void updateLyricWrapWidth();
+    int lyricTextAreaWidth() const;
     void relayoutLeftInfoColumn();
     void loadCover(const QString &url);
     void applyCoverPixmap(const QPixmap &sourcePixmap);
@@ -193,7 +197,10 @@ private:
     QHash<int, QVector<LyricLine>> m_lyricsCache;
     QMetaObject::Connection m_coverConn;
     int m_currentLyricLine = -1;
+    QVector<QWidget *> m_lyricLineWidgets;
     QPropertyAnimation *m_scrollAnim = nullptr;
+    bool m_lyricUserScrolling = false;
+    QTimer *m_lyricScrollResumeTimer = nullptr;
     /** 每次发起/清空歌词请求自增，用于丢弃过期的异步回调（本地曲歌词 id 可与 m_musicId 不一致） */
     int m_lyricsFetchGeneration = 0;
 };

@@ -17,6 +17,7 @@
 #include "ui/scrollareafix.h"
 
 #include <QPainter>
+#include <QFontMetrics>
 #include <QStylePainter>
 #include <QStyleOptionButton>
 #include <QGraphicsScene>
@@ -80,27 +81,71 @@ inline int lyricMainFontPx(int pageH)
     return qBound(28, int(46.0 * h / 1080.0 + 0.5), 52);
 }
 
-/** SPlayer DefaultLyric：transform/opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) */
-constexpr int kLyricLineAnimMs = 500;
-constexpr qreal kLyricLineScaleInactive = 0.95;
-constexpr qreal kLyricLineOpacityInactive = 0.3;
-constexpr qreal kLyricLineOpacityActive = 1.0;
+/** SPlayer DefaultLyric：滚动 easeInOutQuad 500ms */
+constexpr int kLyricScrollAnimMs = 500;
+constexpr int kLyricUserScrollPauseMs = 3000;
+constexpr qreal kLyricScrollCenterOffset = 0.5;
 
-static QEasingCurve splayerLyricSpringCurve()
+/** SPlayer smoothScrollTo：easeInOutQuad */
+static QEasingCurve splayerLyricScrollCurve()
 {
-    QEasingCurve curve(QEasingCurve::BezierSpline);
-    curve.addCubicBezierSegment(QPointF(0.34, 1.56), QPointF(0.64, 1.0), QPointF(1.0, 1.0));
-    return curve;
+    return QEasingCurve(QEasingCurve::InOutQuad);
 }
 
-static void stopLyricLineAnimations(QWidget *lineWidget)
+static void configureLyricLabel(QLabel *label)
+{
+    if (!label)
+        return;
+    label->setWordWrap(true);
+    label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+}
+
+static int lyricLabelWrappedHeight(QLabel *label, int textW)
+{
+    if (!label || textW <= 0)
+        return 0;
+    configureLyricLabel(label);
+    label->setFixedWidth(textW);
+    int h = label->heightForWidth(textW);
+    if (h <= 0) {
+        const QFontMetrics fm(label->font());
+        const QRect br =
+            fm.boundingRect(QRect(0, 0, textW, 100000), Qt::AlignLeft | Qt::TextWordWrap, label->text());
+        h = br.height();
+    }
+    return qMax(h, label->fontMetrics().height());
+}
+
+static void applyLyricLabelWrapSize(QLabel *label, int textW)
+{
+    const int h = lyricLabelWrappedHeight(label, textW);
+    if (h > 0)
+        label->setFixedSize(textW, h);
+}
+
+static QWidget *lyricLineInnerHost(QWidget *lineWidget)
 {
     if (!lineWidget)
+        return nullptr;
+    if (auto *inner = lineWidget->findChild<QWidget *>(QStringLiteral("lyricLineInner")))
+        return inner;
+    return lineWidget;
+}
+
+static void relayoutSingleLyricLine(QWidget *lineWidget, int textW)
+{
+    if (!lineWidget || textW <= 0)
         return;
-    if (auto *op = lineWidget->findChild<QPropertyAnimation *>(QStringLiteral("lyricOpAnim")))
-        op->stop();
-    if (auto *sc = lineWidget->findChild<QVariantAnimation *>(QStringLiteral("lyricScaleAnim")))
-        sc->stop();
+    for (auto *label : lineWidget->findChildren<QLabel *>()) {
+        const QString on = label->objectName();
+        if (on == QLatin1String("lyricText") || on == QLatin1String("lyricTranslation"))
+            applyLyricLabelWrapSize(label, textW);
+    }
+    if (auto *inner = lyricLineInnerHost(lineWidget))
+        inner->adjustSize();
+    lineWidget->adjustSize();
+    lineWidget->updateGeometry();
 }
 
 QString formatPlaybackTime(qint64 ms)
@@ -445,9 +490,12 @@ protected:
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QGraphicsOpacityEffect>
+#include <QGraphicsScene>
+#include <QGraphicsBlurEffect>
 #include <QPropertyAnimation>
 #include <QVariantAnimation>
 #include <QAbstractAnimation>
+#include <QScrollBar>
 #include <QDebug>
 #include <QUrl>
 #include <QFile>
@@ -635,13 +683,11 @@ void PlayerPage::refreshTintedPalette()
     }
 }
 
-void PlayerPage::applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent,
-                                    int mainPxOverride) const
+void PlayerPage::applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent) const
 {
     if (!textLabel)
         return;
-    const int basePx = lyricMainFontPx(height());
-    const int mainPx = mainPxOverride > 0 ? mainPxOverride : basePx;
+    const int mainPx = lyricMainFontPx(height());
     const int tranPx = qMax(14, mainPx - 12);
     if (isCurrent) {
         textLabel->setStyleSheet(QString::fromUtf8(
@@ -657,11 +703,10 @@ void PlayerPage::applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool
                                           .arg(tranPx));
         }
     } else {
-        // 非当前行由 QGraphicsOpacityEffect 做 0.3 淡化，正文保持白色避免双重变暗
         textLabel->setStyleSheet(QString::fromUtf8(
                                    "color: %1; font-size: %2px; font-weight: 400; "
                                    "background: transparent; padding: 0;")
-                                   .arg(m_clrLyricHi)
+                                   .arg(m_clrLyricDim)
                                    .arg(mainPx));
         if (transLabel) {
             transLabel->setStyleSheet(QString::fromUtf8(
@@ -673,50 +718,140 @@ void PlayerPage::applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool
     }
 }
 
-void PlayerPage::animateLyricLine(QWidget *lineWidget, QLabel *textLabel, QLabel *transLabel,
-                                  bool isCurrent)
+static QWidget *findLyricLineByIndex(const QVector<QWidget *> &lines, int index)
 {
-    if (!lineWidget || !textLabel)
-        return;
+    if (index < 0)
+        return nullptr;
+    for (auto *lineWidget : lines) {
+        if (lineWidget && lineWidget->property("lyricIndex").toInt() == index)
+            return lineWidget;
+    }
+    return nullptr;
+}
 
-    stopLyricLineAnimations(lineWidget);
+void PlayerPage::syncLyricLinesVisual(int activeLine, int previousLine)
+{
+    const int textW = lyricTextAreaWidth();
 
-    auto *fx = qobject_cast<QGraphicsOpacityEffect *>(lineWidget->graphicsEffect());
-    if (!fx) {
-        fx = new QGraphicsOpacityEffect(lineWidget);
-        fx->setOpacity(isCurrent ? kLyricLineOpacityActive : kLyricLineOpacityInactive);
-        lineWidget->setGraphicsEffect(fx);
+    for (auto *lineWidget : m_lyricLineWidgets) {
+        if (!lineWidget)
+            continue;
+        const int idx = lineWidget->property("lyricIndex").toInt();
+        if (idx < 0)
+            continue;
+
+        const bool on = (idx == activeLine);
+        lineWidget->setGraphicsEffect(nullptr);
+
+        auto *textLabel = lineWidget->findChild<QLabel *>(QStringLiteral("lyricText"));
+        auto *transLabel = lineWidget->findChild<QLabel *>(QStringLiteral("lyricTranslation"));
+        applyLyricLineStyle(textLabel, transLabel, on);
+
+        if (textW > 0 && (on || idx == previousLine))
+            relayoutSingleLyricLine(lineWidget, textW);
     }
 
-    auto *opAnim = new QPropertyAnimation(fx, "opacity", lineWidget);
-    opAnim->setObjectName(QStringLiteral("lyricOpAnim"));
-    opAnim->setDuration(kLyricLineAnimMs);
-    opAnim->setEasingCurve(splayerLyricSpringCurve());
-    opAnim->setStartValue(fx->opacity());
-    opAnim->setEndValue(isCurrent ? kLyricLineOpacityActive : kLyricLineOpacityInactive);
-    opAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    if (m_lyricsContainer)
+        m_lyricsContainer->adjustSize();
+}
 
-    const int basePx = lyricMainFontPx(height());
-    const qreal startScale = isCurrent ? kLyricLineScaleInactive : 1.0;
-    const qreal endScale = isCurrent ? 1.0 : kLyricLineScaleInactive;
+void PlayerPage::scrollLyricsToActiveLine(int line)
+{
+    if (m_lyricUserScrolling || !m_lyricsScroll || !m_lyricsContainer || line < 0)
+        return;
 
-    auto *scaleAnim = new QVariantAnimation(lineWidget);
-    scaleAnim->setObjectName(QStringLiteral("lyricScaleAnim"));
-    scaleAnim->setDuration(kLyricLineAnimMs);
-    scaleAnim->setEasingCurve(splayerLyricSpringCurve());
-    scaleAnim->setStartValue(startScale);
-    scaleAnim->setEndValue(endScale);
-    connect(scaleAnim, &QVariantAnimation::valueChanged, this,
-            [this, textLabel, transLabel, isCurrent, basePx](const QVariant &v) {
-                const int px = qMax(12, int(basePx * v.toReal() + 0.5));
-                applyLyricLineStyle(textLabel, transLabel, isCurrent, px);
-            });
-    connect(scaleAnim, &QVariantAnimation::finished, this,
-            [this, textLabel, transLabel, isCurrent, scaleAnim]() {
-                applyLyricLineStyle(textLabel, transLabel, isCurrent);
-                scaleAnim->deleteLater();
-            });
-    scaleAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    QWidget *lineWidget = findLyricLineByIndex(m_lyricLineWidgets, line);
+    if (!lineWidget)
+        return;
+
+    m_lyricsContainer->adjustSize();
+
+    const int y = lineWidget->mapTo(m_lyricsContainer, QPoint(0, 0)).y();
+    const int viewH = m_lyricsScroll->viewport()->height();
+    const int lineH = lineWidget->height();
+    int target = int(y - (viewH - lineH) * kLyricScrollCenterOffset);
+    auto *scrollBar = m_lyricsScroll->verticalScrollBar();
+    target = qBound(scrollBar->minimum(), target, scrollBar->maximum());
+
+    if (qAbs(scrollBar->value() - target) < 2)
+        return;
+
+    if (m_scrollAnim) {
+        m_scrollAnim->stop();
+        delete m_scrollAnim;
+        m_scrollAnim = nullptr;
+    }
+
+    m_scrollAnim = new QPropertyAnimation(scrollBar, "value", this);
+    m_scrollAnim->setDuration(kLyricScrollAnimMs);
+    m_scrollAnim->setStartValue(scrollBar->value());
+    m_scrollAnim->setEndValue(target);
+    m_scrollAnim->setEasingCurve(splayerLyricScrollCurve());
+    connect(m_scrollAnim, &QPropertyAnimation::finished, this, [this]() {
+        m_scrollAnim = nullptr;
+    });
+    m_scrollAnim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+int PlayerPage::lyricTextAreaWidth() const
+{
+    if (!m_lyricsScroll || !m_lyricsLayout)
+        return 0;
+    QWidget *vp = m_lyricsScroll->viewport();
+    const int vpW = vp ? vp->width() : 0;
+    if (vpW <= 0)
+        return 0;
+    const QMargins outer = m_lyricsLayout->contentsMargins();
+    constexpr int kLineHorizontalPad = 32;
+    return qMax(80, vpW - outer.left() - outer.right() - kLineHorizontalPad);
+}
+
+void PlayerPage::updateLyricWrapWidth()
+{
+    if (!m_lyricsScroll || !m_lyricsContainer || !m_lyricsLayout)
+        return;
+
+    QWidget *vp = m_lyricsScroll->viewport();
+    const int vpW = vp ? vp->width() : 0;
+    if (vpW <= 0)
+        return;
+
+    m_lyricsContainer->setMinimumWidth(vpW);
+    m_lyricsContainer->setMaximumWidth(vpW);
+
+    const int textW = lyricTextAreaWidth();
+    if (textW <= 0)
+        return;
+
+    for (auto *lineWidget : m_lyricLineWidgets) {
+        if (!lineWidget)
+            continue;
+        lineWidget->setGraphicsEffect(nullptr);
+        lineWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+        relayoutSingleLyricLine(lineWidget, textW);
+    }
+
+    m_lyricsContainer->updateGeometry();
+    m_lyricsContainer->adjustSize();
+
+    if (m_currentLyricLine >= 0 && !m_lyricUserScrolling) {
+        const int line = m_currentLyricLine;
+        QTimer::singleShot(0, this, [this, line]() { scrollLyricsToActiveLine(line); });
+    }
+}
+
+void PlayerPage::pauseLyricAutoScroll()
+{
+    m_lyricUserScrolling = true;
+    if (!m_lyricScrollResumeTimer)
+        m_lyricScrollResumeTimer = new QTimer(this);
+    m_lyricScrollResumeTimer->setSingleShot(true);
+    m_lyricScrollResumeTimer->disconnect(this);
+    connect(m_lyricScrollResumeTimer, &QTimer::timeout, this, [this]() {
+        m_lyricUserScrolling = false;
+        scrollLyricsToActiveLine(m_currentLyricLine);
+    });
+    m_lyricScrollResumeTimer->start(kLyricUserScrollPauseMs);
 }
 
 void PlayerPage::updateMetaIcons()
@@ -1272,6 +1407,20 @@ bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
             return false;
         }
     }
+
+    if (m_lyricsScroll) {
+        QWidget *lyricVp = m_lyricsScroll->viewport();
+        QScrollBar *lyricBar = m_lyricsScroll->verticalScrollBar();
+        if (watched == lyricVp || watched == lyricBar) {
+            if (event->type() == QEvent::Wheel) {
+                pauseLyricAutoScroll();
+            }
+            if (watched == lyricVp && event->type() == QEvent::Resize) {
+                updateLyricWrapWidth();
+            }
+        }
+    }
+
     return QWidget::eventFilter(watched, event);
 }
 
@@ -1489,6 +1638,7 @@ void PlayerPage::setupUi()
 
     m_lyricsContainer = new QWidget();
     m_lyricsContainer->setObjectName(QStringLiteral("lyricsContainer"));
+    m_lyricsContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     m_lyricsLayout = new QVBoxLayout(m_lyricsContainer);
     m_lyricsLayout->setAlignment(Qt::AlignTop);
     m_lyricsLayout->setSpacing(12);
@@ -1496,6 +1646,13 @@ void PlayerPage::setupUi()
 
     m_lyricsScroll->setWidget(m_lyricsContainer);
     nekoPolishScrollAreaViewport(m_lyricsScroll);
+    if (auto *vp = m_lyricsScroll->viewport())
+        vp->installEventFilter(this);
+    if (auto *scrollBar = m_lyricsScroll->verticalScrollBar()) {
+        scrollBar->installEventFilter(this);
+        connect(scrollBar, &QScrollBar::sliderPressed, this, [this]() { pauseLyricAutoScroll(); });
+        connect(scrollBar, &QScrollBar::sliderMoved, this, [this]() { pauseLyricAutoScroll(); });
+    }
     lyricsCol->addWidget(m_lyricsScroll, 1);
 
     contentRow->addWidget(m_leftPanel, kPlayerStyleRatio);
@@ -1679,7 +1836,8 @@ void PlayerPage::resizeEvent(QResizeEvent *event)
         if (auto *top = m_lyricsContainer->findChild<QWidget *>(QStringLiteral("lyricPadTop")))
             top->setFixedHeight(kLyricTopPad);
         if (auto *bot = m_lyricsContainer->findChild<QWidget *>(QStringLiteral("lyricPadBottom")))
-            bot->setFixedHeight(qMax(120, m_lyricsScroll->viewport()->height() / 2));
+            bot->setFixedHeight(qMax(m_lyricsScroll->viewport()->height(), 120));
+        updateLyricWrapWidth();
     }
 }
 
@@ -1966,6 +2124,7 @@ void PlayerPage::parseLrc(const QString &lrc)
 
 void PlayerPage::rebuildLyricLabels()
 {
+    m_lyricLineWidgets.clear();
     QLayoutItem *item;
     while ((item = m_lyricsLayout->takeAt(0)) != nullptr) {
         delete item->widget();
@@ -2003,33 +2162,45 @@ void PlayerPage::rebuildLyricLabels()
     for (int i = 0; i < m_lyrics.size(); ++i) {
         auto *lineWidget = new QWidget(m_lyricsContainer);
         lineWidget->setObjectName(QString("lyricWidget_%1").arg(i));
-        auto *lineLayout = new QVBoxLayout(lineWidget);
+        lineWidget->setProperty("lyricIndex", i);
+        lineWidget->setAttribute(Qt::WA_TranslucentBackground);
+        lineWidget->setAutoFillBackground(false);
+        lineWidget->setStyleSheet(QStringLiteral("background: transparent;"));
+        lineWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+        auto *outerLay = new QVBoxLayout(lineWidget);
+        outerLay->setContentsMargins(0, 0, 0, 0);
+        outerLay->setSpacing(0);
+
+        auto *inner = new QWidget(lineWidget);
+        inner->setObjectName(QStringLiteral("lyricLineInner"));
+        inner->setAttribute(Qt::WA_TranslucentBackground);
+        inner->setAutoFillBackground(false);
+        inner->setStyleSheet(QStringLiteral("background: transparent;"));
+
+        auto *lineLayout = new QVBoxLayout(inner);
         lineLayout->setContentsMargins(16, 10, 16, 10);
         lineLayout->setSpacing(8);
+        outerLay->addWidget(inner);
 
-        auto *textLabel = new QLabel(m_lyrics[i].text, lineWidget);
-        textLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        textLabel->setObjectName("lyricText");
+        auto *textLabel = new QLabel(m_lyrics[i].text, inner);
+        textLabel->setObjectName(QStringLiteral("lyricText"));
         textLabel->setProperty("lyricIndex", i);
-        textLabel->setWordWrap(true);
+        configureLyricLabel(textLabel);
         lineLayout->addWidget(textLabel);
 
         QLabel *transLabel = nullptr;
         if (!m_lyrics[i].translation.isEmpty()) {
-            transLabel = new QLabel(m_lyrics[i].translation, lineWidget);
-            transLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            transLabel->setObjectName("lyricTranslation");
+            transLabel = new QLabel(m_lyrics[i].translation, inner);
+            transLabel->setObjectName(QStringLiteral("lyricTranslation"));
             transLabel->setProperty("lyricIndex", i);
-            transLabel->setWordWrap(true);
+            configureLyricLabel(transLabel);
             lineLayout->addWidget(transLabel);
         }
-        auto *lineFx = new QGraphicsOpacityEffect(lineWidget);
-        lineFx->setOpacity(kLyricLineOpacityInactive);
-        lineWidget->setGraphicsEffect(lineFx);
-        applyLyricLineStyle(textLabel, transLabel, false,
-                            qMax(12, int(lyricMainFontPx(height()) * kLyricLineScaleInactive + 0.5)));
+        applyLyricLineStyle(textLabel, transLabel, false);
 
         m_lyricsLayout->addWidget(lineWidget);
+        m_lyricLineWidgets.append(lineWidget);
     }
 
     auto *botPad = new QWidget(m_lyricsContainer);
@@ -2039,6 +2210,13 @@ void PlayerPage::rebuildLyricLabels()
     m_lyricsLayout->addWidget(botPad);
     emitDesktopLyricsPayload();
     emitBarLyricUpdate(-1);
+
+    QTimer::singleShot(0, this, [this]() {
+        updateLyricWrapWidth();
+        m_currentLyricLine = -1;
+        if (m_engine && !m_lyrics.isEmpty())
+            updateLyricHighlight(m_engine->position());
+    });
 }
 
 void PlayerPage::emitBarLyricUpdate(int lineIndex)
@@ -2099,59 +2277,12 @@ void PlayerPage::updateLyricHighlight(qint64 positionMs)
 
     if (line == m_currentLyricLine)
         return;
+    const int previousLine = m_currentLyricLine;
     m_currentLyricLine = line;
     emitBarLyricUpdate(line);
 
-    for (int i = 0; i < m_lyricsLayout->count(); ++i) {
-        QLayoutItem *layoutItem = m_lyricsLayout->itemAt(i);
-        if (!layoutItem) continue;
-        auto *widget = qobject_cast<QWidget *>(layoutItem->widget());
-        if (!widget) continue;
-
-        auto *textLabel = widget->findChild<QLabel *>("lyricText");
-        auto *transLabel = widget->findChild<QLabel *>("lyricTranslation");
-        if (!textLabel) continue;
-
-        const int idx = textLabel->property("lyricIndex").toInt();
-        animateLyricLine(widget, textLabel, transLabel, idx == line);
-    }
-
-    if (line >= 0 && m_lyricsScroll) {
-        QWidget *lineWidget = nullptr;
-        for (int i = 0; i < m_lyricsLayout->count(); ++i) {
-            QLayoutItem *it = m_lyricsLayout->itemAt(i);
-            if (!it || !it->widget())
-                continue;
-            auto *textLabel = it->widget()->findChild<QLabel *>(QStringLiteral("lyricText"));
-            if (textLabel && textLabel->property("lyricIndex").toInt() == line) {
-                lineWidget = it->widget();
-                break;
-            }
-        }
-        if (lineWidget) {
-            const int y = lineWidget->mapTo(m_lyricsContainer, QPoint(0, 0)).y();
-            const int viewH = m_lyricsScroll->viewport()->height();
-            const int lineH = lineWidget->height();
-            const int target = qMax(0, y - qMax(0, (viewH - lineH) / 2));
-            auto *scrollBar = m_lyricsScroll->verticalScrollBar();
-
-            if (m_scrollAnim) {
-                m_scrollAnim->stop();
-                delete m_scrollAnim;
-                m_scrollAnim = nullptr;
-            }
-
-            m_scrollAnim = new QPropertyAnimation(scrollBar, "value", this);
-            m_scrollAnim->setDuration(kLyricLineAnimMs);
-            m_scrollAnim->setStartValue(scrollBar->value());
-            m_scrollAnim->setEndValue(target);
-            m_scrollAnim->setEasingCurve(splayerLyricSpringCurve());
-            connect(m_scrollAnim, &QPropertyAnimation::finished, this, [this]() {
-                m_scrollAnim = nullptr;
-            });
-            m_scrollAnim->start(QAbstractAnimation::DeleteWhenStopped);
-        }
-    }
+    syncLyricLinesVisual(line, previousLine);
+    QTimer::singleShot(0, this, [this, line]() { scrollLyricsToActiveLine(line); });
 }
 
 int PlayerPage::trackDurationSec() const
