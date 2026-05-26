@@ -5,6 +5,7 @@
 #include "theme/thememanager.h"
 #include "ui/scrollareafix.h"
 #include "ui/svgicon.h"
+#include "ui/localmusicbadgelabel.h"
 
 #include <QSizePolicy>
 #include <QScrollArea>
@@ -66,11 +67,22 @@ public:
         infoLay->setContentsMargins(0, 0, 0, 0);
         infoLay->setSpacing(2);
 
-        m_titleLbl = new QLabel(info.title, infoV);
+        auto *titleRow = new QWidget(infoV);
+        auto *titleRowLay = new QHBoxLayout(titleRow);
+        titleRowLay->setContentsMargins(0, 0, 0, 0);
+        titleRowLay->setSpacing(6);
+
+        m_localBadge = new QLabel(titleRow);
+        m_localBadge->setVisible(false);
+        titleRowLay->addWidget(m_localBadge, 0, Qt::AlignVCenter);
+
+        m_titleLbl = new QLabel(info.title, titleRow);
         m_titleLbl->setMinimumWidth(0);
         m_titleLbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         applyTitleStyle(dark);
-        infoLay->addWidget(m_titleLbl);
+        titleRowLay->addWidget(m_titleLbl, 1, Qt::AlignVCenter);
+
+        infoLay->addWidget(titleRow);
 
         m_artistLbl = new QLabel(info.artist, infoV);
         applyArtistStyle(dark);
@@ -89,6 +101,7 @@ public:
         });
         lay->addWidget(m_removeBtn);
 
+        updateLocalBadge(dark);
         elideTexts();
     }
 
@@ -103,6 +116,7 @@ public:
         m_titleLbl->setText(info.title);
         m_artistLbl->setText(info.artist);
         updateCurrentState(isCurrent);
+        updateLocalBadge(Theme::ThemeManager::instance().isDarkMode());
         elideTexts();
     }
 
@@ -115,6 +129,7 @@ public:
         applyTitleStyle(dark);
         applyArtistStyle(dark);
         applyRemoveBtnStyle(dark);
+        updateLocalBadge(dark);
         update();
     }
 
@@ -169,7 +184,15 @@ protected:
 private:
     int textColumnWidth() const
     {
-        return qMax(40, width() - 36 - 36 - 8 * 4);
+        int w = qMax(40, width() - 36 - 36 - 8 * 4);
+        if (m_localBadge && m_localBadge->isVisible())
+            w = qMax(40, w - m_localBadge->sizeHint().width() - 6);
+        return w;
+    }
+
+    void updateLocalBadge(bool dark)
+    {
+        updateLocalMusicBadge(m_localBadge, m_info.isLocalFile(), dark);
     }
 
     void elideTexts()
@@ -228,6 +251,7 @@ private:
     bool m_isCurrent = false;
     bool m_hover = false;
     QLabel *m_indexLbl = nullptr;
+    QLabel *m_localBadge = nullptr;
     QLabel *m_titleLbl = nullptr;
     QLabel *m_artistLbl = nullptr;
     QPushButton *m_removeBtn = nullptr;

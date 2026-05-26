@@ -138,6 +138,7 @@ set(SOURCES
         src/ui/desktoplrcplatform.cpp
         src/ui/favoritespage.cpp
         src/ui/songcardwidget.cpp
+        src/ui/localmusicbadgelabel.cpp
         src/ui/songlistwidget.cpp
         src/ui/songcontextmenu.cpp
         src/ui/coverlistcard.cpp
@@ -197,6 +198,7 @@ set(HEADERS
         src/ui/desktoplrcplatform.h
         src/ui/favoritespage.h
         src/ui/songcardwidget.h
+        src/ui/localmusicbadgelabel.h
         src/ui/songlistwidget.h
         src/ui/songcontextmenu.h
         src/ui/coverlistcard.h

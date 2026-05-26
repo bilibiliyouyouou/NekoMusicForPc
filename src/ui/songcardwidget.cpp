@@ -3,6 +3,7 @@
 
 #include "core/covercache.h"
 #include "core/listmetaformat.h"
+#include "ui/localmusicbadgelabel.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
@@ -118,9 +119,19 @@ void SongCardWidget::rebuildLayout()
     auto *infoLay = new QVBoxLayout(infoCol);
     infoLay->setContentsMargins(0, 0, 0, 0);
     infoLay->setSpacing(2);
-    m_titleLbl = new QLabel(infoCol);
+
+    auto *titleRow = new QWidget(infoCol);
+    auto *titleRowLay = new QHBoxLayout(titleRow);
+    titleRowLay->setContentsMargins(0, 0, 0, 0);
+    titleRowLay->setSpacing(6);
+    m_localBadge = new QLabel(titleRow);
+    m_localBadge->setVisible(false);
+    titleRowLay->addWidget(m_localBadge, 0, Qt::AlignVCenter);
+    m_titleLbl = new QLabel(titleRow);
+    titleRowLay->addWidget(m_titleLbl, 1, Qt::AlignVCenter);
+
     m_artistLbl = new QLabel(infoCol);
-    infoLay->addWidget(m_titleLbl);
+    infoLay->addWidget(titleRow);
     infoLay->addWidget(m_artistLbl);
     titleLay->addWidget(infoCol, 1);
 
@@ -253,6 +264,7 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
     m_info = info;
     m_titleLbl->setText(info.title);
     m_artistLbl->setText(info.artist);
+    updateLocalBadge();
     updateSecondaryColumn();
     m_timeLbl->setText(formatDuration(info.duration));
 
@@ -371,7 +383,16 @@ void SongCardWidget::applyTheme()
 
     updateHeartIcon();
     updateOverlayIcons();
+    updateLocalBadge();
     update();
+}
+
+void SongCardWidget::updateLocalBadge()
+{
+    if (!m_localBadge)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    updateLocalMusicBadge(m_localBadge, m_info.isLocalFile(), dark);
 }
 
 void SongCardWidget::paintEvent(QPaintEvent *)

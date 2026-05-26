@@ -64,6 +64,7 @@ private:
     void elideTexts();
     void loadCover();
     void updateSecondaryColumn();
+    void updateLocalBadge();
     QString secondaryColumnText() const;
     QString formatDuration(int seconds) const;
 
@@ -83,6 +84,7 @@ private:
     QPushButton *m_playOverlay = nullptr;
     QPushButton *m_statusOverlay = nullptr;
     QLabel *m_coverLbl = nullptr;
+    QLabel *m_localBadge = nullptr;
     QLabel *m_titleLbl = nullptr;
     QLabel *m_artistLbl = nullptr;
     QLabel *m_albumLbl = nullptr;
