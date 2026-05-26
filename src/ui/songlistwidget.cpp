@@ -151,8 +151,11 @@ void SongListWidget::setSongs(const QList<MusicInfo> &songs)
 
 void SongListWidget::setCurrentPlayingId(int musicId)
 {
+    if (m_currentId == musicId)
+        return;
     m_currentId = musicId;
     refreshPlayingState();
+    updateVisibleRows();
     if (m_scrollCurrentBtn)
         m_scrollCurrentBtn->setVisible(hasCurrentPlaying());
 }

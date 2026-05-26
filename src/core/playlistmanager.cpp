@@ -111,8 +111,11 @@ void PlaylistManager::togglePlayMode() {
 }
 
 void PlaylistManager::setCurrentIndex(int index) {
+    if (m_currentIndex == index)
+        return;
     m_currentIndex = index;
     PlaylistDatabase::instance().setQueueCurrentIndex(index);
+    emit currentIndexChanged(index);
 }
 
 int PlaylistManager::nextIndex() const {

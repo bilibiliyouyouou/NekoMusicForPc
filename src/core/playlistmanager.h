@@ -41,6 +41,7 @@ public:
 
 signals:
     void playlistChanged();
+    void currentIndexChanged(int index);
     void playRequested(int localId);
     void playModeChanged(const QString& mode);
 

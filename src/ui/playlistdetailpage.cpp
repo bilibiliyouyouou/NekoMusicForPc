@@ -104,6 +104,8 @@ PlaylistDetailPage::PlaylistDetailPage(ApiClient *apiClient, QWidget *parent)
 
     connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this,
             &PlaylistDetailPage::updatePlayingHighlight);
+    connect(&PlaylistManager::instance(), &PlaylistManager::currentIndexChanged, this,
+            &PlaylistDetailPage::updatePlayingHighlight);
 }
 
 void PlaylistDetailPage::setupUi()

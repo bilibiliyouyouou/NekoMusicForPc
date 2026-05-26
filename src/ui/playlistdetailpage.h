@@ -30,6 +30,7 @@ public:
     void retranslate();
     void setPlaybackPaused(bool paused);
     void setFavoritedMusicIds(const QSet<int> &ids);
+    void updatePlayingHighlight();
 
 signals:
     void playMusic(const MusicInfo &info);
@@ -52,7 +53,6 @@ private:
     void updateCoverImage();
     void setHeaderCompact(bool compact);
     void onListScrolled(int scrollTop);
-    void updatePlayingHighlight();
     int currentPlayingMusicId() const;
     void showPageStatus(const QString &text, const char *iconName = nullptr);
     void hidePageStatus();

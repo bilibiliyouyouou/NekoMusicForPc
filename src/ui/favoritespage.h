@@ -24,6 +24,7 @@ public:
     void retranslate();
     void refresh();
     void setPlaybackPaused(bool paused);
+    void updatePlayingHighlight();
 
 signals:
     void playRequested(int musicId, const QString &title, const QString &artist, const QString &coverUrl);
@@ -45,7 +46,6 @@ private:
     void updateCoverImage();
     void setHeaderCompact(bool compact);
     void onListScrolled(int scrollTop);
-    void updatePlayingHighlight();
     int currentPlayingMusicId() const;
     void showPageStatus(const QString &text, const char *iconName = nullptr);
     void hidePageStatus();

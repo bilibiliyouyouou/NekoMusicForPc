@@ -100,6 +100,8 @@ FavoritesPage::FavoritesPage(ApiClient *apiClient, QWidget *parent)
 
     connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this,
             &FavoritesPage::updatePlayingHighlight);
+    connect(&PlaylistManager::instance(), &PlaylistManager::currentIndexChanged, this,
+            &FavoritesPage::updatePlayingHighlight);
 }
 
 void FavoritesPage::setupUi()

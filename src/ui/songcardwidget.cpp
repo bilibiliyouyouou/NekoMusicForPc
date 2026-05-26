@@ -25,18 +25,22 @@ constexpr int kCover = 50;
 constexpr QColor kPrimary(230, 57, 80);
 
 /** SPlayer SongCard .song-content — surface / play / hover 边框 */
-QColor songFill(bool dark, bool playing)
+QColor songFill(bool dark, bool playing, bool hover)
 {
     if (playing)
         return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 71); // rgba(primary, 0.28)
-    return dark ? QColor(0x24, 0x24, 0x24) : QColor(Qt::white);               // surface-container
+    if (hover)
+        return dark ? QColor(0x2c, 0x2c, 0x2c) : QColor(0xf5, 0xf5, 0xf5);
+    return dark ? QColor(0x24, 0x24, 0x24) : QColor(Qt::white); // surface-container
 }
 
 QColor songBorder(bool playing, bool hover)
 {
-    if (playing || hover)
+    if (playing)
         return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 148); // rgba(primary, 0.58)
-    return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 31);       // rgba(primary, 0.12)
+    if (hover)
+        return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 148);
+    return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 31); // rgba(primary, 0.12)
 }
 
 } // namespace
@@ -180,7 +184,7 @@ void SongCardWidget::setHover(bool hover)
 
 void SongCardWidget::syncHoverFromCursor()
 {
-    QWidget *under = QApplication::widgetAt(mapToGlobal(rect().center()));
+    QWidget *under = QApplication::widgetAt(QCursor::pos());
     const bool inside = under && (under == this || isAncestorOf(under));
     setHover(inside);
 }
@@ -213,6 +217,7 @@ bool SongCardWidget::eventFilter(QObject *watched, QEvent *event)
 
 void SongCardWidget::bind(const MusicInfo &info, int index)
 {
+    setHover(false);
     m_info = info;
     m_index = index;
     m_titleLbl->setText(info.title);
@@ -339,24 +344,20 @@ void SongCardWidget::paintEvent(QPaintEvent *)
     path.addRoundedRect(r, 12, 12);
 
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
-    p.fillPath(path, songFill(dark, m_playing));
-    p.setPen(QPen(songBorder(m_playing, m_hover), 2));
+    p.fillPath(path, songFill(dark, m_playing, m_hover && !m_playing));
+    p.setPen(QPen(songBorder(m_playing, m_hover && !m_playing), 2));
     p.drawPath(path);
 }
 
 void SongCardWidget::enterEvent(QEnterEvent *e)
 {
-    m_hover = true;
-    updateHoverOverlays();
-    update();
+    setHover(true);
     QWidget::enterEvent(e);
 }
 
 void SongCardWidget::leaveEvent(QEvent *e)
 {
-    m_hover = false;
-    updateHoverOverlays();
-    update();
+    setHover(false);
     QWidget::leaveEvent(e);
 }
 

@@ -550,9 +550,13 @@ void MainWindow::setupUi()
         }
     });
 
-    // 记录最近播放
-    connect(m_engine, &PlayerEngine::musicStarted, this, [](const MusicInfo& music) {
+    // 记录最近播放，并刷新列表页正在播放高亮
+    connect(m_engine, &PlayerEngine::musicStarted, this, [this](const MusicInfo &music) {
         PlaylistDatabase::instance().recordRecentPlay(music);
+        if (m_favoritesPage)
+            m_favoritesPage->updatePlayingHighlight();
+        if (m_playlistDetailPage)
+            m_playlistDetailPage->updatePlayingHighlight();
     });
 
     // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
