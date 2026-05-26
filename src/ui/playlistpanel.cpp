@@ -53,13 +53,6 @@ public:
         lay->setContentsMargins(8, 8, 8, 8);
         lay->setSpacing(8);
 
-        m_dragLbl = new QLabel(this);
-        m_dragLbl->setFixedSize(30, 30);
-        m_dragLbl->setAlignment(Qt::AlignCenter);
-        m_dragLbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-        applyDragHandleStyle(dark);
-        lay->addWidget(m_dragLbl);
-
         m_indexLbl = new QLabel(this);
         m_indexLbl->setFixedWidth(36);
         m_indexLbl->setAlignment(Qt::AlignCenter);
@@ -117,7 +110,6 @@ public:
     {
         m_isCurrent = isCurrent;
         const bool dark = Theme::ThemeManager::instance().isDarkMode();
-        applyDragHandleStyle(dark);
         applyIndexLabelStyle(dark);
         updateIndexDisplay();
         applyTitleStyle(dark);
@@ -177,7 +169,7 @@ protected:
 private:
     int textColumnWidth() const
     {
-        return qMax(40, width() - 30 - 36 - 36 - 8 * 4);
+        return qMax(40, width() - 36 - 36 - 8 * 4);
     }
 
     void elideTexts()
@@ -187,12 +179,6 @@ private:
         const int w = textColumnWidth();
         m_titleLbl->setText(titleFm.elidedText(m_info.title, Qt::ElideRight, w));
         m_artistLbl->setText(artistFm.elidedText(m_info.artist, Qt::ElideRight, w));
-    }
-
-    void applyDragHandleStyle(bool dark)
-    {
-        const QColor ic = dark ? QColor(244, 246, 255, 77) : QColor(33, 37, 41, 115);
-        m_dragLbl->setPixmap(Icons::renderNamed("Menu", 20, ic));
     }
 
     void applyIndexLabelStyle(bool dark)
@@ -241,7 +227,6 @@ private:
     int m_index;
     bool m_isCurrent = false;
     bool m_hover = false;
-    QLabel *m_dragLbl = nullptr;
     QLabel *m_indexLbl = nullptr;
     QLabel *m_titleLbl = nullptr;
     QLabel *m_artistLbl = nullptr;
