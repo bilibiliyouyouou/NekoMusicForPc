@@ -284,18 +284,12 @@ void SearchPage::setupUi()
 
     m_tabStack->addWidget(plPage);
 
-    // ── 歌手（ArtistList 网格 + 详情列表） ──
+    // ── 歌手（ArtistList 网格，点击进入独立子页） ──
     auto *arPage = new QWidget(m_tabStack);
     auto *arLay = new QVBoxLayout(arPage);
     arLay->setContentsMargins(0, 0, 0, 0);
 
-    m_artistStack = new QStackedWidget(arPage);
-
-    auto *arGridPage = new QWidget(m_artistStack);
-    auto *arGridLay = new QVBoxLayout(arGridPage);
-    arGridLay->setContentsMargins(0, 0, 0, 0);
-
-    m_artistGridScroll = new QScrollArea(arGridPage);
+    m_artistGridScroll = new QScrollArea(arPage);
     m_artistGridScroll->setObjectName(QStringLiteral("searchScroll"));
     m_artistGridScroll->setWidgetResizable(true);
     m_artistGridScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -308,9 +302,8 @@ void SearchPage::setupUi()
     m_artistGrid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     m_artistGridScroll->setWidget(m_artistGridHost);
     nekoPolishScrollAreaViewport(m_artistGridScroll);
-    arGridLay->addWidget(m_artistGridScroll, 1);
 
-    m_artistEmptyWrap = new QWidget(arGridPage);
+    m_artistEmptyWrap = new QWidget(arPage);
     auto *arEmptyLay = new QVBoxLayout(m_artistEmptyWrap);
     arEmptyLay->setAlignment(Qt::AlignCenter);
     arEmptyLay->setSpacing(12);
@@ -322,38 +315,8 @@ void SearchPage::setupUi()
     m_artistEmptyLbl->setWordWrap(true);
     arEmptyLay->addWidget(m_artistEmptyLbl);
     m_artistEmptyWrap->hide();
-    arGridLay->addWidget(m_artistEmptyWrap);
-
-    m_artistStack->addWidget(arGridPage);
-
-    m_artistDetailPage = new QWidget(m_artistStack);
-    auto *arDetailLay = new QVBoxLayout(m_artistDetailPage);
-    arDetailLay->setContentsMargins(0, 0, 0, 0);
-    arDetailLay->setSpacing(8);
-
-    auto *arHead = new QWidget(m_artistDetailPage);
-    auto *arHeadLay = new QHBoxLayout(arHead);
-    arHeadLay->setContentsMargins(0, 0, 0, 0);
-    m_artistBackBtn = new QPushButton(arHead);
-    m_artistBackBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_artistBackBtn, &QPushButton::clicked, this, &SearchPage::showArtistGrid);
-    arHeadLay->addWidget(m_artistBackBtn);
-    m_artistDetailName = new QLabel(arHead);
-    arHeadLay->addWidget(m_artistDetailName, 1);
-    arDetailLay->addWidget(arHead);
-
-    m_artistSongList = new SongListWidget(m_artistDetailPage);
-    m_artistSongList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
-    m_artistSongList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
-    m_artistSongList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
-    m_artistSongList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
-    m_artistSongList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
-    arDetailLay->addWidget(m_artistSongList, 1);
-
-    m_artistStack->addWidget(m_artistDetailPage);
-    m_artistStack->setCurrentIndex(0);
-
-    arLay->addWidget(m_artistStack, 1);
+    arLay->addWidget(m_artistEmptyWrap);
+    arLay->addWidget(m_artistGridScroll, 1);
     m_tabStack->addWidget(arPage);
 
     root->addWidget(m_tabStack, 1);
@@ -444,17 +407,6 @@ void SearchPage::applyPageStyle()
                                          .arg(tabBg, titleFg));
     }
 
-    if (m_artistBackBtn) {
-        m_artistBackBtn->setStyleSheet(QStringLiteral(
-            "QPushButton { background: transparent; border: none; color: %1; font-size: 14px; padding: 4px 8px; }"
-            "QPushButton:hover { color: #E63950; }")
-                                         .arg(titleFg));
-    }
-    if (m_artistDetailName) {
-        m_artistDetailName->setStyleSheet(QStringLiteral(
-            "QLabel { font-size: 18px; font-weight: 600; color: %1; }").arg(titleFg));
-    }
-
     const QColor emptyIcon = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 100);
     const QPixmap offIcon = Icons::renderNamed("SearchOff", 64, emptyIcon);
     if (m_songsEmptyIcon)
@@ -466,8 +418,6 @@ void SearchPage::applyPageStyle()
 
     if (m_songList)
         m_songList->applyTheme();
-    if (m_artistSongList)
-        m_artistSongList->applyTheme();
     for (auto *card : m_playlistCards)
         card->applyTheme();
 }
@@ -496,7 +446,6 @@ void SearchPage::search(const QString &query)
     m_musicResults.clear();
     m_playlistResults.clear();
     m_artistResults.clear();
-    showArtistGrid();
 
     if (m_songList)
         m_songList->setSongs({});
@@ -726,9 +675,7 @@ void SearchPage::applyArtistResults()
 
     for (const auto &ar : m_artistResults) {
         auto *tile = new SearchArtistTile(ar, m_artistGridHost);
-        tile->onClicked = [this](const QVariantMap &artist) {
-            showArtistDetail(artist, tracksFromArtistMap(artist));
-        };
+        tile->onClicked = [this](const QVariantMap &artist) { emit openArtist(artist); };
         m_artistGrid->addWidget(tile, row, col);
         col++;
         if (col >= cols) {
@@ -736,24 +683,6 @@ void SearchPage::applyArtistResults()
             row++;
         }
     }
-}
-
-void SearchPage::showArtistDetail(const QVariantMap &artist, const QList<MusicInfo> &tracks)
-{
-    if (m_artistDetailName)
-        m_artistDetailName->setText(artist.value(QStringLiteral("name")).toString());
-    if (m_artistSongList) {
-        m_artistSongList->setSongs(tracks);
-        updatePlayingHighlight();
-    }
-    if (m_artistStack)
-        m_artistStack->setCurrentIndex(1);
-}
-
-void SearchPage::showArtistGrid()
-{
-    if (m_artistStack)
-        m_artistStack->setCurrentIndex(0);
 }
 
 void SearchPage::showSongsEmpty(const QString &text)
@@ -831,8 +760,6 @@ void SearchPage::updatePlayingHighlight()
     const int id = currentPlayingMusicId();
     if (m_songList)
         m_songList->setCurrentPlayingId(id);
-    if (m_artistSongList)
-        m_artistSongList->setCurrentPlayingId(id);
 }
 
 void SearchPage::setFavoritedMusicIds(const QSet<int> &ids)
@@ -840,16 +767,12 @@ void SearchPage::setFavoritedMusicIds(const QSet<int> &ids)
     m_favoritedIds = ids;
     if (m_songList)
         m_songList->refreshFavoriteDisplay();
-    if (m_artistSongList)
-        m_artistSongList->refreshFavoriteDisplay();
 }
 
 void SearchPage::setPlaybackPaused(bool paused)
 {
     if (m_songList)
         m_songList->setPlaybackPaused(paused);
-    if (m_artistSongList)
-        m_artistSongList->setPlaybackPaused(paused);
 }
 
 void SearchPage::retranslate()
@@ -862,14 +785,10 @@ void SearchPage::retranslate()
         m_tabPlaylists->setText(I18n::instance().tr(QStringLiteral("searchPlaylist")));
     if (m_tabArtists)
         m_tabArtists->setText(I18n::instance().tr(QStringLiteral("artist")));
-    if (m_artistBackBtn)
-        m_artistBackBtn->setText(I18n::instance().tr(QStringLiteral("searchBackArtists")));
     if (m_loadMoreBtn && m_loadMoreBtn->isVisible())
         m_loadMoreBtn->setText(I18n::instance().tr(QStringLiteral("loadMore")));
     if (m_songList)
         m_songList->retranslate();
-    if (m_artistSongList)
-        m_artistSongList->retranslate();
     if (m_hintWrap && m_hintWrap->isVisible())
         showHintState(true);
     applyPageStyle();

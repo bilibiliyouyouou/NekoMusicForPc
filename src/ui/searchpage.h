@@ -8,6 +8,7 @@
 #include <QWidget>
 #include <QList>
 #include <QSet>
+#include <QVariantMap>
 
 #include "core/musicinfo.h"
 
@@ -38,6 +39,7 @@ public:
 signals:
     void playMusic(const MusicInfo &info);
     void openPlaylist(int playlistId);
+    void openArtist(const QVariantMap &artist);
     void favoriteRequested(int musicId);
     void playPauseRequested();
 
@@ -66,8 +68,6 @@ private:
     void applyPlaylistResults();
     void relayoutPlaylistGrid();
     void applyArtistResults();
-    void showArtistDetail(const QVariantMap &artist, const QList<MusicInfo> &tracks);
-    void showArtistGrid();
 
     void onSongListScrolled(int scrollTop);
     int currentPlayingMusicId() const;
@@ -97,17 +97,12 @@ private:
     QLabel *m_playlistEmptyIcon = nullptr;
     QLabel *m_playlistEmptyLbl = nullptr;
 
-    QStackedWidget *m_artistStack = nullptr;
     QScrollArea *m_artistGridScroll = nullptr;
     QWidget *m_artistGridHost = nullptr;
     QGridLayout *m_artistGrid = nullptr;
     QWidget *m_artistEmptyWrap = nullptr;
     QLabel *m_artistEmptyIcon = nullptr;
     QLabel *m_artistEmptyLbl = nullptr;
-    QWidget *m_artistDetailPage = nullptr;
-    QPushButton *m_artistBackBtn = nullptr;
-    QLabel *m_artistDetailName = nullptr;
-    SongListWidget *m_artistSongList = nullptr;
 
     QWidget *m_hintWrap = nullptr;
     QLabel *m_hintLbl = nullptr;

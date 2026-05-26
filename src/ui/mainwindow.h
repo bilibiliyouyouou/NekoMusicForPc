@@ -34,6 +34,7 @@ class PlaylistDetailPage;
 class AddToPlaylistDialog;
 class PlaylistPanel;
 class SearchPage;
+class ArtistDetailPage;
 class VipPage;
 class ApiClient;
 class UpdateChecker;
@@ -133,6 +134,7 @@ private:
     PlayerPage *m_playerPage = nullptr;
     PlaylistDetailPage *m_playlistDetailPage = nullptr;
     SearchPage *m_searchPage = nullptr;
+    ArtistDetailPage *m_artistDetailPage = nullptr;
     VipPage *m_vipPage = nullptr;
     PlaylistPanel *m_playlistPanel = nullptr;
     QWidget *m_playlistScrim = nullptr;

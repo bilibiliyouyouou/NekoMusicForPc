@@ -140,6 +140,7 @@ set(SOURCES
         src/ui/songcardwidget.cpp
         src/ui/songlistwidget.cpp
         src/ui/coverlistcard.cpp
+        src/ui/artistdetailpage.cpp
         src/ui/roundcoverlabel.cpp
         src/core/playerengine.cpp
         src/core/apiclient.cpp
@@ -219,6 +220,7 @@ set(HEADERS
         src/ui/updatedialog.h
         src/ui/defaultmusicplayerdialog.h
         src/ui/searchpage.h
+        src/ui/artistdetailpage.h
         src/core/systemmediacontroller.h
         src/core/defaultmusicappchecker.h
 )

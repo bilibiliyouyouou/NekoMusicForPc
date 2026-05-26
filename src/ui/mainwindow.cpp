@@ -18,6 +18,7 @@
 #include "ui/playerpage.h"
 #include "ui/playlistdetailpage.h"
 #include "ui/searchpage.h"
+#include "ui/artistdetailpage.h"
 #include "ui/vippage.h"
 #include "ui/addtoplaylistdialog.h"
 #include "ui/playlistpanel.h"
@@ -391,6 +392,7 @@ void MainWindow::setupUi()
     m_latestMusicPage = new MusicListPage(MusicListPage::Latest, this);
     m_playlistDetailPage = new PlaylistDetailPage(m_apiClient, this);
     m_searchPage = new SearchPage(m_apiClient, this);
+    m_artistDetailPage = new ArtistDetailPage(this);
     m_vipPage = new VipPage(m_apiClient, this);
     m_stack->addWidget(m_homePage);
     m_stack->addWidget(m_settingsPage);
@@ -400,6 +402,7 @@ void MainWindow::setupUi()
     m_stack->addWidget(m_latestMusicPage);
     m_stack->addWidget(m_playlistDetailPage);
     m_stack->addWidget(m_searchPage);
+    m_stack->addWidget(m_artistDetailPage);
     m_stack->addWidget(m_vipPage);
     contentV->addWidget(m_stack, 1);
     midH->addWidget(contentCol, 1);
@@ -553,6 +556,9 @@ void MainWindow::setupUi()
         if (m_searchPage) {
             m_searchPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
+        if (m_artistDetailPage) {
+            m_artistDetailPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
     });
 
     // 记录最近播放，并刷新列表页正在播放高亮
@@ -566,6 +572,8 @@ void MainWindow::setupUi()
             m_recentPage->updatePlayingHighlight();
         if (m_searchPage)
             m_searchPage->updatePlayingHighlight();
+        if (m_artistDetailPage)
+            m_artistDetailPage->updatePlayingHighlight();
     });
 
     // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
@@ -661,6 +669,29 @@ void MainWindow::setupUi()
         m_playlistDetailPage->loadPlaylist(playlistId);
         switchPage(m_playlistDetailPage);
     });
+    connect(m_searchPage, &SearchPage::openArtist, this, [this](const QVariantMap &artist) {
+        syncListPageFavoriteIds();
+        m_artistDetailPage->loadArtist(artist);
+        switchPage(m_artistDetailPage);
+    });
+    connect(m_artistDetailPage, &ArtistDetailPage::backRequested, this, [this]() {
+        switchPage(m_searchPage);
+    });
+    connect(m_artistDetailPage, &ArtistDetailPage::playMusic, this, [this](const MusicInfo &info) {
+        playMusicFromInfo(info);
+    });
+    connect(m_artistDetailPage, &ArtistDetailPage::playAllRequested, this,
+            [this](const QList<MusicInfo> &songs) {
+                if (songs.isEmpty())
+                    return;
+                PlaylistManager::instance().clearPlaylist();
+                PlaylistManager::instance().addAllToPlaylist(songs);
+                playMusicFromInfo(songs.first());
+            });
+    connect(m_artistDetailPage, &ArtistDetailPage::favoriteRequested, this,
+            &MainWindow::toggleFavorite);
+    connect(m_artistDetailPage, &ArtistDetailPage::playPauseRequested, this,
+            &MainWindow::togglePlaybackForSystemUi);
     // 音乐列表页面播放
     connect(m_hotMusicPage, &MusicListPage::playMusic, this, [this](const MusicListPage::MusicInfo &info) {
         playMusicById(info.id, info.title, info.artist, info.coverUrl);
@@ -787,6 +818,8 @@ void MainWindow::setupUi()
 
     // 语言切换
     connect(m_settingsPage, &SettingsPage::languageChanged, m_searchPage, &SearchPage::retranslate);
+    connect(m_settingsPage, &SettingsPage::languageChanged, m_artistDetailPage,
+            &ArtistDetailPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_vipPage, &VipPage::retranslate);
 
     // 播放列表页面刷新侧边栏
@@ -1825,6 +1858,8 @@ void MainWindow::syncListPageFavoriteIds()
         m_recentPage->setFavoritedMusicIds(ids);
     if (m_searchPage)
         m_searchPage->setFavoritedMusicIds(ids);
+    if (m_artistDetailPage)
+        m_artistDetailPage->setFavoritedMusicIds(ids);
 }
 
 void MainWindow::maybePromptDefaultMusicPlayer()

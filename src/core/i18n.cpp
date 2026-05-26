@@ -151,6 +151,7 @@ static QMap<QString, QString> zhCN()
     m["searchEmptyPlaylists"] = QStringLiteral("很抱歉，未能找到与 %1 相关的任何歌单");
     m["searchEmptyArtists"] = QStringLiteral("很抱歉，未能找到与 %1 相关的任何歌手");
     m["searchBackArtists"] = QStringLiteral("← 歌手");
+    m["searchBackToSearch"] = QStringLiteral("返回搜索");
     m["loadMore"] = QStringLiteral("加载更多");
     m["noResults"] = QStringLiteral("暂无搜索结果");
 
@@ -854,6 +855,7 @@ static QMap<QString, QString> enUS()
     m["searchEmptyPlaylists"] = "Sorry, no playlists found for \"%1\"";
     m["searchEmptyArtists"] = "Sorry, no artists found for \"%1\"";
     m["searchBackArtists"] = "← Artists";
+    m["searchBackToSearch"] = "Back to search";
     m["loadMore"] = "Load more";
     m["noResults"] = "No results found";
 
