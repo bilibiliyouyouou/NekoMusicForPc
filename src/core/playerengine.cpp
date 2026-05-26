@@ -1,4 +1,5 @@
 #include "playerengine.h"
+#include <QMediaMetaData>
 #include <QTimer>
 #include <memory>
 
@@ -26,6 +27,7 @@ PlayerEngine::PlayerEngine(QObject *parent)
                     emit playbackFinished();
                 }
             });
+    connect(m_player, &QMediaPlayer::metaDataChanged, this, &PlayerEngine::onPlayerMetaDataChanged);
 }
 
 PlayerEngine::~PlayerEngine() = default;
@@ -208,6 +210,24 @@ qint64 PlayerEngine::duration() const
 qint64 PlayerEngine::position() const
 {
     return m_player->position();
+}
+
+int PlayerEngine::audioBitRateBps() const
+{
+    if (!m_player)
+        return 0;
+    const QVariant v = m_player->metaData().value(QMediaMetaData::AudioBitRate);
+    if (!v.isValid())
+        return 0;
+    bool ok = false;
+    const int bps = v.toInt(&ok);
+    return ok && bps > 0 ? bps : 0;
+}
+
+void PlayerEngine::onPlayerMetaDataChanged()
+{
+    if (audioBitRateBps() > 0)
+        emit audioMetaReady();
 }
 
 float PlayerEngine::volume() const

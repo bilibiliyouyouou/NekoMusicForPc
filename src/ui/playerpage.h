@@ -14,6 +14,7 @@
 #include <QMetaObject>
 #include <QColor>
 #include <QPixmap>
+#include "../core/audioquality.h"
 #include "../core/musicinfo.h"
 #include "../core/playerengine.h"
 
@@ -91,6 +92,11 @@ private:
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
     void applyMetaTextElide();
     void updateMetaIcons();
+    void scheduleAudioQualityProbe();
+    void applyAudioQualityBadge(const AudioQuality::ProbeResult &result);
+    void hideAudioQualityBadge();
+    void refineAudioQualityFromEngine();
+    void updateQualityBadgeStyle();
     void applyLyricLineStyle(QLabel *textLabel, QLabel *transLabel, bool isCurrent) const;
     void syncLyricLinesVisual(int activeLine, int previousLine = -1);
     /** 视口中心清晰、上下渐模糊（对齐 Apple Music / SPlayer 歌词聚焦） */
@@ -176,6 +182,8 @@ private:
     QLabel *m_coverImage = nullptr;
     QPixmap m_coverRoundedBase;
     QLabel *m_titleLabel;
+    QWidget *m_qualityRow = nullptr;
+    QLabel *m_qualityBadge = nullptr;
     QLabel *m_artistMetaIcon = nullptr;
     QLabel *m_albumMetaIcon = nullptr;
     QLabel *m_artistLabel;
@@ -214,4 +222,10 @@ private:
     QTimer *m_lyricBlurTimer = nullptr;
     /** 每次发起/清空歌词请求自增，用于丢弃过期的异步回调（本地曲歌词 id 可与 m_musicId 不一致） */
     int m_lyricsFetchGeneration = 0;
+
+    QNetworkAccessManager *m_qualityNam = nullptr;
+    QNetworkReply *m_qualityReply = nullptr;
+    int m_qualityProbeGen = 0;
+    AudioQuality::ProbeResult m_lastQuality;
+    bool m_qualityFromPlayerMeta = false;
 };

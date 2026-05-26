@@ -75,7 +75,7 @@ QIcon iconNamed(const char *name, int size, const QColor &normal, const QColor &
     return ic;
 }
 
-QPixmap renderResource(const QString &resourcePath, int size, const QColor &color)
+static QString loadTintedSvg(const QString &resourcePath, const QColor &color)
 {
     QFile file(resourcePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -83,12 +83,26 @@ QPixmap renderResource(const QString &resourcePath, int size, const QColor &colo
         return {};
     }
     QString svg = QString::fromUtf8(file.readAll());
-    svg.replace(QStringLiteral("currentColor"), color.name(QColor::HexRgb));
+    const QString hex = color.name(QColor::HexRgb);
+    svg.replace(QStringLiteral("currentColor"), hex);
+    // 仅对无 fill 的 path（如 HiRes）补色；已有 fill="currentColor" 的图标不能再插入 fill，否则会 invalid SVG
+    if (!svg.contains(QLatin1String("fill=\"")) && !svg.contains(QLatin1String("fill='"))
+        && svg.contains(QLatin1String("<path"))) {
+        svg.replace(QStringLiteral("<path "), QStringLiteral("<path fill=\"") + hex + QStringLiteral("\" "));
+    }
     if (color.alpha() < 255) {
         const QString opacity = QString::number(color.alphaF(), 'f', 5);
         svg.replace(QStringLiteral("fill-opacity=\"1\""),
                     QStringLiteral("fill-opacity=\"%1\"").arg(opacity));
     }
+    return svg;
+}
+
+QPixmap renderResource(const QString &resourcePath, int size, const QColor &color)
+{
+    const QString svg = loadTintedSvg(resourcePath, color);
+    if (svg.isEmpty())
+        return {};
 
     QSvgRenderer renderer(svg.toUtf8());
     QPixmap pix(size, size);
@@ -101,6 +115,30 @@ QPixmap renderResource(const QString &resourcePath, int size, const QColor &colo
     p.setRenderHint(QPainter::Antialiasing, true);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     renderer.render(&p);
+    return pix;
+}
+
+QPixmap renderResourceHeight(const QString &resourcePath, int height, const QColor &color)
+{
+    const QString svg = loadTintedSvg(resourcePath, color);
+    if (svg.isEmpty() || height <= 0)
+        return {};
+
+    QSvgRenderer renderer(svg.toUtf8());
+    if (!renderer.isValid()) {
+        qWarning() << "Icons::renderResourceHeight: invalid SVG" << resourcePath;
+        return {};
+    }
+    QSizeF def = renderer.defaultSize();
+    if (def.height() <= 0)
+        def = QSizeF(height * 3.2, height);
+    const int w = qMax(24, int(def.width() * height / def.height()));
+    QPixmap pix(w, height);
+    pix.fill(Qt::transparent);
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    renderer.render(&p, QRectF(0, 0, w, height));
     return pix;
 }
 

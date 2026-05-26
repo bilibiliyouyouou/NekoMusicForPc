@@ -9,7 +9,9 @@
 #include "../core/i18n.h"
 #include "../core/covercache.h"
 #include "../core/httpprotocollabel.h"
+#include "../core/audioquality.h"
 #include "../core/embeddedlyrics.h"
+#include "../core/musicdownloader.h"
 #include "../core/playlistmanager.h"
 #include "../theme/theme.h"
 #include "../theme/thememanager.h"
@@ -574,6 +576,7 @@ protected:
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QJsonDocument>
@@ -638,7 +641,20 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
                 // 重建后控件已换，若行号未变 updateLyricHighlight 会早退，高亮样式不会套到新 QLabel
                 m_currentLyricLine = -1;
                 updateLyricHighlight(m_engine->position());
+                if (m_lastQuality.tier != AudioQuality::Tier::Unknown)
+                    applyAudioQualityBadge(m_lastQuality);
+                else
+                    updateQualityBadgeStyle();
             });
+
+    m_qualityNam = new QNetworkAccessManager(this);
+    connect(&MusicDownloader::instance(), &MusicDownloader::downloadFinished, this,
+            [this](const QString &) {
+                if (m_musicId > 0)
+                    scheduleAudioQualityProbe();
+            });
+    if (m_engine)
+        connect(m_engine, &PlayerEngine::audioMetaReady, this, &PlayerPage::refineAudioQualityFromEngine);
 }
 
 PlayerPage::~PlayerPage() = default;
@@ -1029,6 +1045,160 @@ void PlayerPage::updateMetaIcons()
     }
 }
 
+void PlayerPage::updateQualityBadgeStyle()
+{
+    if (!m_qualityBadge || m_lastQuality.tier == AudioQuality::Tier::Unknown)
+        return;
+    m_qualityBadge->setStyleSheet(QStringLiteral(
+        "QLabel#playerQualityBadge { background: transparent; border: none; padding: 0; margin: 0; }"));
+}
+
+void PlayerPage::applyAudioQualityBadge(const AudioQuality::ProbeResult &result)
+{
+    if (!m_qualityBadge || !m_qualityRow)
+        return;
+
+    m_lastQuality = AudioQuality::ensureVisibleTier(result);
+    const QColor fg = QColor(m_clrTitle);
+    const QByteArray iconUtf8 = AudioQuality::tierIconName(m_lastQuality.tier).toUtf8();
+    constexpr int kBadgeH = 20;
+
+    QPixmap pm = Icons::renderResourceHeight(Icons::resourcePath(iconUtf8.constData()), kBadgeH, fg);
+    if (pm.isNull())
+        pm = Icons::renderResourceHeight(Icons::resourcePath("HQ"), kBadgeH, fg);
+
+    m_qualityBadge->setPixmap(pm);
+    m_qualityBadge->setText({});
+    m_qualityBadge->setToolTip(AudioQuality::tierTooltip(m_lastQuality.tier, m_lastQuality));
+    m_qualityBadge->setFixedSize(qMax(28, pm.width()), qMax(18, pm.height()));
+
+    updateQualityBadgeStyle();
+    m_qualityBadge->show();
+    m_qualityRow->show();
+    m_qualityRow->setFixedHeight(qMax(22, m_qualityBadge->height() + 2));
+    relayoutLeftInfoColumn();
+}
+
+void PlayerPage::hideAudioQualityBadge()
+{
+    if (!m_qualityBadge || !m_qualityRow)
+        return;
+    m_lastQuality = {};
+    m_qualityBadge->clear();
+    m_qualityBadge->hide();
+    m_qualityRow->hide();
+    relayoutLeftInfoColumn();
+}
+
+void PlayerPage::refineAudioQualityFromEngine()
+{
+    if (!m_engine)
+        return;
+    const int bps = m_engine->audioBitRateBps();
+    if (bps <= 0)
+        return;
+    AudioQuality::ProbeResult r;
+    r.bitrateBps = bps;
+    r.tier = AudioQuality::tierFromBitrateBps(bps);
+    r = AudioQuality::ensureVisibleTier(r);
+    if (m_qualityFromPlayerMeta && m_lastQuality.tier == r.tier && m_lastQuality.bitrateBps == r.bitrateBps)
+        return;
+    m_qualityFromPlayerMeta = true;
+    applyAudioQualityBadge(r);
+}
+
+void PlayerPage::scheduleAudioQualityProbe()
+{
+    if (!m_qualityBadge)
+        return;
+
+    if (m_qualityReply) {
+        m_qualityReply->abort();
+        m_qualityReply->deleteLater();
+        m_qualityReply = nullptr;
+    }
+
+    ++m_qualityProbeGen;
+    const int probeGen = m_qualityProbeGen;
+    m_qualityFromPlayerMeta = false;
+
+    const MusicInfo info = m_engine ? m_engine->currentMusic() : MusicInfo{};
+    const int musicId = m_musicId != 0 ? m_musicId : info.id;
+
+    if (musicId == 0 && !info.isLocalFile()) {
+        hideAudioQualityBadge();
+        return;
+    }
+
+    AudioQuality::ProbeResult initial =
+        AudioQuality::guessInitialTier(info.isLocalFile(), info.localPath);
+    if (musicId > 0) {
+        const QString cached = MusicDownloader::cachedAudioFilePath(musicId);
+        if (!cached.isEmpty() && QFile::exists(cached))
+            initial = AudioQuality::ensureVisibleTier(AudioQuality::probeFile(cached));
+    }
+    applyAudioQualityBadge(initial);
+
+    if (info.isLocalFile() && !info.localPath.isEmpty())
+        return;
+
+    if (musicId <= 0)
+        return;
+
+    const QUrl url(QString::fromUtf8("%1/api/music/file/%2").arg(Theme::kApiBase).arg(musicId));
+    if (!m_qualityNam)
+        return;
+
+    auto finishProbe = [this](AudioQuality::ProbeResult result) {
+        applyAudioQualityBadge(AudioQuality::ensureVisibleTier(result));
+    };
+
+    QNetworkRequest req(url);
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::NoLessSafeRedirectPolicy);
+    m_qualityReply = m_qualityNam->head(req);
+    connect(m_qualityReply, &QNetworkReply::finished, this, [this, probeGen, musicId, url, finishProbe]() {
+        QNetworkReply *reply = m_qualityReply;
+        m_qualityReply = nullptr;
+        if (!reply || probeGen != m_qualityProbeGen || musicId != m_musicId) {
+            reply->deleteLater();
+            return;
+        }
+
+        AudioQuality::ProbeResult result;
+        if (reply->error() == QNetworkReply::NoError) {
+            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+            const qint64 len = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+            result = AudioQuality::probeHttpHint(ct, len, trackDurationSec());
+        }
+        reply->deleteLater();
+
+        if (result.tier != AudioQuality::Tier::Unknown) {
+            finishProbe(result);
+            return;
+        }
+
+        if (!m_qualityNam)
+            return;
+
+        QNetworkRequest getReq(url);
+        getReq.setRawHeader("Range", "bytes=0-16383");
+        QNetworkReply *rangeReply = m_qualityNam->get(getReq);
+        connect(rangeReply, &QNetworkReply::finished, this,
+                [this, probeGen, musicId, rangeReply, finishProbe]() {
+                    if (probeGen != m_qualityProbeGen || musicId != m_musicId) {
+                        rangeReply->deleteLater();
+                        return;
+                    }
+                    AudioQuality::ProbeResult r2;
+                    if (rangeReply->error() == QNetworkReply::NoError)
+                        r2 = AudioQuality::probeBuffer(rangeReply->readAll());
+                    rangeReply->deleteLater();
+                    finishProbe(r2);
+                });
+    });
+}
+
 void PlayerPage::applyPlayerPageStyle()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
@@ -1345,6 +1515,8 @@ void PlayerPage::connectPlayerControlEngine()
     connect(m_engine, &PlayerEngine::durationChanged, this, [this](qint64 dur) {
         if (m_ppDurTime)
             m_ppDurTime->setText(formatPlaybackTime(dur));
+        if (dur > 0)
+            refineAudioQualityFromEngine();
     });
     connect(m_ppProgress, &QSlider::sliderReleased, this, [this]() {
         if (!m_engine || m_engine->duration() <= 0)
@@ -1763,6 +1935,19 @@ void PlayerPage::setupUi()
     m_titleLabel->setWordWrap(false);
     m_titleLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
+    m_qualityRow = new QWidget(m_metaPanel);
+    m_qualityRow->setObjectName(QStringLiteral("playerQualityRow"));
+    auto *qualityLay = new QHBoxLayout(m_qualityRow);
+    qualityLay->setContentsMargins(4, 0, 0, 0);
+    qualityLay->setSpacing(0);
+    m_qualityBadge = new QLabel(m_qualityRow);
+    m_qualityBadge->setObjectName(QStringLiteral("playerQualityBadge"));
+    m_qualityBadge->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_qualityBadge->hide();
+    qualityLay->addWidget(m_qualityBadge, 0, Qt::AlignLeft);
+    qualityLay->addStretch();
+    m_qualityRow->hide();
+
     m_artistRow = new QWidget(m_metaPanel);
     auto *artistLay = new QHBoxLayout(m_artistRow);
     artistLay->setContentsMargins(0, 0, 0, 0);
@@ -1798,6 +1983,7 @@ void PlayerPage::setupUi()
     m_fullMetaAlbum.clear();
 
     metaLay->addWidget(m_titleLabel);
+    metaLay->addWidget(m_qualityRow);
     metaLay->addWidget(m_artistRow);
     metaLay->addWidget(m_albumRow);
     infoLay->addWidget(m_metaPanel, 0, Qt::AlignLeft);
@@ -1903,6 +2089,7 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     m_titleIsPlaceholder = title.isEmpty();
     m_artistIsPlaceholder = artist.isEmpty();
     applyMetaTextElide();
+    scheduleAudioQualityProbe();
 
     disconnect(m_coverConn);
     m_coverConn = {};
@@ -2027,11 +2214,13 @@ void PlayerPage::relayoutLeftInfoColumn()
         return;
 
     const int titleH = m_titleLabel ? m_titleLabel->height() : 0;
+    const int qualityH =
+        (m_qualityRow && m_qualityRow->isVisible()) ? m_qualityRow->sizeHint().height() : 0;
     const int artistH = m_artistRow ? m_artistRow->height() : 0;
     const int albumH = (m_albumRow && m_albumRow->isVisible()) ? m_albumRow->height() : 0;
     const int coverW = coverSideLength();
     const int metaW = m_titleLabel ? m_titleLabel->width() : coverW;
-    const int metaH = titleH + artistH + albumH + 24;
+    const int metaH = titleH + qualityH + artistH + albumH + 24;
     m_metaPanel->setFixedSize(metaW, metaH);
 
     m_leftInfoColumn->setFixedWidth(qMax(coverW, metaW));

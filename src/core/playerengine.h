@@ -45,6 +45,8 @@ public:
     PlaybackState transportStateForOs() const;
     qint64 duration() const;
     qint64 position() const;
+    /** QMediaPlayer 解析出的音频码率（bps），未就绪时为 0 */
+    int audioBitRateBps() const;
 
 signals:
     void stateChanged(PlaybackState state);
@@ -56,8 +58,11 @@ signals:
     void musicStarted(const MusicInfo& music);
     void mediaError(const QString &error);
     void playbackFinished();
+    /** 播放器元数据就绪时发出（含可用码率） */
+    void audioMetaReady();
 
 private:
+    void onPlayerMetaDataChanged();
     void cancelFade();
     void onMediaStateChanged(QMediaPlayer::PlaybackState state);
     void onFadeTick();

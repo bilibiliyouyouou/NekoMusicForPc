@@ -27,6 +27,8 @@ QIcon iconNamed(const char *name, int size, const QColor &normal,
 
 /** 从 Qt 资源路径加载 SVG（支持 fill="currentColor" 着色） */
 QPixmap renderResource(const QString &resourcePath, int size, const QColor &color);
+/** 按高度等比渲染宽标签类 SVG（如 HiRes） */
+QPixmap renderResourceHeight(const QString &resourcePath, int height, const QColor &color);
 
 /** @deprecated 请使用 renderNamed */
 QPixmap render(const char *pathD, int size, const QColor &color, int viewBox = 24);

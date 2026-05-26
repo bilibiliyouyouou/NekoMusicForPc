@@ -1,0 +1,45 @@
+#pragma once
+
+#include <QByteArray>
+#include <QString>
+
+namespace AudioQuality {
+
+/** 对齐 SPlayer QualityType（客户端快速推断，非服务端权威） */
+enum class Tier {
+    Unknown = 0,
+    LQ,
+    MQ,
+    HQ,
+    SQ,
+    HiRes,
+};
+
+struct ProbeResult {
+    Tier tier = Tier::Unknown;
+    int bitrateBps = 0;
+    int sampleRateHz = 0;
+    int bitsPerSample = 0;
+};
+
+Tier tierFromBitrateBps(int bitrateBps);
+
+/** 同步读取文件头（≤64KB）推断音质，本地/缓存曲用 */
+ProbeResult probeFile(const QString &filePath);
+
+/** 根据已读文件头推断（在线 Range 或内存缓冲） */
+ProbeResult probeBuffer(const QByteArray &head, const QString &suffixHint = {});
+
+/** HTTP 提示：Content-Type + 文件大小与时长粗算码率 */
+ProbeResult probeHttpHint(const QString &contentType, qint64 contentLengthBytes, int durationSec);
+
+QString tierShortName(Tier tier);
+QString tierTooltip(Tier tier, const ProbeResult &result);
+/** icons/ 资源名（无 .svg），对齐 SPlayer QualityType */
+QString tierIconName(Tier tier);
+/** 保证有可见档位（未知时默认极高 HQ，避免标识消失） */
+ProbeResult ensureVisibleTier(ProbeResult result);
+/** 切歌时先显示的预估档位 */
+ProbeResult guessInitialTier(bool isLocalFile, const QString &localPath);
+
+} // namespace AudioQuality
