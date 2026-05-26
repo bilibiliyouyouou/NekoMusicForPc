@@ -1,10 +1,14 @@
 #include "glasspaint.h"
 #include "glasswidget.h"
 
+#include <QGraphicsBlurEffect>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsScene>
 #include <QImage>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QWidget>
 #include <QtMath>
 
 #include <cmath>
@@ -50,9 +54,86 @@ float circleMap(float x)
     return 1.f - std::sqrt(std::max(0.f, 1.f - x * x));
 }
 
+static QSize backdropWorkSize(const QSize &target, int maxSide = 900)
+{
+    QSize w = target;
+    if (w.width() < 1)
+        w.setWidth(1280);
+    if (w.height() < 1)
+        w.setHeight(720);
+    const int side = qMax(w.width(), w.height());
+    if (side > maxSide)
+        w.scale(maxSide, maxSide, Qt::KeepAspectRatio);
+    return w;
+}
+
+static QPixmap blurPixmap(const QPixmap &src, const QSize &target, qreal blurRadius)
+{
+    if (src.isNull() || target.isEmpty())
+        return {};
+
+    const QSize work = backdropWorkSize(target);
+    QPixmap cover = src.scaled(work, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    if (cover.width() > work.width() || cover.height() > work.height()) {
+        const int x = (cover.width() - work.width()) / 2;
+        const int y = (cover.height() - work.height()) / 2;
+        cover = cover.copy(x, y, work.width(), work.height());
+    } else if (cover.size() != work) {
+        cover = cover.scaled(work, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
+
+    QGraphicsScene scene;
+    QGraphicsPixmapItem item(cover);
+    QGraphicsBlurEffect effect;
+    effect.setBlurRadius(blurRadius);
+    effect.setBlurHints(QGraphicsBlurEffect::QualityHint);
+    item.setGraphicsEffect(&effect);
+    scene.addItem(&item);
+    const QRectF bounds = item.boundingRect();
+    scene.setSceneRect(bounds);
+
+    const int pad = int(blurRadius * 2);
+    QPixmap blurred(work.width() + pad * 2, work.height() + pad * 2);
+    blurred.fill(Qt::transparent);
+    {
+        QPainter p(&blurred);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        scene.render(&p, QRectF(pad, pad, work.width(), work.height()), bounds);
+    }
+
+    QPixmap cropped = blurred.copy(pad, pad, work.width(), work.height());
+    if (cropped.size() != target)
+        cropped = cropped.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    return cropped;
+}
+
 } // namespace
 
 namespace GlassPaint {
+
+QPixmap grabBlurredBackdrop(QWidget *host, const QList<QWidget *> &excludeWidgets, qreal blurRadius)
+{
+    if (!host)
+        return {};
+
+    QList<QWidget *> saved;
+    for (QWidget *w : excludeWidgets) {
+        if (!w || !w->isVisible())
+            continue;
+        saved.append(w);
+        w->hide();
+    }
+
+    const QPixmap shot = host->grab(host->rect());
+
+    for (QWidget *w : saved)
+        w->show();
+
+    if (shot.isNull())
+        return {};
+    return blurPixmap(shot, host->size(), blurRadius);
+}
 
 void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
 {

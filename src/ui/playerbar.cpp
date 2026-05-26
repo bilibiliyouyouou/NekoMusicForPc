@@ -749,6 +749,14 @@ void PlayerBar::setChromeVisible(bool visible)
         layoutPlayerBarChrome();
 }
 
+void PlayerBar::setFloatingProgressSuppressed(bool suppressed)
+{
+    if (m_floatingProgressSuppressed == suppressed)
+        return;
+    m_floatingProgressSuppressed = suppressed;
+    layoutPlayerBarChrome();
+}
+
 void PlayerBar::layoutPlayerBarChrome()
 {
     const int w = width();
@@ -761,7 +769,7 @@ void PlayerBar::layoutPlayerBarChrome()
     if (!m_progress)
         return;
 
-    if (!m_chromeVisible) {
+    if (!m_chromeVisible || m_floatingProgressSuppressed) {
         m_progress->hide();
         return;
     }

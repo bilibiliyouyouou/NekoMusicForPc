@@ -82,6 +82,11 @@ private:
     void createPlaylist();
     void showAddToPlaylistDialog(const MusicInfo &music);
     void togglePlaylistPanel();
+    void showPlaylistDrawer();
+    void hidePlaylistDrawer();
+    QWidget *playlistDrawerHost() const;
+    void syncPlaylistDrawerGeometry();
+    void raisePlaylistDrawerStack();
     void playMusicFromPlaylist(int musicId);
     void playNext();
     void playPrevious();
@@ -131,8 +136,10 @@ private:
     SearchPage *m_searchPage = nullptr;
     VipPage *m_vipPage = nullptr;
     PlaylistPanel *m_playlistPanel = nullptr;
+    QWidget *m_playlistScrim = nullptr;
     PlayerBar *m_playerBar = nullptr;
     QWidget *m_midWidget = nullptr;
+    QWidget *m_contentColumn = nullptr;
     QStackedWidget *m_stack = nullptr;
     PlayerEngine *m_engine = nullptr;
     MusicDownloader *m_downloader = nullptr;

@@ -5,6 +5,11 @@
 class QPainter;
 class QColor;
 class GlassWidget;
+class QWidget;
+class QPixmap;
+class QSize;
+
+#include <QList>
 
 /** 主窗口背景与条带面板（纯 QPainter，无 OpenGL）。 */
 namespace GlassPaint {
@@ -21,5 +26,9 @@ void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode);
 
 /** SPlayer 式扁平卡片/面板：禁用 backdrop 抓取，实心 surface */
 void applyFlatSurface(GlassWidget *glass, bool darkMode);
+
+/** 抓取 host 背后画面并高斯模糊（用于抽屉遮罩，非纯黑变暗） */
+QPixmap grabBlurredBackdrop(QWidget *host, const QList<QWidget *> &excludeWidgets = {},
+                            qreal blurRadius = 48.0);
 
 } // namespace GlassPaint

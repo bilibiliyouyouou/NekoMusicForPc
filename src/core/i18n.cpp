@@ -70,7 +70,11 @@ static QMap<QString, QString> zhCN()
     m["unfavorite"] = QStringLiteral("取消收藏");
     m["playAll"] = QStringLiteral("播放全部");
     m["playlist"] = QStringLiteral("播放列表");
+    m["playQueue"] = QStringLiteral("播放队列");
+    m["playlistSongCount"] = QStringLiteral("%1 首歌曲");
+    m["scrollToCurrentPlay"] = QStringLiteral("当前播放");
     m["emptyPlaylist"] = QStringLiteral("播放列表为空");
+    m["emptyPlaylistHint"] = QStringLiteral("播放列表暂无歌曲，快去添加吧");
     m["notPlaying"] = QStringLiteral("未播放");
     m["volume"] = QStringLiteral("音量");
     m["muted"] = QStringLiteral("已静音");
@@ -510,7 +514,11 @@ static QMap<QString, QString> nyaCN()
     m["unfavorite"] = QStringLiteral("不喜欢了喵...");
     m["playAll"] = QStringLiteral("全员集合，开始合唱喵！");
     m["playlist"] = QStringLiteral("咱的私藏歌单喵~");
+    m["playQueue"] = QStringLiteral("播放队列喵~");
+    m["playlistSongCount"] = QStringLiteral("共 %1 首歌喵");
+    m["scrollToCurrentPlay"] = QStringLiteral("正在播的");
     m["emptyPlaylist"] = QStringLiteral("播放列表空空的，快去加歌喵~");
+    m["emptyPlaylistHint"] = QStringLiteral("队列空空的，快去加歌喵~");
     m["notPlaying"] = QStringLiteral("耳朵好寂寞喵，还没在唱歌呢...");
     m["volume"] = QStringLiteral("音量调节喵~");
     m["muted"] = QStringLiteral("嘘——人家静音了喵~");
@@ -740,7 +748,11 @@ static QMap<QString, QString> enUS()
     m["unfavorite"] = "Unfavorite";
     m["playAll"] = "Play All";
     m["playlist"] = "Playlist";
+    m["playQueue"] = "Play Queue";
+    m["playlistSongCount"] = "%1 songs";
+    m["scrollToCurrentPlay"] = "Now Playing";
     m["emptyPlaylist"] = "Playlist is empty";
+    m["emptyPlaylistHint"] = "Queue is empty. Add some songs!";
     m["notPlaying"] = "Not Playing";
     m["volume"] = "Volume";
     m["muted"] = "Muted";

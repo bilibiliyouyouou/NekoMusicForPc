@@ -48,6 +48,114 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QList>
+#include <QGraphicsOpacityEffect>
+#include <QPropertyAnimation>
+#include <QEasingCurve>
+#include <functional>
+
+namespace {
+
+/** 抽屉遮罩：高斯模糊 + 轻微压暗，淡入淡出（对齐 SPlayer backdrop-filter） */
+class PlaylistDrawerScrim final : public QWidget {
+public:
+    explicit PlaylistDrawerScrim(QWidget *parent = nullptr) : QWidget(parent)
+    {
+        setAttribute(Qt::WA_StyledBackground, true);
+        setCursor(Qt::ArrowCursor);
+        m_opacityFx = new QGraphicsOpacityEffect(this);
+        m_opacityFx->setOpacity(0.0);
+        setGraphicsEffect(m_opacityFx);
+        hide();
+    }
+
+    std::function<void()> onClicked;
+
+    void refreshBackdrop(QWidget *host, QWidget *drawerPanel)
+    {
+        if (!host)
+            return;
+        QList<QWidget *> exclude;
+        exclude.append(this);
+        if (drawerPanel)
+            exclude.append(drawerPanel);
+        m_blurPixmap = GlassPaint::grabBlurredBackdrop(host, exclude, 48.0);
+        update();
+    }
+
+    void fadeIn(int durationMs = Theme::kAnimNormal)
+    {
+        stopFadeAnim();
+        m_opacityFx->setOpacity(0.0);
+        show();
+        m_fadeAnim = new QPropertyAnimation(m_opacityFx, "opacity", this);
+        m_fadeAnim->setDuration(durationMs);
+        m_fadeAnim->setStartValue(0.0);
+        m_fadeAnim->setEndValue(1.0);
+        m_fadeAnim->setEasingCurve(QEasingCurve::OutCubic);
+        connect(m_fadeAnim, &QPropertyAnimation::finished, this, [this]() { m_fadeAnim = nullptr; });
+        m_fadeAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+
+    void fadeOut(int durationMs = Theme::kAnimNormal)
+    {
+        stopFadeAnim();
+        if (!isVisible()) {
+            m_opacityFx->setOpacity(0.0);
+            return;
+        }
+        m_fadeAnim = new QPropertyAnimation(m_opacityFx, "opacity", this);
+        m_fadeAnim->setDuration(durationMs);
+        m_fadeAnim->setStartValue(m_opacityFx->opacity());
+        m_fadeAnim->setEndValue(0.0);
+        m_fadeAnim->setEasingCurve(QEasingCurve::InCubic);
+        connect(m_fadeAnim, &QPropertyAnimation::finished, this, [this]() {
+            m_fadeAnim = nullptr;
+            hide();
+            m_opacityFx->setOpacity(0.0);
+        });
+        m_fadeAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        Q_UNUSED(event);
+        QPainter p(this);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        if (!m_blurPixmap.isNull())
+            p.drawPixmap(rect(), m_blurPixmap);
+        else
+            p.fillRect(rect(), QColor(36, 36, 36, 220));
+        // 模糊之上轻微压暗（SPlayer 遮罩在 blur 上叠一层半透明黑）
+        p.fillRect(rect(), QColor(0, 0, 0, 72));
+    }
+
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        if (onClicked)
+            onClicked();
+        event->accept();
+    }
+
+private:
+    void stopFadeAnim()
+    {
+        if (!m_fadeAnim)
+            return;
+        m_fadeAnim->stop();
+        m_fadeAnim->deleteLater();
+        m_fadeAnim = nullptr;
+    }
+
+    QPixmap m_blurPixmap;
+    QGraphicsOpacityEffect *m_opacityFx = nullptr;
+    QPropertyAnimation *m_fadeAnim = nullptr;
+};
+
+} // namespace
 #include <QPointer>
 #include <QDebug>
 #include "ui/lineinputdialog.h"
@@ -252,8 +360,9 @@ void MainWindow::setupUi()
     m_sidebar = new Sidebar(m_apiClient, this);
     midH->addWidget(m_sidebar);
 
-    auto *contentCol = new QWidget(m_midWidget);
-    contentCol->setObjectName("contentColumn");
+    m_contentColumn = new QWidget(m_midWidget);
+    m_contentColumn->setObjectName("contentColumn");
+    auto *contentCol = m_contentColumn;
     auto *contentV = new QVBoxLayout(contentCol);
     contentV->setContentsMargins(0, 0, 0, 0);
     contentV->setSpacing(0);
@@ -296,9 +405,14 @@ void MainWindow::setupUi()
     m_playerPage = new PlayerPage(m_engine, m_apiClient, m_midWidget);
     m_playerPage->hide();
 
-    // 播放列表面板
-    m_playlistPanel = new PlaylistPanel(this);
-    m_playlistPanel->hide();
+    // 播放队列抽屉：贴窗口右缘滑入，层级盖住底栏播放器（对齐 SPlayer n-drawer）
+    m_playlistPanel = new PlaylistPanel(central);
+    m_playlistScrim = new PlaylistDrawerScrim(central);
+    static_cast<PlaylistDrawerScrim *>(m_playlistScrim)->onClicked = [this]() { hidePlaylistDrawer(); };
+    connect(m_playlistPanel, &PlaylistPanel::drawerClosed, this, [this]() {
+        if (m_playerBar)
+            m_playerBar->setFloatingProgressSuppressed(false);
+    });
 
     // 加载播放队列
     PlaylistManager::instance().load();
@@ -659,10 +773,6 @@ void MainWindow::setupUi()
         m_sidebar->refreshPlaylists();
     });
 
-    // 播放列表面板
-    connect(m_playlistPanel, &PlaylistPanel::hideRequested, this, [this]() {
-        m_playlistPanel->hidePanel();
-    });
     connect(m_playlistPanel, &PlaylistPanel::playRequested, this, [this](int musicId) {
         playMusicFromPlaylist(musicId);
     });
@@ -844,7 +954,7 @@ void MainWindow::playLocalMusicInfo(const MusicInfo &info)
         }
     }
 
-    if (m_playlistPanel && m_playlistPanel->isVisible())
+    if (m_playlistPanel && m_playlistPanel->isDrawerOpen())
         m_playlistPanel->refresh();
 
     m_playerBar->setCurrentMusicId(info.id);
@@ -902,15 +1012,77 @@ void MainWindow::showAddToPlaylistDialog(const MusicInfo &music)
     }
 }
 
+QWidget *MainWindow::playlistDrawerHost() const
+{
+    if (m_playerPageVisible && m_playerPage)
+        return m_playerPage;
+    return centralWidget();
+}
+
+void MainWindow::syncPlaylistDrawerGeometry()
+{
+    QWidget *host = playlistDrawerHost();
+    if (!host || !m_playlistPanel)
+        return;
+
+    if (m_playlistPanel->parentWidget() != host)
+        m_playlistPanel->setParent(host);
+    if (m_playlistScrim && m_playlistScrim->parentWidget() != host)
+        m_playlistScrim->setParent(host);
+
+    if (m_playlistScrim)
+        m_playlistScrim->setGeometry(host->rect());
+
+    m_playlistPanel->syncToHost();
+    if (m_playlistPanel->isDrawerOpen()) {
+        m_playlistPanel->show();
+        raisePlaylistDrawerStack();
+    }
+}
+
+void MainWindow::raisePlaylistDrawerStack()
+{
+    if (!m_playlistPanel || !m_playlistPanel->isDrawerOpen())
+        return;
+    if (m_playlistScrim && m_playlistScrim->isVisible()) {
+        m_playlistScrim->raise();
+    }
+    m_playlistPanel->raise();
+}
+
+void MainWindow::showPlaylistDrawer()
+{
+    if (!m_playlistPanel)
+        return;
+    if (m_playerBar)
+        m_playerBar->setFloatingProgressSuppressed(true);
+    syncPlaylistDrawerGeometry();
+    if (m_playlistScrim) {
+        auto *scrim = static_cast<PlaylistDrawerScrim *>(m_playlistScrim);
+        scrim->refreshBackdrop(playlistDrawerHost(), m_playlistPanel);
+        scrim->fadeIn();
+    }
+    m_playlistPanel->openDrawer();
+    raisePlaylistDrawerStack();
+}
+
+void MainWindow::hidePlaylistDrawer()
+{
+    if (!m_playlistPanel || !m_playlistPanel->isDrawerOpen())
+        return;
+    if (m_playlistScrim)
+        static_cast<PlaylistDrawerScrim *>(m_playlistScrim)->fadeOut();
+    m_playlistPanel->closeDrawer();
+}
+
 void MainWindow::togglePlaylistPanel()
 {
-    m_playlistPanel->togglePanel();
-    if (m_playlistPanel->isVisible()) {
-        // 定位到播放栏右侧上方
-        QPoint pos = mapToGlobal(QPoint(width() - m_playlistPanel->width() - 20,
-                                        height() - m_playerBar->height() - m_playlistPanel->height() - 20));
-        m_playlistPanel->move(pos);
-    }
+    if (!m_playlistPanel)
+        return;
+    if (m_playlistPanel->isDrawerOpen())
+        hidePlaylistDrawer();
+    else
+        showPlaylistDrawer();
 }
 
 void MainWindow::playMusicFromPlaylist(int musicId)
@@ -1241,10 +1413,8 @@ void MainWindow::playMusicById(int musicId, const QString &title, const QString 
         }
     }
 
-    // 刷新播放列表面板（如果可见）
-    if (m_playlistPanel && m_playlistPanel->isVisible()) {
+    if (m_playlistPanel && m_playlistPanel->isDrawerOpen())
         m_playlistPanel->refresh();
-    }
 
     // Update player bar
     m_playerBar->setCurrentMusicId(musicId);
@@ -1282,8 +1452,8 @@ void MainWindow::openPlayerPage()
     if (!m_playerPage || m_playerPageVisible)
         return;
 
-    if (m_playlistPanel && m_playlistPanel->isVisible())
-        m_playlistPanel->hide();
+    if (m_playlistPanel && m_playlistPanel->isDrawerOpen())
+        hidePlaylistDrawer();
 
     m_playerPageVisible = true;
     if (m_playerBar) {
@@ -1353,8 +1523,16 @@ void MainWindow::resizeEvent(QResizeEvent *event)
         else if (m_midWidget)
             m_playerPage->setGeometry(m_midWidget->rect());
     }
+    if (m_playlistPanel && m_playlistPanel->isDrawerOpen()) {
+        syncPlaylistDrawerGeometry();
+        if (m_playlistScrim)
+            static_cast<PlaylistDrawerScrim *>(m_playlistScrim)
+                ->refreshBackdrop(playlistDrawerHost(), m_playlistPanel);
+    }
     if (m_playerBar && m_playerBar->isVisible())
         m_playerBar->relayoutChrome();
+    if (m_playlistPanel && m_playlistPanel->isDrawerOpen())
+        raisePlaylistDrawerStack();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

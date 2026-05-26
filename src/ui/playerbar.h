@@ -57,6 +57,9 @@ public:
     /** 全屏播放页时隐藏顶栏进度条（进度条 parent 为主窗口，hide 底栏不会带走） */
     void setChromeVisible(bool visible);
 
+    /** 播放队列抽屉打开时隐藏悬浮进度条（避免盖住抽屉底部） */
+    void setFloatingProgressSuppressed(bool suppressed);
+
     /** 切页等导致主内容变化时刷新底部栏磨砂采样 */
     void refreshGlassBackdrop();
 
@@ -90,6 +93,7 @@ private:
 
     bool m_titleMarqueeUpdateScheduled = false;
     bool m_chromeVisible = true;
+    bool m_floatingProgressSuppressed = false;
 
     QWidget *m_pbLeft = nullptr;
     QWidget *m_pbCenter = nullptr;
