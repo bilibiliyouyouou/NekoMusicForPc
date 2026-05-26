@@ -10,6 +10,7 @@
 class QScrollArea;
 class QLabel;
 class QPushButton;
+class QTimer;
 class QWidget;
 class SongCardWidget;
 
@@ -54,6 +55,8 @@ private:
     void setupUi();
     void syncContainerHeight();
     void updateVisibleRows();
+    void scheduleVisibleUpdate();
+    void rebuildCurrentRowCache();
     void refreshPlayingState();
     SongCardWidget *acquireCard();
     void releaseCard(SongCardWidget *card);
@@ -64,6 +67,7 @@ private:
 
     QList<MusicInfo> m_songs;
     int m_currentId = -1;
+    int m_currentRowInList = -1;
     bool m_paused = false;
     bool m_removeMode = false;
 
@@ -82,4 +86,5 @@ private:
 
     QPushButton *m_scrollTopBtn = nullptr;
     QPushButton *m_scrollCurrentBtn = nullptr;
+    QTimer *m_visibleUpdateTimer = nullptr;
 };

@@ -54,6 +54,7 @@ SongCardWidget::SongCardWidget(QWidget *parent)
     setCursor(Qt::PointingHandCursor);
     setAttribute(Qt::WA_StyledBackground, false);
     rebuildLayout();
+    applyTheme();
 }
 
 void SongCardWidget::rebuildLayout()
@@ -216,41 +217,63 @@ bool SongCardWidget::eventFilter(QObject *watched, QEvent *event)
     return QWidget::eventFilter(watched, event);
 }
 
+void SongCardWidget::prepareForPool()
+{
+    disconnect(m_coverConn);
+    m_coverConn = {};
+    setHover(false);
+}
+
 void SongCardWidget::bind(const MusicInfo &info, int index)
 {
+    disconnect(m_coverConn);
+    m_coverConn = {};
+
+    const bool sameSong = m_info.id == info.id;
+    const int oldIndex = m_index;
+    m_index = index;
+
+    if (sameSong) {
+        if (oldIndex != index)
+            updateIndexColumn();
+        return;
+    }
+
     setHover(false);
     m_info = info;
-    m_index = index;
     m_titleLbl->setText(info.title);
     m_artistLbl->setText(info.artist);
     m_albumLbl->setText(info.album.isEmpty() ? QStringLiteral("—") : info.album);
     m_timeLbl->setText(formatDuration(info.duration));
 
-    const QString musicId = QString::number(info.id);
-    if (QPixmap cached = CoverCache::instance()->get(musicId); !cached.isNull()) {
-        m_coverLbl->setPixmap(cached);
-        m_coverLbl->update();
-    } else {
-        QPixmap pm(kCover, kCover);
-        pm.fill(QColor(230, 57, 80, 40));
-        m_coverLbl->setPixmap(pm);
-        m_coverLbl->update();
-        connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
-                [this, musicId](const QString &id, const QPixmap &pix) {
-                    if (id == musicId) {
-                        m_coverLbl->setPixmap(pix);
-                        m_coverLbl->update();
-                    }
-                });
-        const QString url = info.coverUrl.isEmpty()
-            ? QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(info.id)
-            : info.coverUrl;
-        CoverCache::instance()->fetchCover(musicId, url);
-    }
-
+    loadCover();
     updateIndexColumn();
     elideTexts();
-    applyTheme();
+}
+
+void SongCardWidget::loadCover()
+{
+    const QString musicId = QString::number(m_info.id);
+    if (QPixmap cached = CoverCache::instance()->get(musicId); !cached.isNull()) {
+        m_coverLbl->setPixmap(cached);
+        return;
+    }
+
+    QPixmap pm(kCover, kCover);
+    pm.fill(QColor(230, 57, 80, 40));
+    m_coverLbl->setPixmap(pm);
+
+    m_coverConn = connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
+                          [this, musicId](const QString &id, const QPixmap &pix) {
+                              if (id == musicId) {
+                                  m_coverLbl->setPixmap(pix);
+                                  m_coverLbl->update();
+                              }
+                          });
+    const QString url = m_info.coverUrl.isEmpty()
+        ? QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(m_info.id)
+        : m_info.coverUrl;
+    CoverCache::instance()->fetchCover(musicId, url);
 }
 
 void SongCardWidget::setPlaying(bool playing)
@@ -277,7 +300,7 @@ void SongCardWidget::setRemoveMode(bool remove)
     if (m_removeMode == remove)
         return;
     m_removeMode = remove;
-    applyTheme();
+    updateHeartIcon();
 }
 
 void SongCardWidget::setFavorited(bool favorited)
@@ -285,7 +308,31 @@ void SongCardWidget::setFavorited(bool favorited)
     if (m_favorited == favorited)
         return;
     m_favorited = favorited;
-    applyTheme();
+    updateHeartIcon();
+}
+
+void SongCardWidget::updateHeartIcon()
+{
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (m_removeMode) {
+        const QColor delIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+        m_heartBtn->setIcon(Icons::renderNamed("Delete", 20, delIc));
+    } else {
+        const QColor heartOn(255, 69, 69);
+        const QColor heartOff = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 120);
+        m_heartBtn->setIcon(Icons::renderNamed(m_favorited ? "Favorite" : "FavoriteBorder", 20,
+                                               m_favorited ? heartOn : heartOff));
+    }
+    m_heartBtn->setIconSize(QSize(20, 20));
+}
+
+void SongCardWidget::updateOverlayIcons()
+{
+    const QColor overlayIc = kPrimary;
+    m_playOverlay->setIcon(Icons::renderNamed("Play", 28, overlayIc));
+    m_playOverlay->setIconSize(QSize(28, 28));
+    m_statusOverlay->setIcon(Icons::renderNamed(m_paused ? "Play" : "Pause", 28, overlayIc));
+    m_statusOverlay->setIconSize(QSize(28, 28));
 }
 
 void SongCardWidget::applyTheme()
@@ -306,28 +353,14 @@ void SongCardWidget::applyTheme()
     m_timeLbl->setStyleSheet(QStringLiteral(
         "QLabel { color: %1; font-size: 13px; }").arg(subFg));
 
-    if (m_removeMode) {
-        const QColor delIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
-        m_heartBtn->setIcon(Icons::renderNamed("Delete", 20, delIc));
-    } else {
-        const QColor heartOn(255, 69, 69);
-        const QColor heartOff = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 120);
-        m_heartBtn->setIcon(Icons::renderNamed(m_favorited ? "Favorite" : "FavoriteBorder", 20,
-                                               m_favorited ? heartOn : heartOff));
-    }
-    m_heartBtn->setIconSize(QSize(20, 20));
     m_heartBtn->setStyleSheet(QStringLiteral(
         "QPushButton { background: transparent; border: none; border-radius: 8px; }"
         "QPushButton:hover { background: rgba(230,57,80,0.15); }"));
-
-    const QColor overlayIc = kPrimary;
-    m_playOverlay->setIcon(Icons::renderNamed("Play", 28, overlayIc));
-    m_playOverlay->setIconSize(QSize(28, 28));
-    m_statusOverlay->setIcon(Icons::renderNamed(m_paused ? "Play" : "Pause", 28, overlayIc));
-    m_statusOverlay->setIconSize(QSize(28, 28));
     m_playOverlay->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; }"));
     m_statusOverlay->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; }"));
 
+    updateHeartIcon();
+    updateOverlayIcons();
     update();
 }
 
@@ -392,6 +425,7 @@ void SongCardWidget::updateIndexColumn()
         m_indexLbl->setText(QString::number(m_index + 1));
     }
     updateHoverOverlays();
+    update();
 }
 
 void SongCardWidget::updateHoverOverlays()

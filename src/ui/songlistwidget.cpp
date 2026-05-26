@@ -12,6 +12,7 @@
 #include <QScrollBar>
 #include <QFrame>
 #include <QPushButton>
+#include <QTimer>
 #include "ui/svgicon.h"
 
 namespace {
@@ -95,9 +96,14 @@ void SongListWidget::setupUi()
     m_scrollTopBtn->hide();
     connect(m_scrollTopBtn, &QPushButton::clicked, this, &SongListWidget::scrollToTop);
 
+    m_visibleUpdateTimer = new QTimer(this);
+    m_visibleUpdateTimer->setSingleShot(true);
+    m_visibleUpdateTimer->setInterval(16);
+    connect(m_visibleUpdateTimer, &QTimer::timeout, this, &SongListWidget::updateVisibleRows);
+
     connect(m_scroll->verticalScrollBar(), &QScrollBar::valueChanged, this, [this](int v) {
         emit scrolled(v);
-        updateVisibleRows();
+        scheduleVisibleUpdate();
         if (m_scrollTopBtn)
             m_scrollTopBtn->setVisible(v > 100);
         if (m_scrollCurrentBtn)
@@ -129,13 +135,28 @@ void SongListWidget::setRemoveMode(bool remove)
 
 bool SongListWidget::hasCurrentPlaying() const
 {
+    return m_currentRowInList >= 0;
+}
+
+void SongListWidget::rebuildCurrentRowCache()
+{
+    m_currentRowInList = -1;
     if (m_currentId < 0)
-        return false;
-    for (const MusicInfo &s : m_songs) {
-        if (s.id == m_currentId)
-            return true;
+        return;
+    for (int i = 0; i < m_songs.size(); ++i) {
+        if (m_songs[i].id == m_currentId) {
+            m_currentRowInList = i;
+            return;
+        }
     }
-    return false;
+}
+
+void SongListWidget::scheduleVisibleUpdate()
+{
+    if (!m_visibleUpdateTimer)
+        return;
+    if (!m_visibleUpdateTimer->isActive())
+        m_visibleUpdateTimer->start();
 }
 
 void SongListWidget::setSongs(const QList<MusicInfo> &songs)
@@ -145,8 +166,12 @@ void SongListWidget::setSongs(const QList<MusicInfo> &songs)
         releaseCard(m_rowCards.take(row));
 
     m_songs = songs;
+    rebuildCurrentRowCache();
     syncContainerHeight();
-    updateVisibleRows();
+    if (songs.size() > 40)
+        scheduleVisibleUpdate();
+    else
+        updateVisibleRows();
 }
 
 void SongListWidget::setCurrentPlayingId(int musicId)
@@ -154,8 +179,8 @@ void SongListWidget::setCurrentPlayingId(int musicId)
     if (m_currentId == musicId)
         return;
     m_currentId = musicId;
+    rebuildCurrentRowCache();
     refreshPlayingState();
-    updateVisibleRows();
     if (m_scrollCurrentBtn)
         m_scrollCurrentBtn->setVisible(hasCurrentPlaying());
 }
@@ -252,17 +277,9 @@ void SongListWidget::scrollToTop()
 
 void SongListWidget::scrollToPlaying()
 {
-    if (m_currentId < 0 || !m_scroll)
+    if (m_currentRowInList < 0 || !m_scroll)
         return;
-    int row = -1;
-    for (int i = 0; i < m_songs.size(); ++i) {
-        if (m_songs[i].id == m_currentId) {
-            row = i;
-            break;
-        }
-    }
-    if (row < 0)
-        return;
+    const int row = m_currentRowInList;
     const int y = kListPad + row * kRowStride;
     const int viewH = m_scroll->viewport()->height();
     int scrollVal = m_scroll->verticalScrollBar()->value();
@@ -271,14 +288,14 @@ void SongListWidget::scrollToPlaying()
     else if (y + kRowHeight > scrollVal + viewH)
         scrollVal = y + kRowHeight - viewH;
     m_scroll->verticalScrollBar()->setValue(scrollVal);
-    updateVisibleRows();
+    scheduleVisibleUpdate();
 }
 
 void SongListWidget::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     syncContainerHeight();
-    updateVisibleRows();
+    scheduleVisibleUpdate();
 
     const int right = width() - 52;
     const int bottom = height() - 100;
@@ -309,6 +326,7 @@ void SongListWidget::releaseCard(SongCardWidget *card)
 {
     if (!card)
         return;
+    card->prepareForPool();
     card->hide();
     card->onActivate = nullptr;
     card->onPlayNext = nullptr;
@@ -339,24 +357,30 @@ void SongListWidget::updateVisibleRows()
 
     const int w = qMax(40, m_container->width());
     for (int row = first; row <= last; ++row) {
+        const MusicInfo &song = m_songs[row];
         SongCardWidget *card = m_rowCards.value(row, nullptr);
-        if (!card) {
+        const bool isNew = !card;
+        if (isNew) {
             card = acquireCard();
             card->setParent(m_container);
             m_rowCards[row] = card;
+            card->onActivate = onSongActivate;
+            card->onPlayNext = onSongPlayNext;
+            card->onContextMenu = onSongContextMenu;
+            card->onUnfavorite = onUnfavorite;
+            card->onTogglePlayPause = onTogglePlayPause;
+            card->setRemoveMode(m_removeMode);
         }
-        card->bind(m_songs[row], row);
-        card->setRemoveMode(m_removeMode);
-        card->onActivate = onSongActivate;
-        card->onPlayNext = onSongPlayNext;
-        card->onContextMenu = onSongContextMenu;
-        card->onUnfavorite = onUnfavorite;
-        card->onTogglePlayPause = onTogglePlayPause;
-        card->setFavorited(isFavorited ? isFavorited(m_songs[row].id) : false);
+
+        const bool songChanged = isNew || card->info().id != song.id;
+        card->bind(song, row);
+        if (songChanged)
+            card->setFavorited(isFavorited ? isFavorited(song.id) : false);
+
         card->setFixedSize(w, kRowHeight);
         card->move(0, row * kRowStride);
-        card->setPlaying(m_songs[row].id == m_currentId);
-        card->setPaused(m_songs[row].id == m_currentId && m_paused);
+        card->setPlaying(song.id == m_currentId);
+        card->setPaused(song.id == m_currentId && m_paused);
         card->show();
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QMetaObject>
 #include <QWidget>
 #include <functional>
 
@@ -17,6 +18,8 @@ public:
     explicit SongCardWidget(QWidget *parent = nullptr);
 
     void bind(const MusicInfo &info, int index);
+    /** 回收到列表池前断开封面监听，避免滚动时信号堆积 */
+    void prepareForPool();
     void setPlaying(bool playing);
     void setPaused(bool paused);
     /** false = 收藏心形；true = 从歌单移除（Delete） */
@@ -49,7 +52,10 @@ private:
     bool isInteractiveButton(QObject *obj) const;
     void updateIndexColumn();
     void updateHoverOverlays();
+    void updateHeartIcon();
+    void updateOverlayIcons();
     void elideTexts();
+    void loadCover();
     QString formatDuration(int seconds) const;
 
     MusicInfo m_info;
@@ -71,4 +77,6 @@ private:
     QLabel *m_albumLbl = nullptr;
     QLabel *m_timeLbl = nullptr;
     QPushButton *m_heartBtn = nullptr;
+
+    QMetaObject::Connection m_coverConn;
 };
