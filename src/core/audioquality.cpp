@@ -55,7 +55,7 @@ bool parseFlac(const QByteArray &data, ProbeResult &out)
         return false;
     const uchar *si = base + 8 + 4;
     const int sampleRate = int((si[10] << 12) | (si[11] << 4) | (si[12] >> 4));
-    const int bits = int(((si[12] & 0x0F) << 4) | (si[13] >> 4));
+    const int bits = int((((si[12] & 0x01) << 4) | ((si[13] & 0xF0) >> 4)) + 1);
     if (sampleRate <= 0)
         return false;
     out.sampleRateHz = sampleRate;
@@ -144,8 +144,19 @@ ProbeResult probeSuffixFallback(const QString &suffix)
 
 } // namespace
 
+int normalizeBitrateBps(int rawBps)
+{
+    if (rawBps <= 0)
+        return 0;
+    // Qt/FFmpeg 有时上报 kbps（如 3295）而非 bps
+    if (rawBps < 100000)
+        return rawBps * 1000;
+    return rawBps;
+}
+
 Tier tierFromBitrateBps(int bitrateBps)
 {
+    bitrateBps = normalizeBitrateBps(bitrateBps);
     if (bitrateBps <= 0)
         return Tier::Unknown;
     if (bitrateBps >= 960000)
@@ -194,14 +205,7 @@ ProbeResult probeHttpHint(const QString &contentType, qint64 contentLengthBytes,
 {
     ProbeResult out;
     const QString ct = contentType.toLower();
-    if (ct.contains(QLatin1String("flac"))) {
-        out.tier = Tier::SQ;
-        return ensureVisibleTier(out);
-    }
-    if (ct.contains(QLatin1String("wav"))) {
-        out.tier = Tier::SQ;
-        return ensureVisibleTier(out);
-    }
+
     if (contentLengthBytes > 0 && durationSec > 0) {
         const qint64 bps = (contentLengthBytes * 8LL) / qint64(durationSec);
         if (bps > 0 && bps < 50'000'000) {
@@ -210,6 +214,11 @@ ProbeResult probeHttpHint(const QString &contentType, qint64 contentLengthBytes,
             return ensureVisibleTier(out);
         }
     }
+
+  // 无 Content-Length 时勿把 flac/wav 标成 SQ，留给 Range 读头判断 Hi-Res
+    if (ct.contains(QLatin1String("flac")) || ct.contains(QLatin1String("wav")))
+        return out;
+
     if (ct.contains(QLatin1String("mpeg")) || ct.contains(QLatin1String("mp3")))
         out.tier = Tier::HQ;
     else if (ct.contains(QLatin1String("aac")) || ct.contains(QLatin1String("mp4")))

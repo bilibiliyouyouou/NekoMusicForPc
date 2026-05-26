@@ -22,6 +22,8 @@ struct ProbeResult {
     int bitsPerSample = 0;
 };
 
+/** 统一为 bps（部分后端上报 kbps） */
+int normalizeBitrateBps(int rawBps);
 Tier tierFromBitrateBps(int bitrateBps);
 
 /** 同步读取文件头（≤64KB）推断音质，本地/缓存曲用 */

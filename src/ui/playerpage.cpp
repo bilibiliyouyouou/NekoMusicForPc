@@ -1094,7 +1094,7 @@ void PlayerPage::refineAudioQualityFromEngine()
 {
     if (!m_engine)
         return;
-    const int bps = m_engine->audioBitRateBps();
+    const int bps = AudioQuality::normalizeBitrateBps(m_engine->audioBitRateBps());
     if (bps <= 0)
         return;
     AudioQuality::ProbeResult r;
@@ -1166,33 +1166,46 @@ void PlayerPage::scheduleAudioQualityProbe()
         }
 
         AudioQuality::ProbeResult result;
+        QString ctLower;
         if (reply->error() == QNetworkReply::NoError) {
             const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+            ctLower = ct.toLower();
             const qint64 len = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
             result = AudioQuality::probeHttpHint(ct, len, trackDurationSec());
         }
         reply->deleteLater();
 
-        if (result.tier != AudioQuality::Tier::Unknown) {
+        const bool losslessCt =
+            ctLower.contains(QLatin1String("flac")) || ctLower.contains(QLatin1String("wav"));
+        if (result.tier != AudioQuality::Tier::Unknown && !losslessCt) {
             finishProbe(result);
             return;
         }
 
-        if (!m_qualityNam)
+        if (!m_qualityNam) {
+            if (result.tier != AudioQuality::Tier::Unknown)
+                finishProbe(result);
             return;
+        }
 
         QNetworkRequest getReq(url);
         getReq.setRawHeader("Range", "bytes=0-16383");
         QNetworkReply *rangeReply = m_qualityNam->get(getReq);
         connect(rangeReply, &QNetworkReply::finished, this,
-                [this, probeGen, musicId, rangeReply, finishProbe]() {
+                [this, probeGen, musicId, rangeReply, finishProbe, result]() {
                     if (probeGen != m_qualityProbeGen || musicId != m_musicId) {
                         rangeReply->deleteLater();
                         return;
                     }
-                    AudioQuality::ProbeResult r2;
+                    AudioQuality::ProbeResult r2 = result;
                     if (rangeReply->error() == QNetworkReply::NoError)
                         r2 = AudioQuality::probeBuffer(rangeReply->readAll());
+                    if (r2.tier == AudioQuality::Tier::Unknown && result.tier != AudioQuality::Tier::Unknown)
+                        r2 = result;
+                    else if (result.tier != AudioQuality::Tier::Unknown
+                             && r2.tier != AudioQuality::Tier::Unknown
+                             && int(r2.tier) < int(result.tier))
+                        r2.tier = result.tier;
                     rangeReply->deleteLater();
                     finishProbe(r2);
                 });
