@@ -77,7 +77,16 @@ if [ -n "$MISSING" ]; then
     echo "ERROR: Missing tools:$MISSING"
     echo ""
     echo "Install with:"
-    echo "  sudo apt install g++-mingw-w64-x86-64 nsis cmake"
+    echo "  sudo apt install g++-mingw-w64-x86-64 mingw-w64-x86-64-dev nsis cmake"
+    exit 1
+fi
+
+MINGW_WIN_H="/usr/x86_64-w64-mingw32/include/windows.h"
+if [ ! -f "$MINGW_WIN_H" ]; then
+    echo "ERROR: MinGW Windows headers not found ($MINGW_WIN_H)"
+    echo ""
+    echo "Install with:"
+    echo "  sudo apt install mingw-w64-x86-64-dev"
     exit 1
 fi
 

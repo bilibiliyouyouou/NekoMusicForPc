@@ -5,7 +5,7 @@
 #include <QWindow>
 
 #if defined(Q_OS_WIN)
-#include <Windows.h>
+#include <windows.h>
 #endif
 
 #if defined(NEKO_HAS_KDE_WINDOWSYSTEM)
