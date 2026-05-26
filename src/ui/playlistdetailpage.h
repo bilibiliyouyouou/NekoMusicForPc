@@ -58,10 +58,18 @@ private:
     void hidePageStatus();
     void reloadPlaylist();
     void editPlaylistDescription();
+    void updateActionButtons();
+    void updateCollectPlaylistButton();
+    void refreshPlaylistCollectedState();
+    void toggleCollectPlaylist();
+    int currentUserId() const;
 
     ApiClient *m_apiClient = nullptr;
     int m_playlistId = 0;
     int m_firstMusicId = 0;
+    int m_creatorId = 0;
+    bool m_isUserPlaylist = false;
+    bool m_isPlaylistCollected = false;
     QString m_playlistName;
     QString m_playlistDesc;
     QString m_creatorUsername;
@@ -77,6 +85,8 @@ private:
     QWidget *m_metaRow = nullptr;
     QLabel *m_creatorLbl = nullptr;
     QPushButton *m_playBtn = nullptr;
+    QPushButton *m_editPlaylistBtn = nullptr;
+    QPushButton *m_collectPlaylistBtn = nullptr;
     QPushButton *m_moreBtn = nullptr;
     QLineEdit *m_searchEdit = nullptr;
     QWidget *m_searchWrap = nullptr;

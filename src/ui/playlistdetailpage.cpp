@@ -10,10 +10,12 @@
 #include "core/i18n.h"
 #include "core/covercache.h"
 #include "core/playlistmanager.h"
+#include "core/usermanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
 #include "ui/lineinputdialog.h"
+#include "ui/toast.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -189,6 +191,20 @@ void PlaylistDetailPage::setupUi()
     });
     menuLay->addWidget(m_playBtn);
 
+    m_editPlaylistBtn = new QPushButton(I18n::instance().tr(QStringLiteral("editPlaylist")), menuRow);
+    m_editPlaylistBtn->setCursor(Qt::PointingHandCursor);
+    m_editPlaylistBtn->setFixedHeight(40);
+    m_editPlaylistBtn->hide();
+    connect(m_editPlaylistBtn, &QPushButton::clicked, this, &PlaylistDetailPage::editPlaylistDescription);
+    menuLay->addWidget(m_editPlaylistBtn);
+
+    m_collectPlaylistBtn = new QPushButton(I18n::instance().tr(QStringLiteral("collectPlaylist")), menuRow);
+    m_collectPlaylistBtn->setCursor(Qt::PointingHandCursor);
+    m_collectPlaylistBtn->setFixedHeight(40);
+    m_collectPlaylistBtn->hide();
+    connect(m_collectPlaylistBtn, &QPushButton::clicked, this, &PlaylistDetailPage::toggleCollectPlaylist);
+    menuLay->addWidget(m_collectPlaylistBtn);
+
     m_moreBtn = new QPushButton(menuRow);
     m_moreBtn->setFixedSize(40, 40);
     m_moreBtn->setCursor(Qt::PointingHandCursor);
@@ -208,12 +224,9 @@ void PlaylistDetailPage::setupUi()
                                      "QMenu::item { color: #212529; padding: 10px 20px; }"
                                      "QMenu::item:selected { background: rgba(230,57,80,0.12); }"));
         QAction *refreshAct = menu.addAction(I18n::instance().tr(QStringLiteral("refresh")));
-        QAction *editDescAct = menu.addAction(I18n::instance().tr(QStringLiteral("modifyPlaylistDesc")));
         QAction *picked = menu.exec(m_moreBtn->mapToGlobal(QPoint(0, m_moreBtn->height())));
         if (picked == refreshAct)
             reloadPlaylist();
-        else if (picked == editDescAct)
-            editPlaylistDescription();
     });
     menuLay->addWidget(m_moreBtn);
 
@@ -312,15 +325,36 @@ void PlaylistDetailPage::applyPageStyle()
             "QPushButton:hover { background: #ff5070; }"
             "QPushButton:disabled { background: rgba(230,57,80,0.35); color: rgba(255,255,255,0.6); }"));
     }
+    const QString secondaryBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString secondaryFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    const QColor secondaryIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    const QString secondaryStyle = QStringLiteral(
+        "QPushButton {"
+        "  background: %1;"
+        "  color: %2;"
+        "  border: none;"
+        "  border-radius: 20px;"
+        "  font-size: 14px;"
+        "  font-weight: 500;"
+        "  padding: 0 20px;"
+        "}"
+        "QPushButton:hover { background: rgba(230,57,80,0.15); }")
+                                     .arg(secondaryBg, secondaryFg);
+
+    if (m_editPlaylistBtn) {
+        m_editPlaylistBtn->setIcon(Icons::renderNamed("EditNote", 18, secondaryIc));
+        m_editPlaylistBtn->setIconSize(QSize(18, 18));
+        m_editPlaylistBtn->setStyleSheet(secondaryStyle);
+    }
+    if (m_collectPlaylistBtn)
+        updateCollectPlaylistButton();
     if (m_moreBtn) {
-        const QString moreBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
-        const QColor moreIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
-        m_moreBtn->setIcon(Icons::renderNamed("List", 20, moreIc));
+        m_moreBtn->setIcon(Icons::renderNamed("List", 20, secondaryIc));
         m_moreBtn->setIconSize(QSize(20, 20));
         m_moreBtn->setStyleSheet(QStringLiteral(
             "QPushButton { background: %1; border: none; border-radius: 20px; }"
             "QPushButton:hover { background: rgba(230,57,80,0.15); }")
-                                     .arg(moreBg));
+                                     .arg(secondaryBg));
     }
     if (m_searchWrap) {
         const QString bg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
@@ -353,6 +387,9 @@ void PlaylistDetailPage::retranslate()
 {
     if (m_playBtn)
         m_playBtn->setText(I18n::instance().tr(QStringLiteral("play")));
+    if (m_editPlaylistBtn)
+        m_editPlaylistBtn->setText(I18n::instance().tr(QStringLiteral("editPlaylist")));
+    updateCollectPlaylistButton();
     if (m_searchEdit)
         m_searchEdit->setPlaceholderText(I18n::instance().tr(QStringLiteral("fuzzySearch")));
     if (m_titleLbl)
@@ -571,6 +608,126 @@ void PlaylistDetailPage::reloadPlaylist()
         loadPlaylist(m_playlistId);
 }
 
+int PlaylistDetailPage::currentUserId() const
+{
+    if (!UserManager::instance().isLoggedIn())
+        return 0;
+    const QVariantMap user = UserManager::instance().userInfo();
+    int id = user.value(QStringLiteral("id")).toInt();
+    if (id <= 0)
+        id = user.value(QStringLiteral("userId")).toInt();
+    return id;
+}
+
+void PlaylistDetailPage::updateActionButtons()
+{
+    if (m_editPlaylistBtn)
+        m_editPlaylistBtn->setVisible(m_isUserPlaylist);
+    if (m_collectPlaylistBtn)
+        m_collectPlaylistBtn->setVisible(!m_isUserPlaylist);
+}
+
+void PlaylistDetailPage::updateCollectPlaylistButton()
+{
+    if (!m_collectPlaylistBtn)
+        return;
+
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    const QString secondaryBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString secondaryFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    m_collectPlaylistBtn->setStyleSheet(QStringLiteral(
+        "QPushButton {"
+        "  background: %1;"
+        "  color: %2;"
+        "  border: none;"
+        "  border-radius: 20px;"
+        "  font-size: 14px;"
+        "  font-weight: 500;"
+        "  padding: 0 20px;"
+        "}"
+        "QPushButton:hover { background: rgba(230,57,80,0.15); }")
+                                            .arg(secondaryBg, secondaryFg));
+
+    if (m_isPlaylistCollected) {
+        m_collectPlaylistBtn->setText(I18n::instance().tr(QStringLiteral("uncollectPlaylist")));
+        m_collectPlaylistBtn->setIcon(Icons::renderNamed("Favorite", 18, QColor(255, 69, 69)));
+    } else {
+        m_collectPlaylistBtn->setText(I18n::instance().tr(QStringLiteral("collectPlaylist")));
+        const QColor ic = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+        m_collectPlaylistBtn->setIcon(Icons::renderNamed("FavoriteBorder", 18, ic));
+    }
+    m_collectPlaylistBtn->setIconSize(QSize(18, 18));
+}
+
+void PlaylistDetailPage::refreshPlaylistCollectedState()
+{
+    m_isPlaylistCollected = false;
+    if (m_isUserPlaylist || m_playlistId <= 0 || !m_apiClient) {
+        updateCollectPlaylistButton();
+        return;
+    }
+
+    if (!UserManager::instance().isLoggedIn()) {
+        updateCollectPlaylistButton();
+        return;
+    }
+
+    m_apiClient->fetchFavoritePlaylists([this](bool success, const QList<QVariantMap> &playlists) {
+        m_isPlaylistCollected = false;
+        if (success) {
+            for (const QVariantMap &pl : playlists) {
+                if (pl.value(QStringLiteral("id")).toInt() == m_playlistId) {
+                    m_isPlaylistCollected = true;
+                    break;
+                }
+            }
+        }
+        updateCollectPlaylistButton();
+    });
+}
+
+void PlaylistDetailPage::toggleCollectPlaylist()
+{
+    if (!m_apiClient || m_playlistId <= 0 || m_isUserPlaylist)
+        return;
+
+    if (!UserManager::instance().isLoggedIn()) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("pleaseLoginFirst")), Toast::Info);
+        return;
+    }
+
+    if (m_isPlaylistCollected) {
+        m_apiClient->unfavoritePlaylist(m_playlistId, [this](bool success, const QString &message) {
+            if (success) {
+                m_isPlaylistCollected = false;
+                updateCollectPlaylistButton();
+                emit refreshSidebarPlaylists();
+                Toast::show(this, I18n::instance().tr(QStringLiteral("cancelFavoritePlaylistSuccess")),
+                            Toast::Success);
+            } else {
+                Toast::show(this,
+                            I18n::instance().tr(QStringLiteral("cancelFavoritePlaylistFailed")) + ": "
+                                + message,
+                            Toast::Error);
+            }
+        });
+    } else {
+        m_apiClient->favoritePlaylist(m_playlistId, [this](bool success, const QString &message) {
+            if (success) {
+                m_isPlaylistCollected = true;
+                updateCollectPlaylistButton();
+                emit refreshSidebarPlaylists();
+                Toast::show(this, I18n::instance().tr(QStringLiteral("collectPlaylistSuccess")),
+                            Toast::Success);
+            } else {
+                Toast::show(this,
+                            I18n::instance().tr(QStringLiteral("collectPlaylistFailed")) + ": " + message,
+                            Toast::Error);
+            }
+        });
+    }
+}
+
 void PlaylistDetailPage::editPlaylistDescription()
 {
     if (!m_apiClient || m_playlistId <= 0)
@@ -624,13 +781,22 @@ void PlaylistDetailPage::loadPlaylist(int playlistId)
             m_playlistDesc = detail.value(QStringLiteral("description")).toString();
             m_firstMusicId = detail.value(QStringLiteral("firstMusicId")).toInt();
             const auto creatorObj = detail.value(QStringLiteral("creator")).toMap();
+            m_creatorId = creatorObj.value(QStringLiteral("id")).toInt();
             m_creatorUsername = creatorObj.value(QStringLiteral("username")).toString();
+            const int uid = currentUserId();
+            m_isUserPlaylist = m_creatorId > 0 && uid > 0 && m_creatorId == uid;
         } else {
             m_playlistName = QStringLiteral("歌单详情");
             m_playlistDesc.clear();
             m_firstMusicId = 0;
+            m_creatorId = 0;
             m_creatorUsername.clear();
+            m_isUserPlaylist = false;
         }
+
+        updateActionButtons();
+        refreshPlaylistCollectedState();
+        updateHeaderMeta();
 
         m_apiClient->fetchPlaylistMusic(m_playlistId,
                                         [this](bool ok, int, const QList<QVariantMap> &musicList) {
