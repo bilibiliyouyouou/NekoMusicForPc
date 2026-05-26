@@ -1158,24 +1158,28 @@ void PlayerPage::scheduleAudioQualityProbe()
     QNetworkRequest req(url);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
-    m_qualityReply = m_qualityNam->head(req);
-    connect(m_qualityReply, &QNetworkReply::finished, this, [this, probeGen, musicId, url, finishProbe]() {
-        QNetworkReply *reply = m_qualityReply;
-        m_qualityReply = nullptr;
-        if (!reply || probeGen != m_qualityProbeGen || musicId != m_musicId) {
-            reply->deleteLater();
+    QNetworkReply *headReply = m_qualityNam->head(req);
+    m_qualityReply = headReply;
+    connect(headReply, &QNetworkReply::finished, this, [this, probeGen, musicId, url, finishProbe, headReply]() {
+        // 快速切歌时，外部可能已把 m_qualityReply 置空并 abort/deleteLater。
+        // 这里必须使用捕获的 headReply，且仅在非空时 deleteLater，避免 SIGSEGV。
+        if (!headReply) {
+            return;
+        }
+        if (probeGen != m_qualityProbeGen || musicId != m_musicId) {
+            headReply->deleteLater();
             return;
         }
 
         AudioQuality::ProbeResult result;
         QString ctLower;
-        if (reply->error() == QNetworkReply::NoError) {
-            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+        if (headReply->error() == QNetworkReply::NoError) {
+            const QString ct = headReply->header(QNetworkRequest::ContentTypeHeader).toString();
             ctLower = ct.toLower();
-            const qint64 len = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+            const qint64 len = headReply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
             result = AudioQuality::probeHttpHint(ct, len, trackDurationSec());
         }
-        reply->deleteLater();
+        headReply->deleteLater();
 
         const bool losslessCt =
             ctLower.contains(QLatin1String("flac")) || ctLower.contains(QLatin1String("wav"));
