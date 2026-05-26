@@ -41,6 +41,8 @@ QString tierTooltip(Tier tier, const ProbeResult &result);
 QString tierIconName(Tier tier);
 /** 保证有可见档位（未知时默认极高 HQ，避免标识消失） */
 ProbeResult ensureVisibleTier(ProbeResult result);
+/** 文件头/缓存探测结果是否足以展示，无需再发 HTTP 探测 */
+bool isDefinitiveProbe(const ProbeResult &result);
 /** 切歌时先显示的预估档位 */
 ProbeResult guessInitialTier(bool isLocalFile, const QString &localPath);
 

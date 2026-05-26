@@ -252,13 +252,20 @@ ProbeResult ensureVisibleTier(ProbeResult result)
     return result;
 }
 
+bool isDefinitiveProbe(const ProbeResult &result)
+{
+    if (result.tier == Tier::Unknown)
+        return false;
+    if (result.sampleRateHz > 0 || result.bitsPerSample > 0 || result.bitrateBps > 0)
+        return true;
+    return result.tier >= Tier::MQ;
+}
+
 ProbeResult guessInitialTier(bool isLocalFile, const QString &localPath)
 {
     if (isLocalFile && !localPath.isEmpty())
-        return ensureVisibleTier(probeFile(localPath));
-    ProbeResult r;
-    r.tier = Tier::HQ;
-    return r;
+        return probeFile(localPath);
+    return {};
 }
 
 QString tierShortName(Tier tier)

@@ -1055,10 +1055,20 @@ void PlayerPage::updateQualityBadgeStyle()
         "QLabel#playerQualityBadge { background: transparent; border: none; padding: 0; margin: 0; }"));
 }
 
+void PlayerPage::refreshAudioQuality()
+{
+    scheduleAudioQualityProbe();
+}
+
 void PlayerPage::applyAudioQualityBadge(const AudioQuality::ProbeResult &result)
 {
     if (!m_qualityBadge || !m_qualityRow)
         return;
+
+    if (result.tier == AudioQuality::Tier::Unknown) {
+        hideAudioQualityBadge();
+        return;
+    }
 
     m_lastQuality = AudioQuality::ensureVisibleTier(result);
     const QColor fg = QColor(m_clrTitle);
@@ -1136,12 +1146,20 @@ void PlayerPage::scheduleAudioQualityProbe()
     if (musicId > 0) {
         const QString cached = MusicDownloader::cachedAudioFilePath(musicId);
         if (!cached.isEmpty() && QFile::exists(cached))
-            initial = AudioQuality::ensureVisibleTier(AudioQuality::probeFile(cached));
+            initial = AudioQuality::probeFile(cached);
     }
-    applyAudioQualityBadge(initial);
 
-    if (info.isLocalFile() && !info.localPath.isEmpty())
+    if (AudioQuality::isDefinitiveProbe(initial)) {
+        applyAudioQualityBadge(initial);
         return;
+    }
+
+    if (info.isLocalFile() && !info.localPath.isEmpty()) {
+        applyAudioQualityBadge(initial);
+        return;
+    }
+
+    hideAudioQualityBadge();
 
     if (musicId <= 0)
         return;
@@ -1151,7 +1169,9 @@ void PlayerPage::scheduleAudioQualityProbe()
         return;
 
     auto finishProbe = [this](AudioQuality::ProbeResult result) {
-        applyAudioQualityBadge(AudioQuality::ensureVisibleTier(result));
+        if (result.tier == AudioQuality::Tier::Unknown)
+            return;
+        applyAudioQualityBadge(result);
     };
 
     QNetworkRequest req(url);
@@ -1544,6 +1564,10 @@ void PlayerPage::connectPlayerControlEngine()
             m_ppDurTime->setText(formatPlaybackTime(dur));
         if (dur > 0)
             refineAudioQualityFromEngine();
+    });
+    connect(m_engine, &PlayerEngine::stateChanged, this, [this](PlayerEngine::PlaybackState st) {
+        if (st == PlayerEngine::Playing && m_musicId > 0)
+            QTimer::singleShot(300, this, &PlayerPage::refreshAudioQuality);
     });
     connect(m_ppProgress, &QSlider::sliderReleased, this, [this]() {
         if (!m_engine || m_engine->duration() <= 0)

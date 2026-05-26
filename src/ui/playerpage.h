@@ -38,6 +38,8 @@ public:
 
     void setMusicInfo(int id, const QString &title, const QString &artist,
                       const QString &album, const QString &coverUrl = QString());
+    /** 缓存就绪或起播后重新探测音质（避免启动时误显示 HQ） */
+    void refreshAudioQuality();
     void retranslate();
     /** 在线曲走 API；本地曲读内嵌标签（ID3 USLT / FLAC 注释）再尝试同名 .lrc，不请求网络。 */
     void loadLyricsForTrack(const MusicInfo &info);

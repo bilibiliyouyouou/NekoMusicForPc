@@ -1221,6 +1221,8 @@ void MainWindow::startBackgroundCacheDownload(int musicId, quint64 playSeq, cons
             if (playSeq != m_enginePlaySeq)
                 return;
             qDebug() << "[后台缓存完成] id=" << musicId << path;
+            if (m_playerPage && m_playerBar && m_playerBar->currentMusicId() == musicId)
+                m_playerPage->refreshAudioQuality();
         });
     m_bgCacheErrorConn = connect(m_downloader, &MusicDownloader::downloadError, this,
         [this, playSeq, musicId](const QString &err) {
