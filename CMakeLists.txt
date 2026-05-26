@@ -146,6 +146,7 @@ set(SOURCES
         src/core/playerengine.cpp
         src/core/apiclient.cpp
         src/core/i18n.cpp
+        src/core/listmetaformat.cpp
         src/core/covercache.cpp
         src/core/usermanager.cpp
         src/core/qrcodegen.cpp
@@ -210,6 +211,7 @@ set(HEADERS
         src/theme/theme.h
         src/theme/thememanager.h
         src/core/musicinfo.h
+        src/core/listmetaformat.h
         src/core/localmusicmeta.h
         src/core/audioquality.h
         src/core/embeddedlyrics.h

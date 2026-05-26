@@ -237,22 +237,6 @@ QString buildShareClipboardText(const MusicInfo &m)
     return t;
 }
 
-static QList<MusicInfo> musicListPageRowsToCore(const QList<MusicListPage::MusicInfo> &rows)
-{
-    QList<MusicInfo> out;
-    out.reserve(rows.size());
-    for (const auto &m : rows) {
-        MusicInfo mi;
-        mi.id = m.id;
-        mi.title = m.title;
-        mi.artist = m.artist;
-        mi.album = m.album;
-        mi.duration = m.duration;
-        mi.coverUrl = m.coverUrl;
-        out.append(mi);
-    }
-    return out;
-}
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
@@ -559,6 +543,12 @@ void MainWindow::setupUi()
         if (m_artistDetailPage) {
             m_artistDetailPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
+        if (m_hotMusicPage) {
+            m_hotMusicPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
+        if (m_latestMusicPage) {
+            m_latestMusicPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
     });
 
     // 记录最近播放，并刷新列表页正在播放高亮
@@ -574,6 +564,10 @@ void MainWindow::setupUi()
             m_searchPage->updatePlayingHighlight();
         if (m_artistDetailPage)
             m_artistDetailPage->updatePlayingHighlight();
+        if (m_hotMusicPage)
+            m_hotMusicPage->updatePlayingHighlight();
+        if (m_latestMusicPage)
+            m_latestMusicPage->updatePlayingHighlight();
     });
 
     // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
@@ -692,69 +686,39 @@ void MainWindow::setupUi()
             &MainWindow::toggleFavorite);
     connect(m_artistDetailPage, &ArtistDetailPage::playPauseRequested, this,
             &MainWindow::togglePlaybackForSystemUi);
-    // 音乐列表页面播放
-    connect(m_hotMusicPage, &MusicListPage::playMusic, this, [this](const MusicListPage::MusicInfo &info) {
-        playMusicById(info.id, info.title, info.artist, info.coverUrl);
-    });
-    connect(m_latestMusicPage, &MusicListPage::playMusic, this, [this](const MusicListPage::MusicInfo &info) {
-        playMusicById(info.id, info.title, info.artist, info.coverUrl);
-    });
+    connect(m_hotMusicPage, &MusicListPage::playMusic, this, &MainWindow::playMusicFromInfo);
+    connect(m_latestMusicPage, &MusicListPage::playMusic, this, &MainWindow::playMusicFromInfo);
 
-    const auto onMusicListPlayAll = [this](const QList<MusicListPage::MusicInfo> &results) {
-        const QList<MusicInfo> coreList = musicListPageRowsToCore(results);
+    const auto onMusicListPlayAll = [this](const QList<MusicInfo> &results) {
+        if (results.isEmpty())
+            return;
         PlaylistManager::instance().clearPlaylist();
-        PlaylistManager::instance().addAllToPlaylist(coreList);
-        if (!coreList.isEmpty()) {
-            const auto &first = coreList.first();
-            playMusicById(first.id, first.title, first.artist, first.coverUrl);
-        }
+        PlaylistManager::instance().addAllToPlaylist(results);
+        playMusicFromInfo(results.first());
     };
     connect(m_hotMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
     connect(m_latestMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
 
-    // 音乐列表页添加到播放队列
-    connect(m_hotMusicPage, &MusicListPage::addToQueue, this, [this](const MusicListPage::MusicInfo &info) {
-        MusicInfo mInfo;
-        mInfo.id = info.id;
-        mInfo.title = info.title;
-        mInfo.artist = info.artist;
-        mInfo.album = info.album;
-        mInfo.duration = info.duration;
-        mInfo.coverUrl = info.coverUrl;
-        PlaylistManager::instance().addToPlaylist(mInfo);
+    connect(m_hotMusicPage, &MusicListPage::addToQueue, this, [this](const MusicInfo &info) {
+        PlaylistManager::instance().addToPlaylist(info);
     });
-    connect(m_latestMusicPage, &MusicListPage::addToQueue, this, [this](const MusicListPage::MusicInfo &info) {
-        MusicInfo mInfo;
-        mInfo.id = info.id;
-        mInfo.title = info.title;
-        mInfo.artist = info.artist;
-        mInfo.album = info.album;
-        mInfo.duration = info.duration;
-        mInfo.coverUrl = info.coverUrl;
-        PlaylistManager::instance().addToPlaylist(mInfo);
+    connect(m_latestMusicPage, &MusicListPage::addToQueue, this, [this](const MusicInfo &info) {
+        PlaylistManager::instance().addToPlaylist(info);
     });
 
-    // 音乐列表页添加到歌单
-    connect(m_hotMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicListPage::MusicInfo &info) {
-        MusicInfo mInfo;
-        mInfo.id = info.id;
-        mInfo.title = info.title;
-        mInfo.artist = info.artist;
-        mInfo.album = info.album;
-        mInfo.duration = info.duration;
-        mInfo.coverUrl = info.coverUrl;
-        showAddToPlaylistDialog(mInfo);
+    connect(m_hotMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicInfo &info) {
+        showAddToPlaylistDialog(info);
     });
-    connect(m_latestMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicListPage::MusicInfo &info) {
-        MusicInfo mInfo;
-        mInfo.id = info.id;
-        mInfo.title = info.title;
-        mInfo.artist = info.artist;
-        mInfo.album = info.album;
-        mInfo.duration = info.duration;
-        mInfo.coverUrl = info.coverUrl;
-        showAddToPlaylistDialog(mInfo);
+    connect(m_latestMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicInfo &info) {
+        showAddToPlaylistDialog(info);
     });
+
+    connect(m_hotMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_latestMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_hotMusicPage, &MusicListPage::playPauseRequested, this,
+            &MainWindow::togglePlaybackForSystemUi);
+    connect(m_latestMusicPage, &MusicListPage::playPauseRequested, this,
+            &MainWindow::togglePlaybackForSystemUi);
 
     connect(m_playerBar, &PlayerBar::coverClicked, this, &MainWindow::openPlayerPage);
 
@@ -939,11 +903,12 @@ void MainWindow::switchPage(QWidget *target)
 
 void MainWindow::showMusicListPage(bool isHot)
 {
+    syncListPageFavoriteIds();
     if (isHot) {
-        m_hotMusicPage->refresh();  // 触发懒加载
+        m_hotMusicPage->refresh();
         switchPage(m_hotMusicPage);
     } else {
-        m_latestMusicPage->refresh();  // 触发懒加载
+        m_latestMusicPage->refresh();
         switchPage(m_latestMusicPage);
     }
 }
@@ -1906,6 +1871,10 @@ void MainWindow::syncListPageFavoriteIds()
         m_searchPage->setFavoritedMusicIds(ids);
     if (m_artistDetailPage)
         m_artistDetailPage->setFavoritedMusicIds(ids);
+    if (m_hotMusicPage)
+        m_hotMusicPage->setFavoritedMusicIds(ids);
+    if (m_latestMusicPage)
+        m_latestMusicPage->setFavoritedMusicIds(ids);
 }
 
 void MainWindow::maybePromptDefaultMusicPlayer()

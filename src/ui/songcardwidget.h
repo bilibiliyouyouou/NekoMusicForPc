@@ -15,8 +15,15 @@ class SongCardWidget : public QWidget
     Q_OBJECT
 
 public:
+    enum class DisplayMode {
+        Default,
+        HotRanking,
+        LatestUpload,
+    };
+
     explicit SongCardWidget(QWidget *parent = nullptr);
 
+    void setDisplayMode(DisplayMode mode);
     void bind(const MusicInfo &info, int index);
     /** 回收到列表池前断开封面监听，避免滚动时信号堆积 */
     void prepareForPool();
@@ -56,9 +63,13 @@ private:
     void updateOverlayIcons();
     void elideTexts();
     void loadCover();
+    void updateSecondaryColumn();
+    QString secondaryColumnText() const;
     QString formatDuration(int seconds) const;
 
     MusicInfo m_info;
+    QString m_secondaryText;
+    DisplayMode m_displayMode = DisplayMode::Default;
     int m_index = 0;
     bool m_playing = false;
     bool m_paused = false;

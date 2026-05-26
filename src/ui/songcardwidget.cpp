@@ -2,6 +2,7 @@
 #include "roundcoverlabel.h"
 
 #include "core/covercache.h"
+#include "core/listmetaformat.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
@@ -224,6 +225,15 @@ void SongCardWidget::prepareForPool()
     setHover(false);
 }
 
+void SongCardWidget::setDisplayMode(DisplayMode mode)
+{
+    if (m_displayMode == mode)
+        return;
+    m_displayMode = mode;
+    updateSecondaryColumn();
+    elideTexts();
+}
+
 void SongCardWidget::bind(const MusicInfo &info, int index)
 {
     disconnect(m_coverConn);
@@ -243,7 +253,7 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
     m_info = info;
     m_titleLbl->setText(info.title);
     m_artistLbl->setText(info.artist);
-    m_albumLbl->setText(info.album.isEmpty() ? QStringLiteral("—") : info.album);
+    updateSecondaryColumn();
     m_timeLbl->setText(formatDuration(info.duration));
 
     loadCover();
@@ -448,6 +458,26 @@ void SongCardWidget::updateHoverOverlays()
     }
 }
 
+void SongCardWidget::updateSecondaryColumn()
+{
+    m_secondaryText = secondaryColumnText();
+    if (m_albumLbl)
+        m_albumLbl->setText(m_secondaryText);
+}
+
+QString SongCardWidget::secondaryColumnText() const
+{
+    switch (m_displayMode) {
+    case DisplayMode::HotRanking:
+        return formatPlayCountText(m_info.playCount);
+    case DisplayMode::LatestUpload:
+        return formatRelativeUploadTime(m_info.uploadedAtMs);
+    default:
+        break;
+    }
+    return m_info.album.isEmpty() ? QStringLiteral("—") : m_info.album;
+}
+
 void SongCardWidget::elideTexts()
 {
     if (!m_titleLbl || !m_artistLbl || !m_albumLbl)
@@ -457,9 +487,7 @@ void SongCardWidget::elideTexts()
     const QFontMetrics alf(m_albumLbl->font());
     m_titleLbl->setText(tf.elidedText(m_info.title, Qt::ElideRight, qMax(40, m_titleLbl->width())));
     m_artistLbl->setText(af.elidedText(m_info.artist, Qt::ElideRight, qMax(40, m_artistLbl->width())));
-    m_albumLbl->setText(alf.elidedText(
-        m_info.album.isEmpty() ? QStringLiteral("—") : m_info.album, Qt::ElideRight,
-        qMax(60, m_albumLbl->width())));
+    m_albumLbl->setText(alf.elidedText(m_secondaryText, Qt::ElideRight, qMax(60, m_albumLbl->width())));
 }
 
 QString SongCardWidget::formatDuration(int seconds) const

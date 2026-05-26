@@ -28,6 +28,18 @@ SongListWidget::SongListWidget(QWidget *parent)
     setupUi();
 }
 
+void SongListWidget::setListDisplayMode(ListDisplayMode mode)
+{
+    if (m_listDisplayMode == mode)
+        return;
+    m_listDisplayMode = mode;
+    retranslate();
+    for (SongCardWidget *card : m_rowCards)
+        card->setDisplayMode(static_cast<SongCardWidget::DisplayMode>(mode));
+    for (SongCardWidget *card : m_cardPool)
+        card->setDisplayMode(static_cast<SongCardWidget::DisplayMode>(mode));
+}
+
 void SongListWidget::setupUi()
 {
     auto *root = new QVBoxLayout(this);
@@ -259,14 +271,26 @@ void SongListWidget::applyTheme()
 
 void SongListWidget::retranslate()
 {
+    auto &i18n = I18n::instance();
+    if (m_hdrNum) {
+        m_hdrNum->setText(m_listDisplayMode == ListDisplayMode::HotRanking
+                              ? i18n.tr(QStringLiteral("listColRank"))
+                              : QStringLiteral("#"));
+    }
     if (m_hdrTitle)
-        m_hdrTitle->setText(I18n::instance().tr(QStringLiteral("listColTitle")));
-    if (m_hdrAlbum)
-        m_hdrAlbum->setText(I18n::instance().tr(QStringLiteral("listColAlbum")));
+        m_hdrTitle->setText(i18n.tr(QStringLiteral("listColTitle")));
+    if (m_hdrAlbum) {
+        const char *albumKey = "listColAlbum";
+        if (m_listDisplayMode == ListDisplayMode::HotRanking)
+            albumKey = "listColPlayCount";
+        else if (m_listDisplayMode == ListDisplayMode::LatestUpload)
+            albumKey = "listColUploaded";
+        m_hdrAlbum->setText(i18n.tr(QString::fromUtf8(albumKey)));
+    }
     if (m_hdrActions)
-        m_hdrActions->setText(I18n::instance().tr(QStringLiteral("listColActions")));
+        m_hdrActions->setText(i18n.tr(QStringLiteral("listColActions")));
     if (m_hdrDuration)
-        m_hdrDuration->setText(I18n::instance().tr(QStringLiteral("duration")));
+        m_hdrDuration->setText(i18n.tr(QStringLiteral("duration")));
 }
 
 void SongListWidget::scrollToTop()
@@ -370,6 +394,7 @@ void SongListWidget::updateVisibleRows()
             card->onUnfavorite = onUnfavorite;
             card->onTogglePlayPause = onTogglePlayPause;
             card->setRemoveMode(m_removeMode);
+            card->setDisplayMode(static_cast<SongCardWidget::DisplayMode>(m_listDisplayMode));
         }
 
         const bool songChanged = isNew || card->info().id != song.id;

@@ -20,8 +20,15 @@ class SongListWidget : public QWidget
     Q_OBJECT
 
 public:
+    enum class ListDisplayMode {
+        Default,
+        HotRanking,
+        LatestUpload,
+    };
+
     explicit SongListWidget(QWidget *parent = nullptr);
 
+    void setListDisplayMode(ListDisplayMode mode);
     void setSongs(const QList<MusicInfo> &songs);
     void setCurrentPlayingId(int musicId);
     void setPlaybackPaused(bool paused);
@@ -66,6 +73,7 @@ private:
     static constexpr int kVisibleBuffer = 4;
 
     QList<MusicInfo> m_songs;
+    ListDisplayMode m_listDisplayMode = ListDisplayMode::Default;
     int m_currentId = -1;
     int m_currentRowInList = -1;
     bool m_paused = false;

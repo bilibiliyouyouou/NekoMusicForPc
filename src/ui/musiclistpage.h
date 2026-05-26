@@ -2,20 +2,19 @@
 
 /**
  * @file musiclistpage.h
- * @brief 音乐列表页面 — 显示热门音乐或最新音乐
- *
- * 可复用的列表页面,支持两种模式:热门音乐(ranking)和最新音乐(latest)。
- * 从 API 加载数据,以列表形式展示,支持点击播放。
+ * @brief 热门 / 最新音乐列表页（SongList + SongCard 虚拟列表）
  */
 
 #include <QWidget>
 #include <QList>
+#include <QSet>
 
-class QScrollArea;
-class QVBoxLayout;
+#include "core/musicinfo.h"
+
 class QLabel;
 class QPushButton;
 class ApiClient;
+class SongListWidget;
 
 class MusicListPage : public QWidget
 {
@@ -24,15 +23,6 @@ class MusicListPage : public QWidget
 public:
     enum Type { Hot, Latest };
 
-    struct MusicInfo {
-        int id = -1;
-        QString title;
-        QString artist;
-        QString album;
-        int duration = 0;
-        QString coverUrl;
-    };
-
     explicit MusicListPage(Type type, QWidget *parent = nullptr);
 
 signals:
@@ -40,36 +30,52 @@ signals:
     void playAllRequested(const QList<MusicInfo> &results);
     void addToQueue(const MusicInfo &info);
     void addToPlaylist(const MusicInfo &info);
+    void favoriteRequested(int musicId);
+    void playPauseRequested();
     void backRequested();
 
 public slots:
     void refresh();
-    /** 离开页面时释放列表数据与卡片，降低内存占用 */
     void releaseCachedData();
     void retranslate();
+    void setPlaybackPaused(bool paused);
+    void setFavoritedMusicIds(const QSet<int> &ids);
+    void updatePlayingHighlight();
 
 protected:
+    void showEvent(QShowEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
 
 private:
     void setupUi();
-    void clearListContent();
-    void showLoadingState();
+    void applyPageStyle();
     void fetchData();
-    void buildList();
-    void buildListBatch();
+    void showLoadingState();
+    void showPageStatus(const QString &text, const char *iconName = nullptr);
+    void hidePageStatus();
+    void presentSongs();
+    void showSongContextMenu(const MusicInfo &info, const QPoint &globalPos);
+    int currentPlayingMusicId() const;
+    void updateHeaderMeta();
+    QString pageTitle() const;
+    QString pageDesc() const;
 
     Type m_type;
-    QScrollArea *m_scroll = nullptr;
-    QVBoxLayout *m_listLayout = nullptr;
-    QWidget *m_listContainer = nullptr;
-    QLabel *m_titleLabel = nullptr;
-    QLabel *m_loadingLabel = nullptr;
-    QPushButton *m_playAllBtn = nullptr;
     ApiClient *m_api = nullptr;
 
+    QWidget *m_header = nullptr;
+    QPushButton *m_backBtn = nullptr;
+    QLabel *m_titleLbl = nullptr;
+    QLabel *m_descLbl = nullptr;
+    QLabel *m_countLbl = nullptr;
+    QPushButton *m_playAllBtn = nullptr;
+
+    SongListWidget *m_songList = nullptr;
+    QWidget *m_emptyWrap = nullptr;
+    QLabel *m_emptyIcon = nullptr;
+    QLabel *m_statusLabel = nullptr;
+
     QList<MusicInfo> m_musicList;
-    int m_fetchGeneration = 0;   // 丢弃过期的网络回调
-    int m_buildIndex = 0;        // 分批创建索引
-    bool m_buildingList = false; // 分批创建 guard
+    QSet<int> m_favoritedIds;
+    int m_fetchGeneration = 0;
 };

@@ -115,6 +115,10 @@ static QMap<QString, QString> zhCN()
     m["favoritePageSongCount"] = QStringLiteral("共 %1 首");
     m["listColTitle"] = QStringLiteral("标题");
     m["listColAlbum"] = QStringLiteral("专辑");
+    m["listColRank"] = QStringLiteral("排行");
+    m["listColPlayCount"] = QStringLiteral("播放量");
+    m["listColUploaded"] = QStringLiteral("上传时间");
+    m["playCountFmt"] = QStringLiteral("%1 次播放");
     m["listColActions"] = QStringLiteral("操作");
     m["fuzzySearch"] = QStringLiteral("模糊搜索");
     m["favoritesSearchEmpty"] = QStringLiteral("搜不到关于 %1 的任何歌曲呀");
@@ -554,6 +558,10 @@ static QMap<QString, QString> nyaCN()
     m["favoritePageSongCount"] = QStringLiteral("共 %1 首歌喵");
     m["listColTitle"] = QStringLiteral("标题");
     m["listColAlbum"] = QStringLiteral("专辑");
+    m["listColRank"] = QStringLiteral("排行");
+    m["listColPlayCount"] = QStringLiteral("播放量");
+    m["listColUploaded"] = QStringLiteral("上传时间");
+    m["playCountFmt"] = QStringLiteral("%1 次播放");
     m["listColActions"] = QStringLiteral("操作");
     m["fuzzySearch"] = QStringLiteral("模糊搜索");
     m["favoritesSearchEmpty"] = QStringLiteral("搜不到关于 %1 的任何歌曲呀");
@@ -822,6 +830,10 @@ static QMap<QString, QString> enUS()
     m["favoritePageSongCount"] = "%1 songs";
     m["listColTitle"] = "Title";
     m["listColAlbum"] = "Album";
+    m["listColRank"] = "Rank";
+    m["listColPlayCount"] = "Plays";
+    m["listColUploaded"] = "Uploaded";
+    m["playCountFmt"] = "%1 plays";
     m["listColActions"] = "Actions";
     m["fuzzySearch"] = "Search";
     m["favoritesSearchEmpty"] = "No songs found for \"%1\"";
