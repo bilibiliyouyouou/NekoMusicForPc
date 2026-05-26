@@ -382,7 +382,9 @@ static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target,
         cropped = cropped.scaled(out, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
     // SPlayer .bg-img: blur(80px) contrast(1.2)
-    QImage img = cropped.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    // 注意：这里不能用 Premultiplied 格式直接做 RGB 对比度拉伸，
+    // 半透明像素的 RGB 已经按 alpha 预乘，二次放大会导致“炸色”。
+    QImage img = cropped.toImage().convertToFormat(QImage::Format_ARGB32);
     constexpr qreal kContrast = 1.18;
     for (int y = 0; y < img.height(); ++y) {
         auto *line = reinterpret_cast<QRgb *>(img.scanLine(y));
