@@ -29,6 +29,11 @@ public:
     void scrollToPlaying();
     bool hasCurrentPlaying() const;
 
+    /** 行高 90px + 行间距 12px（对齐 SPlayer SongList） */
+    static constexpr int kRowHeight = 90;
+    static constexpr int kRowGap = 12;
+    static constexpr int kRowStride = kRowHeight + kRowGap;
+
     std::function<void(const MusicInfo &)> onSongActivate;
     std::function<void(const MusicInfo &)> onSongPlayNext;
     std::function<void(int)> onUnfavorite;
@@ -48,7 +53,6 @@ private:
     SongCardWidget *acquireCard();
     void releaseCard(SongCardWidget *card);
 
-    static constexpr int kRowHeight = 90;
     static constexpr int kHeaderHeight = 40;
     static constexpr int kListPad = 0;
     static constexpr int kVisibleBuffer = 4;

@@ -22,13 +22,19 @@ constexpr int kRowH = 90;
 constexpr int kCover = 50;
 constexpr QColor kPrimary(230, 57, 80);
 
-QString surfaceBg(bool dark, bool playing, bool hover)
+/** SPlayer SongCard .song-content — surface / play / hover 边框 */
+QColor songFill(bool dark, bool playing)
 {
     if (playing)
-        return QStringLiteral("rgba(230, 57, 80, 0.28)");
-    if (hover)
-        return dark ? QStringLiteral("rgba(230, 57, 80, 0.12)") : QStringLiteral("rgba(230, 57, 80, 0.08)");
-    return dark ? QStringLiteral("#242424") : QStringLiteral("#ffffff");
+        return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 71); // rgba(primary, 0.28)
+    return dark ? QColor(0x24, 0x24, 0x24) : QColor(Qt::white);               // surface-container
+}
+
+QColor songBorder(bool playing, bool hover)
+{
+    if (playing || hover)
+        return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 148); // rgba(primary, 0.58)
+    return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 31);       // rgba(primary, 0.12)
 }
 
 } // namespace
@@ -187,6 +193,7 @@ void SongCardWidget::setPaused(bool paused)
         return;
     m_paused = paused;
     updateHoverOverlays();
+    update();
 }
 
 void SongCardWidget::applyTheme()
@@ -227,17 +234,20 @@ void SongCardWidget::applyTheme()
 void SongCardWidget::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
+    p.setRenderHint(QPainter::Antialiasing, true);
 
     QRectF body = QRectF(m_content->geometry());
     if (body.isEmpty())
-        body = QRectF(0, 0, width(), kRowH);
+        body = QRectF(0, 0, width(), height());
 
+    const QRectF r = body.adjusted(0.5, 0.5, -0.5, -0.5);
     QPainterPath path;
-    path.addRoundedRect(body, 12, 12);
+    path.addRoundedRect(r, 12, 12);
 
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
-    p.fillPath(path, QColor(surfaceBg(dark, m_playing, m_hover)));
+    p.fillPath(path, songFill(dark, m_playing));
+    p.setPen(QPen(songBorder(m_playing, m_hover), 2));
+    p.drawPath(path);
 }
 
 void SongCardWidget::enterEvent(QEnterEvent *e)

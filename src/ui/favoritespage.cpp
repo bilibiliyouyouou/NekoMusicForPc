@@ -414,7 +414,7 @@ void FavoritesPage::onListScrolled(int scrollTop)
         setHeaderCompact(false);
         return;
     }
-    const int contentH = m_displaySongs.size() * 90;
+    const int contentH = m_displaySongs.size() * SongListWidget::kRowStride;
     const int viewH = m_songList->height();
     if (contentH - viewH < 150)
         return;

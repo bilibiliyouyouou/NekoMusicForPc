@@ -240,7 +240,7 @@ void SongListWidget::scrollToPlaying()
     }
     if (row < 0)
         return;
-    const int y = kListPad + row * kRowHeight;
+    const int y = kListPad + row * kRowStride;
     const int viewH = m_scroll->viewport()->height();
     int scrollVal = m_scroll->verticalScrollBar()->value();
     if (y < scrollVal)
@@ -268,7 +268,7 @@ void SongListWidget::resizeEvent(QResizeEvent *event)
 void SongListWidget::syncContainerHeight()
 {
     const int count = m_songs.size();
-    const int contentH = count > 0 ? count * kRowHeight + 80 : 0;
+    const int contentH = count > 0 ? count * kRowStride - kRowGap + 80 : 0;
     const int viewH = m_scroll ? m_scroll->viewport()->height() : 0;
     m_container->setMinimumHeight(qMax(contentH, viewH));
     if (m_scroll)
@@ -302,8 +302,8 @@ void SongListWidget::updateVisibleRows()
 
     const int scrollY = m_scroll->verticalScrollBar()->value();
     const int viewH = m_scroll->viewport()->height();
-    const int first = qMax(0, scrollY / kRowHeight - kVisibleBuffer);
-    const int last = qMin(count - 1, (scrollY + viewH) / kRowHeight + kVisibleBuffer);
+    const int first = qMax(0, scrollY / kRowStride - kVisibleBuffer);
+    const int last = qMin(count - 1, (scrollY + viewH) / kRowStride + kVisibleBuffer);
 
     QList<int> stale;
     for (auto it = m_rowCards.constBegin(); it != m_rowCards.constEnd(); ++it) {
@@ -327,7 +327,7 @@ void SongListWidget::updateVisibleRows()
             m_rowCards[row] = card;
         }
         card->setFixedSize(w, kRowHeight);
-        card->move(0, row * kRowHeight);
+        card->move(0, row * kRowStride);
         card->setPlaying(m_songs[row].id == m_currentId);
         card->setPaused(m_songs[row].id == m_currentId && m_paused);
         card->show();
