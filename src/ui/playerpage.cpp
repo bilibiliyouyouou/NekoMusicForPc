@@ -29,6 +29,8 @@
 #include <QAbstractScrollArea>
 #include <QAbstractSlider>
 #include <QWindow>
+#include <QPointer>
+#include <QTimer>
 
 namespace {
 
@@ -600,10 +602,7 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
     m_controlHideTimer = new QTimer(this);
     m_controlHideTimer->setSingleShot(true);
     m_controlHideTimer->setInterval(kControlHideMs);
-    connect(m_controlHideTimer, &QTimer::timeout, this, [this]() {
-        if (width() > 700)
-            setControlSidesVisible(false);
-    });
+    connect(m_controlHideTimer, &QTimer::timeout, this, [this]() { hidePlayerChrome(); });
     if (m_controlBar)
         m_controlBar->installEventFilter(this);
     if (m_menuBar)
@@ -1401,6 +1400,35 @@ void PlayerPage::setControlSidesVisible(bool visible)
     m_chromeFadeAnim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
+void PlayerPage::hidePlayerChrome()
+{
+    if (width() <= 700)
+        return;
+    if (m_controlHideTimer)
+        m_controlHideTimer->stop();
+    setControlSidesVisible(false);
+}
+
+void PlayerPage::scheduleChromeLeaveCheck()
+{
+    if (width() <= 700)
+        return;
+    QPointer<PlayerPage> page(this);
+    QTimer::singleShot(0, this, [page]() {
+        if (!page || !page->isVisible())
+            return;
+        const QPoint globalPos = QCursor::pos();
+        QWidget *win = page->window();
+        if (!win || !win->geometry().contains(globalPos)) {
+            page->hidePlayerChrome();
+            return;
+        }
+        const QRect pageGlobal(page->mapToGlobal(QPoint(0, 0)), page->size());
+        if (!pageGlobal.contains(globalPos))
+            page->hidePlayerChrome();
+    });
+}
+
 void PlayerPage::bumpControlShowTimer()
 {
     if (width() <= 700) {
@@ -1480,10 +1508,20 @@ bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
         }
     }
 
-    if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter) {
-        if (watched == this || watched == m_controlBar || watched == m_menuBar || watched == m_contentHost) {
+    if (onPageTree) {
+        switch (event->type()) {
+        case QEvent::MouseMove:
+        case QEvent::Enter:
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::Wheel:
             bumpControlShowTimer();
-            return false;
+            break;
+        case QEvent::Leave:
+            scheduleChromeLeaveCheck();
+            break;
+        default:
+            break;
         }
     }
 
@@ -1505,6 +1543,7 @@ bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
 
 void PlayerPage::wheelEvent(QWheelEvent *event)
 {
+    bumpControlShowTimer();
     if (m_controlBar && m_controlBar->geometry().contains(event->position().toPoint()) && m_engine) {
         const int delta = event->angleDelta().y();
         if (delta != 0) {

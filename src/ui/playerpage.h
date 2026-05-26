@@ -82,6 +82,8 @@ private:
     void updateCoverBackdrop(const QPixmap &source);
     void setControlSidesVisible(bool visible);
     void bumpControlShowTimer();
+    void hidePlayerChrome();
+    void scheduleChromeLeaveCheck();
     void applyPlayerPageStyle();
     void applyMetaLabelFonts();
     /** 按左栏宽度对曲名/歌手/专辑单行省略，避免过长换行堆叠溢出 */
