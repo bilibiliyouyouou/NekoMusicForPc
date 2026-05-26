@@ -28,6 +28,7 @@
 #include "ui/searchpage.h"
 #include "ui/desktoplrc.h"
 #include <QSettings>
+#include <QSet>
 #include "core/playerengine.h"
 #include "core/i18n.h"
 #include "core/apiclient.h"
@@ -1703,6 +1704,7 @@ void MainWindow::toggleFavorite(int musicId)
                     m_playerPage->setFavoriteStatus(false);
                 if (m_favoritesPage)
                     m_favoritesPage->refresh();
+                syncFavoritesToPlaylistPage();
                 Toast::show(this, I18n::instance().tr("cancelFavoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已从缓存移除并更新UI";
             } else {
@@ -1742,6 +1744,7 @@ void MainWindow::toggleFavorite(int musicId)
                 m_playerBar->setFavoriteStatus(true);
                 if (m_playerPage)
                     m_playerPage->setFavoriteStatus(true);
+                syncFavoritesToPlaylistPage();
                 Toast::show(this, I18n::instance().tr("favoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已加入缓存并更新UI";
             } else {
@@ -1823,8 +1826,17 @@ void MainWindow::loadFavoritesCache()
                     self->m_playerPage->setFavoriteStatus(isFavorited);
                 qDebug() << "[收藏] 缓存加载后更新收藏状态, id =" << currentId << ", favorited =" << isFavorited;
             }
+            self->syncFavoritesToPlaylistPage();
         }
     });
+}
+
+void MainWindow::syncFavoritesToPlaylistPage()
+{
+    if (!m_playlistDetailPage)
+        return;
+    const QSet<int> ids(m_favoritesCache.begin(), m_favoritesCache.end());
+    m_playlistDetailPage->setFavoritedMusicIds(ids);
 }
 
 void MainWindow::maybePromptDefaultMusicPlayer()

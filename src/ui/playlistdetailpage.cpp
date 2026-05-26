@@ -246,6 +246,7 @@ void PlaylistDetailPage::setupUi()
     m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onUnfavorite = [this](int musicId) { emit favoriteRequested(musicId); };
+    m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     connect(m_songList, &SongListWidget::scrolled, this, &PlaylistDetailPage::onListScrolled);
     root->addWidget(m_songList, 1);
@@ -366,6 +367,13 @@ void PlaylistDetailPage::setPlaybackPaused(bool paused)
 {
     if (m_songList)
         m_songList->setPlaybackPaused(paused);
+}
+
+void PlaylistDetailPage::setFavoritedMusicIds(const QSet<int> &ids)
+{
+    m_favoritedIds = ids;
+    if (m_songList)
+        m_songList->refreshFavoriteDisplay();
 }
 
 void PlaylistDetailPage::showEvent(QShowEvent *event)
@@ -496,6 +504,7 @@ void PlaylistDetailPage::applyFilter()
     if (m_songList) {
         m_songList->setVisible(!m_displaySongs.isEmpty() || m_allSongs.isEmpty());
         m_songList->setSongs(m_displaySongs);
+        m_songList->refreshFavoriteDisplay();
     }
     updatePlayingHighlight();
     updateHeaderMeta();

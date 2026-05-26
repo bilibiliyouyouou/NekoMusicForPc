@@ -29,6 +29,7 @@ public:
     void scrollToPlaying();
     bool hasCurrentPlaying() const;
     void setRemoveMode(bool remove);
+    void refreshFavoriteDisplay();
 
     /** 行高 90px + 行间距 12px（对齐 SPlayer SongList） */
     static constexpr int kRowHeight = 90;
@@ -39,6 +40,7 @@ public:
     std::function<void(const MusicInfo &)> onSongPlayNext;
     std::function<void(int)> onUnfavorite;
     std::function<void()> onTogglePlayPause;
+    std::function<bool(int)> isFavorited;
 
 signals:
     void scrolled(int scrollTop);

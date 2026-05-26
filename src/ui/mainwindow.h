@@ -111,6 +111,7 @@ private:
 
     bool checkIsFavorited(int musicId);
     void loadFavoritesCache();
+    void syncFavoritesToPlaylistPage();
     void disconnectDownloader();
     void cancelStreamWatch();
     /** 播放始终走 HTTP 远程 URL；并行触发本地缓存（无文件则下载，已有则下载器立即完成）。 */

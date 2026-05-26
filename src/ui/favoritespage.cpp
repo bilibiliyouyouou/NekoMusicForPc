@@ -245,6 +245,7 @@ void FavoritesPage::setupUi()
         emit playRequested(info.id, info.title, info.artist, info.coverUrl);
     };
     m_songList->onUnfavorite = [this](int id) { emit unfavoriteRequested(id); };
+    m_songList->isFavorited = [](int) { return true; };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     connect(m_songList, &SongListWidget::scrolled, this, &FavoritesPage::onListScrolled);
     root->addWidget(m_songList, 1);

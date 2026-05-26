@@ -107,6 +107,15 @@ void SongListWidget::setupUi()
     applyTheme();
 }
 
+void SongListWidget::refreshFavoriteDisplay()
+{
+    for (auto it = m_rowCards.constBegin(); it != m_rowCards.constEnd(); ++it) {
+        SongCardWidget *card = it.value();
+        const bool fav = isFavorited ? isFavorited(card->info().id) : false;
+        card->setFavorited(fav);
+    }
+}
+
 void SongListWidget::setRemoveMode(bool remove)
 {
     if (m_removeMode == remove)
@@ -338,6 +347,7 @@ void SongListWidget::updateVisibleRows()
         card->onPlayNext = onSongPlayNext;
         card->onUnfavorite = onUnfavorite;
         card->onTogglePlayPause = onTogglePlayPause;
+        card->setFavorited(isFavorited ? isFavorited(m_songs[row].id) : false);
         card->setFixedSize(w, kRowHeight);
         card->move(0, row * kRowStride);
         card->setPlaying(m_songs[row].id == m_currentId);

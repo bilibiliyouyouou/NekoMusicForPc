@@ -274,6 +274,14 @@ void SongCardWidget::setRemoveMode(bool remove)
     applyTheme();
 }
 
+void SongCardWidget::setFavorited(bool favorited)
+{
+    if (m_favorited == favorited)
+        return;
+    m_favorited = favorited;
+    applyTheme();
+}
+
 void SongCardWidget::applyTheme()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
@@ -296,7 +304,10 @@ void SongCardWidget::applyTheme()
         const QColor delIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
         m_heartBtn->setIcon(Icons::renderNamed("Delete", 20, delIc));
     } else {
-        m_heartBtn->setIcon(Icons::renderNamed("Favorite", 20, QColor(255, 69, 69)));
+        const QColor heartOn(255, 69, 69);
+        const QColor heartOff = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 120);
+        m_heartBtn->setIcon(Icons::renderNamed(m_favorited ? "Favorite" : "FavoriteBorder", 20,
+                                               m_favorited ? heartOn : heartOff));
     }
     m_heartBtn->setIconSize(QSize(20, 20));
     m_heartBtn->setStyleSheet(QStringLiteral(

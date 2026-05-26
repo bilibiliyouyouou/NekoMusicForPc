@@ -21,6 +21,7 @@ public:
     void setPaused(bool paused);
     /** false = 收藏心形；true = 从歌单移除（Delete） */
     void setRemoveMode(bool remove);
+    void setFavorited(bool favorited);
     void applyTheme();
 
     const MusicInfo &info() const { return m_info; }
@@ -55,6 +56,7 @@ private:
     bool m_paused = false;
     bool m_hover = false;
     bool m_removeMode = false;
+    bool m_favorited = false;
 
     QWidget *m_content = nullptr;
     QWidget *m_numCol = nullptr;

@@ -7,6 +7,7 @@
 
 #include <QWidget>
 #include <QList>
+#include <QSet>
 
 #include "core/musicinfo.h"
 
@@ -28,6 +29,7 @@ public:
     void loadPlaylist(int playlistId);
     void retranslate();
     void setPlaybackPaused(bool paused);
+    void setFavoritedMusicIds(const QSet<int> &ids);
 
 signals:
     void playMusic(const MusicInfo &info);
@@ -90,4 +92,5 @@ private:
     QList<MusicInfo> m_allSongs;
     QList<MusicInfo> m_displaySongs;
     QString m_coverMusicId;
+    QSet<int> m_favoritedIds;
 };
