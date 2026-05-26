@@ -3,6 +3,7 @@
 #include "i18n.h"
 
 #include <QDateTime>
+#include <QTimeZone>
 
 QString formatCompactCount(int n)
 {
@@ -30,8 +31,8 @@ QString formatRelativeUploadTime(qint64 uploadedAtMs)
     if (uploadedAtMs <= 0)
         return QStringLiteral("—");
 
-    const QDateTime uploaded = QDateTime::fromMSecsSinceEpoch(uploadedAtMs, Qt::LocalTime);
-    qint64 secs = uploaded.secsTo(QDateTime::currentDateTime());
+    const QDateTime uploaded = QDateTime::fromMSecsSinceEpoch(uploadedAtMs, QTimeZone::utc());
+    qint64 secs = uploaded.secsTo(QDateTime::currentDateTimeUtc());
     if (secs < 0)
         secs = 0;
 
