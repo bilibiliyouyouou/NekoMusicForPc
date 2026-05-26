@@ -1116,7 +1116,6 @@ void PlayerPage::scheduleAudioQualityProbe()
 
     if (m_qualityReply) {
         m_qualityReply->abort();
-        m_qualityReply->deleteLater();
         m_qualityReply = nullptr;
     }
 
@@ -1160,26 +1159,31 @@ void PlayerPage::scheduleAudioQualityProbe()
                      QNetworkRequest::NoLessSafeRedirectPolicy);
     QNetworkReply *headReply = m_qualityNam->head(req);
     m_qualityReply = headReply;
-    connect(headReply, &QNetworkReply::finished, this, [this, probeGen, musicId, url, finishProbe, headReply]() {
-        // 快速切歌时，外部可能已把 m_qualityReply 置空并 abort/deleteLater。
-        // 这里必须使用捕获的 headReply，且仅在非空时 deleteLater，避免 SIGSEGV。
-        if (!headReply) {
+    QPointer<QNetworkReply> headPtr(headReply);
+    connect(headReply, &QNetworkReply::finished, this,
+            [this, probeGen, musicId, url, finishProbe, headPtr]() {
+        if (!headPtr) {
             return;
         }
+
+        // 只有当当前成员仍指向本次 headReply 时才清理，避免误清理新请求。
+        if (m_qualityReply == headPtr)
+            m_qualityReply = nullptr;
+
         if (probeGen != m_qualityProbeGen || musicId != m_musicId) {
-            headReply->deleteLater();
+            headPtr->deleteLater();
             return;
         }
 
         AudioQuality::ProbeResult result;
         QString ctLower;
-        if (headReply->error() == QNetworkReply::NoError) {
-            const QString ct = headReply->header(QNetworkRequest::ContentTypeHeader).toString();
+        if (headPtr->error() == QNetworkReply::NoError) {
+            const QString ct = headPtr->header(QNetworkRequest::ContentTypeHeader).toString();
             ctLower = ct.toLower();
-            const qint64 len = headReply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+            const qint64 len = headPtr->header(QNetworkRequest::ContentLengthHeader).toLongLong();
             result = AudioQuality::probeHttpHint(ct, len, trackDurationSec());
         }
-        headReply->deleteLater();
+        headPtr->deleteLater();
 
         const bool losslessCt =
             ctLower.contains(QLatin1String("flac")) || ctLower.contains(QLatin1String("wav"));
@@ -1197,22 +1201,26 @@ void PlayerPage::scheduleAudioQualityProbe()
         QNetworkRequest getReq(url);
         getReq.setRawHeader("Range", "bytes=0-16383");
         QNetworkReply *rangeReply = m_qualityNam->get(getReq);
+        QPointer<QNetworkReply> rangePtr(rangeReply);
         connect(rangeReply, &QNetworkReply::finished, this,
-                [this, probeGen, musicId, rangeReply, finishProbe, result]() {
+                [this, probeGen, musicId, rangePtr, finishProbe, result]() {
+                    if (!rangePtr) {
+                        return;
+                    }
                     if (probeGen != m_qualityProbeGen || musicId != m_musicId) {
-                        rangeReply->deleteLater();
+                        rangePtr->deleteLater();
                         return;
                     }
                     AudioQuality::ProbeResult r2 = result;
-                    if (rangeReply->error() == QNetworkReply::NoError)
-                        r2 = AudioQuality::probeBuffer(rangeReply->readAll());
+                    if (rangePtr->error() == QNetworkReply::NoError)
+                        r2 = AudioQuality::probeBuffer(rangePtr->readAll());
                     if (r2.tier == AudioQuality::Tier::Unknown && result.tier != AudioQuality::Tier::Unknown)
                         r2 = result;
                     else if (result.tier != AudioQuality::Tier::Unknown
                              && r2.tier != AudioQuality::Tier::Unknown
                              && int(r2.tier) < int(result.tier))
                         r2.tier = result.tier;
-                    rangeReply->deleteLater();
+                    rangePtr->deleteLater();
                     finishProbe(r2);
                 });
     });
