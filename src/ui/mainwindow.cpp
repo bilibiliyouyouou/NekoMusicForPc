@@ -845,8 +845,12 @@ void MainWindow::setupUi()
     connect(m_engine, &PlayerEngine::positionChanged, m_desktopLrc, &DesktopLrc::updatePosition);
 
     connect(m_engine, &PlayerEngine::musicStarted, m_desktopLrc, [this](const MusicInfo &music) {
-        if (m_desktopLrc)
+        if (m_desktopLrc) {
             m_desktopLrc->setCurrentSong(music.title, music.artist);
+            if (m_playerPage) {
+                m_playerPage->emitDesktopLyricsPayload();
+            }
+        }
     });
 
     connect(m_playerPage, &PlayerPage::lyricsPayloadReady, m_desktopLrc, &DesktopLrc::loadLrcText);
