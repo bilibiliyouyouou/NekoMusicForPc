@@ -388,7 +388,7 @@ void PlaylistPanel::setupUi()
     m_closeBtn->setFixedSize(32, 32);
     m_closeBtn->setCursor(Qt::PointingHandCursor);
     m_closeBtn->setFlat(true);
-    connect(m_closeBtn, &QPushButton::clicked, this, &PlaylistPanel::closeDrawer);
+    connect(m_closeBtn, &QPushButton::clicked, this, &PlaylistPanel::hideRequested);
     headerLay->addWidget(m_closeBtn, 0, Qt::AlignTop);
 
     lay->addWidget(header);

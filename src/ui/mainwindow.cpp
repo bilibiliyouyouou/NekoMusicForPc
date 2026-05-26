@@ -409,6 +409,7 @@ void MainWindow::setupUi()
     m_playlistPanel = new PlaylistPanel(central);
     m_playlistScrim = new PlaylistDrawerScrim(central);
     static_cast<PlaylistDrawerScrim *>(m_playlistScrim)->onClicked = [this]() { hidePlaylistDrawer(); };
+    connect(m_playlistPanel, &PlaylistPanel::hideRequested, this, &MainWindow::hidePlaylistDrawer);
     connect(m_playlistPanel, &PlaylistPanel::drawerClosed, this, [this]() {
         if (m_playerBar)
             m_playerBar->setFloatingProgressSuppressed(false);
