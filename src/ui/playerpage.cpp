@@ -87,6 +87,13 @@ inline int lyricMainFontPx(int pageH)
 constexpr int kLyricScrollAnimMs = 500;
 constexpr int kLyricUserScrollPauseMs = 3000;
 constexpr qreal kLyricScrollCenterOffset = 0.5;
+/** 距视口中心该范围内无模糊（当前行居中时保持清晰） */
+constexpr int kLyricFocusBandPx = 60;
+constexpr qreal kLyricFocusBlurMax = 9.0;
+constexpr qreal kLyricFocusBlurRampPx = 28.0;
+/** 顶部/底部渐隐区向内收：顶部消失线下移、底部消失线上移 */
+constexpr int kLyricFocusTopEasePx = 48;
+constexpr int kLyricFocusBottomEasePx = 48;
 /** SPlayer INTRO_THRESHOLD：首句歌词 ≥3s 时在顶部显示三圆点倒计时 */
 constexpr qint64 kLyricIntroCountdownMs = 3000;
 
@@ -811,6 +818,74 @@ static QWidget *findLyricLineByIndex(const QVector<QWidget *> &lines, int index)
     return nullptr;
 }
 
+void PlayerPage::scheduleLyricFocusBlurUpdate()
+{
+    if (!m_lyricBlurTimer) {
+        m_lyricBlurTimer = new QTimer(this);
+        m_lyricBlurTimer->setSingleShot(true);
+        m_lyricBlurTimer->setInterval(16);
+        connect(m_lyricBlurTimer, &QTimer::timeout, this, &PlayerPage::applyLyricViewportFocusBlur);
+    }
+    if (!m_lyricBlurTimer->isActive())
+        m_lyricBlurTimer->start();
+}
+
+void PlayerPage::applyLyricViewportFocusBlur()
+{
+    if (!m_lyricsScroll || m_lyricLineWidgets.isEmpty())
+        return;
+
+    QWidget *vp = m_lyricsScroll->viewport();
+    if (!vp || vp->height() <= 0)
+        return;
+
+    const int scrollY = m_lyricsScroll->verticalScrollBar()->value();
+    const int viewH = vp->height();
+    const int focusY = scrollY + int(viewH * kLyricScrollCenterOffset);
+
+    auto blurForDistance = [](int distPx) -> qreal {
+        if (distPx <= kLyricFocusBandPx)
+            return 0.0;
+        return qMin(kLyricFocusBlurMax, qreal(distPx - kLyricFocusBandPx) / kLyricFocusBlurRampPx);
+    };
+
+    for (auto *lineWidget : m_lyricLineWidgets) {
+        if (!lineWidget)
+            continue;
+        if (lineWidget->property("lyricIndex").toInt() < 0)
+            continue;
+
+        const int lineTop = lineWidget->y();
+        const int lineH = lineWidget->height();
+        const int lineCenterY = lineTop + lineH / 2;
+
+        if (lineTop + lineH < scrollY - 120 || lineTop > scrollY + viewH + 120) {
+            lineWidget->setGraphicsEffect(nullptr);
+            continue;
+        }
+
+        int signedDist = lineCenterY - focusY;
+        if (signedDist < 0)
+            signedDist = qMin(0, signedDist + kLyricFocusTopEasePx);
+        else
+            signedDist = qMax(0, signedDist - kLyricFocusBottomEasePx);
+        const qreal radius = blurForDistance(qAbs(signedDist));
+        if (radius <= 0.05) {
+            lineWidget->setGraphicsEffect(nullptr);
+            continue;
+        }
+
+        auto *effect = qobject_cast<QGraphicsBlurEffect *>(lineWidget->graphicsEffect());
+        if (!effect) {
+            effect = new QGraphicsBlurEffect(lineWidget);
+            effect->setBlurHints(QGraphicsBlurEffect::PerformanceHint);
+            lineWidget->setGraphicsEffect(effect);
+        }
+        if (!qFuzzyCompare(effect->blurRadius(), radius))
+            effect->setBlurRadius(radius);
+    }
+}
+
 void PlayerPage::syncLyricLinesVisual(int activeLine, int previousLine)
 {
     const int textW = lyricTextAreaWidth();
@@ -823,7 +898,6 @@ void PlayerPage::syncLyricLinesVisual(int activeLine, int previousLine)
             continue;
 
         const bool on = (idx == activeLine);
-        lineWidget->setGraphicsEffect(nullptr);
 
         auto *textLabel = lineWidget->findChild<QLabel *>(QStringLiteral("lyricText"));
         auto *transLabel = lineWidget->findChild<QLabel *>(QStringLiteral("lyricTranslation"));
@@ -835,6 +909,8 @@ void PlayerPage::syncLyricLinesVisual(int activeLine, int previousLine)
 
     if (m_lyricsContainer)
         m_lyricsContainer->adjustSize();
+
+    scheduleLyricFocusBlurUpdate();
 }
 
 void PlayerPage::scrollLyricsToActiveLine(int line)
@@ -871,8 +947,10 @@ void PlayerPage::scrollLyricsToActiveLine(int line)
     m_scrollAnim->setEasingCurve(splayerLyricScrollCurve());
     connect(m_scrollAnim, &QPropertyAnimation::finished, this, [this]() {
         m_scrollAnim = nullptr;
+        scheduleLyricFocusBlurUpdate();
     });
     m_scrollAnim->start(QAbstractAnimation::DeleteWhenStopped);
+    scheduleLyricFocusBlurUpdate();
 }
 
 int PlayerPage::lyricTextAreaWidth() const
@@ -908,13 +986,13 @@ void PlayerPage::updateLyricWrapWidth()
     for (auto *lineWidget : m_lyricLineWidgets) {
         if (!lineWidget)
             continue;
-        lineWidget->setGraphicsEffect(nullptr);
         lineWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
         relayoutSingleLyricLine(lineWidget, textW);
     }
 
     m_lyricsContainer->updateGeometry();
     m_lyricsContainer->adjustSize();
+    scheduleLyricFocusBlurUpdate();
 
     if (m_currentLyricLine >= 0 && !m_lyricUserScrolling) {
         const int line = m_currentLyricLine;
@@ -1787,6 +1865,7 @@ void PlayerPage::setupUi()
         scrollBar->installEventFilter(this);
         connect(scrollBar, &QScrollBar::sliderPressed, this, [this]() { pauseLyricAutoScroll(); });
         connect(scrollBar, &QScrollBar::sliderMoved, this, [this]() { pauseLyricAutoScroll(); });
+        connect(scrollBar, &QScrollBar::valueChanged, this, [this]() { scheduleLyricFocusBlurUpdate(); });
     }
     lyricsCol->addWidget(m_lyricsScroll, 1);
 
@@ -2385,6 +2464,8 @@ void PlayerPage::rebuildLyricLabels()
             const qint64 pos = m_engine->position();
             updateLyricCountdown(pos);
             updateLyricHighlight(pos);
+        } else {
+            scheduleLyricFocusBlurUpdate();
         }
     });
 }
