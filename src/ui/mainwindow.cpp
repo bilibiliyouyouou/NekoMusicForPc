@@ -767,6 +767,7 @@ void MainWindow::setupUi()
 
     // 收藏按钮
     connect(m_playerBar, &PlayerBar::favoriteClicked, this, &MainWindow::toggleFavorite);
+    connect(m_playerBar, &PlayerBar::addToPlaylistClicked, this, &MainWindow::addToPlaylistFromPlayer);
     connect(m_playerBar, &PlayerBar::shareClicked, this, &MainWindow::copyCurrentTrackShare);
 
     connect(m_playerBar, &PlayerBar::playModeClicked, this, [this]() {
@@ -775,6 +776,7 @@ void MainWindow::setupUi()
 
     connect(m_playerPage, &PlayerPage::backRequested, this, &MainWindow::closePlayerPage);
     connect(m_playerPage, &PlayerPage::favoriteClicked, this, &MainWindow::toggleFavorite);
+    connect(m_playerPage, &PlayerPage::addToPlaylistClicked, this, &MainWindow::addToPlaylistFromPlayer);
     connect(m_playerPage, &PlayerPage::previousClicked, this, &MainWindow::playPrevious);
     connect(m_playerPage, &PlayerPage::nextClicked, this, &MainWindow::playNext);
     connect(m_playerPage, &PlayerPage::playlistClicked, this, &MainWindow::togglePlaylistPanel);
@@ -1060,6 +1062,30 @@ void MainWindow::showAddToPlaylistDialog(const MusicInfo &music)
     if (dialog.exec() == QDialog::Accepted) {
         m_sidebar->refreshPlaylists();
     }
+}
+
+void MainWindow::addToPlaylistFromPlayer(int musicId)
+{
+    if (musicId <= 0)
+        return;
+
+    const MusicInfo &eng = m_engine->currentMusic();
+    if (eng.id == musicId) {
+        showAddToPlaylistDialog(eng);
+        return;
+    }
+
+    const auto &queue = PlaylistManager::instance().playlist();
+    for (const MusicInfo &m : queue) {
+        if (m.id == musicId) {
+            showAddToPlaylistDialog(m);
+            return;
+        }
+    }
+
+    MusicInfo stub;
+    stub.id = musicId;
+    showAddToPlaylistDialog(stub);
 }
 
 QWidget *MainWindow::playlistDrawerHost() const

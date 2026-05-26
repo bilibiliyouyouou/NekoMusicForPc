@@ -31,6 +31,7 @@ signals:
     void previousClicked();
     void nextClicked();
     void favoriteClicked(int musicId);
+    void addToPlaylistClicked(int musicId);
     void shareClicked();
     void videoShareClicked();
     void playModeClicked();
@@ -105,6 +106,7 @@ private:
     QPushButton *m_playBtn = nullptr;
     QPushButton *m_playModeBtn = nullptr;
     QPushButton *m_heartBtn = nullptr;
+    QPushButton *m_addToPlaylistBtn = nullptr;
     QPushButton *m_shareBtn = nullptr;
     QPushButton *m_videoShareBtn = nullptr;
     QSlider *m_progress = nullptr;

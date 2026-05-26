@@ -563,6 +563,7 @@ enum class PbInk : int {
     Next,
     PlayMain,
     Heart,
+    PlaylistAdd,
     Share,
     Video,
     DesktopLyric,
@@ -661,6 +662,9 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
                                on ? kPbHeartOn : (hi ? cA : cN));
         break;
     }
+    case PbInk::PlaylistAdd:
+        pm = Icons::renderNamed("AddList", px, hi ? cA : cN);
+        break;
     case PbInk::Share:
         pm = Icons::renderNamed("Share", px, hi ? cA : cN);
         break;
@@ -919,6 +923,20 @@ void PlayerBar::setupUi()
         emit favoriteClicked(m_currentMusicId);
     });
     titleRowLay->addWidget(m_heartBtn, 0, Qt::AlignVCenter);
+
+    m_addToPlaylistBtn = new PlayerBarInkButton(titleRow);
+    m_addToPlaylistBtn->setObjectName("pbAddToPlaylistBtn");
+    m_addToPlaylistBtn->setFixedSize(kPbHeartBtn, kPbHeartBtn);
+    m_addToPlaylistBtn->setIconSize(QSize(kPbHeartIcon, kPbHeartIcon));
+    m_addToPlaylistBtn->setProperty("pbInk", int(PbInk::PlaylistAdd));
+    m_addToPlaylistBtn->setCursor(Qt::PointingHandCursor);
+    m_addToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
+    m_addToPlaylistBtn->setEnabled(false);
+    connect(m_addToPlaylistBtn, &QPushButton::clicked, this, [this]() {
+        if (m_currentMusicId > 0)
+            emit addToPlaylistClicked(m_currentMusicId);
+    });
+    titleRowLay->addWidget(m_addToPlaylistBtn, 0, Qt::AlignVCenter);
 
     infoL->addWidget(titleRow, 0, Qt::AlignLeft);
 
@@ -1419,6 +1437,8 @@ void PlayerBar::retranslate()
         }
     }
 
+    if (m_addToPlaylistBtn)
+        m_addToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
     if (m_desktopLrcBtn)
         m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     if (m_shareBtn)
@@ -1519,6 +1539,8 @@ void PlayerBar::setCurrentMusicId(int musicId)
 {
     qDebug() << "[播放栏] 设置当前音乐ID:" << musicId;
     m_currentMusicId = musicId;
+    if (m_addToPlaylistBtn)
+        m_addToPlaylistBtn->setEnabled(musicId > 0);
     // 不重置状态，由调用方自行检查收藏状态后设置
     refreshLocalBadge();
 }
@@ -1648,6 +1670,8 @@ void PlayerBar::setFavoriteStatus(bool isFavorited)
         m_heartBtn->setToolTip(isFavorited ? I18n::instance().tr("removeFromFavorites") : I18n::instance().tr("addToFavorites"));
         m_heartBtn->update();
     }
+    if (m_addToPlaylistBtn)
+        m_addToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
 }
 
 void PlayerBar::setDesktopLyricsChecked(bool checked)

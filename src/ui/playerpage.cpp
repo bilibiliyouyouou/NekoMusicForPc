@@ -443,6 +443,7 @@ enum class PpInk : int {
     Next,
     PlayMain,
     Favorite,
+    PlaylistAdd,
     PlayMode,
     Playlist,
     Volume,
@@ -520,6 +521,9 @@ protected:
                                     on ? cA : (hi ? cA : cN));
             break;
         }
+        case PpInk::PlaylistAdd:
+            pm = Icons::renderNamed("AddList", px, hi ? cA : cN);
+            break;
         case PpInk::Playlist:
             pm = Icons::renderNamed("PlayList", px, hi ? cA : cN);
             break;
@@ -1076,8 +1080,21 @@ void PlayerPage::setupPlayerControl()
             emit favoriteClicked(m_musicId);
     });
 
+    m_ppAddToPlaylistBtn = new PlayerPageInkButton(m_ppLeftTools);
+    m_ppAddToPlaylistBtn->setFixedSize(kPpMenuBtn, kPpMenuBtn);
+    m_ppAddToPlaylistBtn->setIconSize(QSize(kPpSideIcon, kPpSideIcon));
+    m_ppAddToPlaylistBtn->setProperty("ppInk", int(PpInk::PlaylistAdd));
+    m_ppAddToPlaylistBtn->setCursor(Qt::PointingHandCursor);
+    m_ppAddToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
+    m_ppAddToPlaylistBtn->setEnabled(false);
+    connect(m_ppAddToPlaylistBtn, &QPushButton::clicked, this, [this]() {
+        if (m_musicId > 0)
+            emit addToPlaylistClicked(m_musicId);
+    });
+
     leftLay->addWidget(m_backBtn);
     leftLay->addWidget(m_ppHeartBtn);
+    leftLay->addWidget(m_ppAddToPlaylistBtn);
 
     auto *center = new QWidget(m_controlBar);
     center->setObjectName(QStringLiteral("playerControlCenter"));
@@ -1796,6 +1813,8 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     const int prevId = m_musicId;
     const QString prevCoverUrl = m_coverUrl;
     m_musicId = id;
+    if (m_ppAddToPlaylistBtn)
+        m_ppAddToPlaylistBtn->setEnabled(id > 0);
     if (prevId != id)
         resetVideoRenderState();
     m_trackDurationSec = qMax(1, trackDurationSec());
@@ -1858,6 +1877,8 @@ void PlayerPage::retranslate()
         m_videoRenderBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderButton")));
     if (m_videoDownloadBtn)
         m_videoDownloadBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderDownload")));
+    if (m_ppAddToPlaylistBtn)
+        m_ppAddToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
     updateVideoRenderUi();
 }
 

@@ -81,6 +81,7 @@ private:
     void createTrayIcon();
     void createPlaylist();
     void showAddToPlaylistDialog(const MusicInfo &music);
+    void addToPlaylistFromPlayer(int musicId);
     void togglePlaylistPanel();
     void showPlaylistDrawer();
     void hidePlaylistDrawer();

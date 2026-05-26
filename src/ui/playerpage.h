@@ -64,6 +64,7 @@ signals:
     void previousClicked();
     void nextClicked();
     void favoriteClicked(int musicId);
+    void addToPlaylistClicked(int musicId);
     void playlistClicked();
     void desktopLyricsToggled(bool enabled);
     /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
@@ -157,6 +158,7 @@ private:
     QPropertyAnimation *m_ppControlOpAnim = nullptr;
     QTimer *m_controlHideTimer = nullptr;
     QPushButton *m_ppHeartBtn = nullptr;
+    QPushButton *m_ppAddToPlaylistBtn = nullptr;
     QPushButton *m_ppPlayModeBtn = nullptr;
     QPushButton *m_ppPlaylistBtn = nullptr;
     QPushButton *m_ppVolumeBtn = nullptr;
