@@ -24,13 +24,13 @@
 
 namespace {
 
-constexpr int kDefaultDesktopLyricsW = 600;
-constexpr int kDefaultDesktopLyricsH = 80;
+constexpr int kDefaultDesktopLyricsW = 380;
+constexpr int kDefaultDesktopLyricsH = 64;
 constexpr int kDesktopLyricsGeomVersion = 6;
 
 bool isReasonableDesktopLyricsSize(int w, int h, const QScreen *screen)
 {
-    if (w < 320 || h < 56)
+    if (w < 200 || h < 40)
         return false;
     if (!screen)
         return w <= 1400 && h <= 400;
@@ -81,23 +81,25 @@ DesktopLrc::DesktopLrc(QWidget *parent)
     : QWidget(parent, Qt::Window | Qt::Tool)
 {
     setAttribute(Qt::WA_TranslucentBackground, true);
+    // 悬浮歌词：显示时不抢主窗口焦点，更像桌面挂件
+    setAttribute(Qt::WA_ShowWithoutActivating, true);
 
     m_layerShellActive = useLayerShellPath();
     desktopLrcConfigureWindow(this, m_layerShellActive);
 
     setWindowTitle(QStringLiteral("NekoMusic — %1")
                  .arg(I18n::instance().tr(QStringLiteral("desktopLyrics"))));
-    resize(600, 80);
+    resize(380, 64);
 
-    m_font = QFont(QStringLiteral("Microsoft YaHei"), 20, QFont::Bold);
+    m_font = QFont(QStringLiteral("Microsoft YaHei"), 12, QFont::Bold);
     m_textColor = Qt::white;
-    m_backgroundColor = QColor(0, 0, 0, 180);
+    m_backgroundColor = QColor(25, 25, 25, 185);
 
     m_updateTimer = new QTimer(this);
     connect(m_updateTimer, &QTimer::timeout, this, &DesktopLrc::updateLyricDisplay);
 
     m_stayOnTopTimer = new QTimer(this);
-    m_stayOnTopTimer->setInterval(800);
+    m_stayOnTopTimer->setInterval(350);
     connect(m_stayOnTopTimer, &QTimer::timeout, this, &DesktopLrc::refreshStayOnTop);
 
     if (!m_layerShellActive)
@@ -209,6 +211,30 @@ void DesktopLrc::showEvent(QShowEvent *event)
     QWidget::showEvent(event);
     if (!m_layerShellActive)
         desktopLrcKeepOnTop(this);
+}
+
+void DesktopLrc::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::WindowStateChange) {
+        if (isMinimized() || isMaximized()) {
+            // Force block minimization and maximization, restore to normal geometry
+            QTimer::singleShot(0, this, [this]() {
+                showNormal();
+                if (!m_layerShellActive) {
+                    desktopLrcKeepOnTop(this);
+                }
+            });
+            event->accept();
+            return;
+        }
+    }
+    QWidget::changeEvent(event);
+}
+
+void DesktopLrc::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    // Swallow double click event entirely to block double click to maximize
+    event->accept();
 }
 
 void DesktopLrc::refreshStayOnTop()
@@ -408,6 +434,8 @@ void DesktopLrc::showWindow()
 
     restoreGeometry();
     show();
+    if (isMinimized() || isMaximized())
+        showNormal();
     desktopLrcKeepOnTop(this);
     m_updateTimer->start(100);
     m_stayOnTopTimer->start();
@@ -428,7 +456,11 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.fillRect(0, 0, width(), height(), m_backgroundColor);
+    
+    // Draw beautiful rounded capsule background (e.g. radius 16px)
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(m_backgroundColor);
+    painter.drawRoundedRect(rect(), 16, 16);
 
     const QString currentLyric = getLyricAtTime(m_currentPosition);
     QString nextLyric;
@@ -458,28 +490,46 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
         }
     }
 
-    painter.setPen(QColor(255, 200, 0));
+    // Let's use single-line or tight dual-line layout. 
+    // Since the window is compact (380x64), a neat single lyric line in the center, or micro dual-line works best.
+    // If nextLyric is empty, center the current lyric vertically.
+    // Let's draw current lyric with bright color (e.g., gold/yellow or white) and next lyric slightly faded.
     painter.setFont(m_font);
-    QRect lyricRect(0, 0, width(), height() / 2);
-    painter.drawText(lyricRect, Qt::AlignCenter, currentLyric);
 
-    if (!nextLyric.isEmpty()) {
+    // Padding inside the capsule
+    int sidePadding = 20;
+    QRect textRect = rect().adjusted(sidePadding, 4, -sidePadding, -4);
+
+    if (nextLyric.isEmpty()) {
+        // Centered single lyric
+        painter.setPen(QColor(255, 200, 0));
+        painter.drawText(textRect, Qt::AlignCenter, currentLyric);
+    } else {
+        // Dual line micro layout
+        painter.setPen(QColor(255, 200, 0));
+        QRect lyricRect(sidePadding, 4, width() - 2 * sidePadding, height() / 2 - 2);
+        painter.drawText(lyricRect, Qt::AlignCenter, currentLyric);
+
         painter.setPen(QColor(255, 255, 255, 150));
-        QRect nextRect(0, height() / 2, width(), height() / 2);
+        painter.setFont(QFont(m_font.family(), m_font.pointSize() - 2, QFont::Medium));
+        QRect nextRect(sidePadding, height() / 2 - 2, width() - 2 * sidePadding, height() / 2 - 2);
         painter.drawText(nextRect, Qt::AlignCenter, nextLyric);
     }
 
+    // Draw progress bar inside the capsule bottom border
     if (progress > 0.0f) {
-        const int barWidth = static_cast<int>(width() * progress);
-        painter.fillRect(0, height() - 3, barWidth, 3, QColor(255, 200, 0, 200));
+        int barH = 3;
+        int barW = static_cast<int>((width() - 32) * progress);
+        painter.setBrush(QColor(255, 200, 0, 220));
+        painter.drawRoundedRect(16, height() - 6, barW, barH, 1.5, 1.5);
     }
 
     if (m_lyricsMap.isEmpty() && !m_currentSongTitle.isEmpty()) {
         painter.setPen(m_textColor);
-        painter.setFont(QFont(QStringLiteral("Microsoft YaHei"), 14, QFont::Normal));
+        painter.setFont(QFont(QStringLiteral("Microsoft YaHei"), 10, QFont::Normal));
         const QString songInfo =
             QStringLiteral("%1 - %2").arg(m_currentSongTitle, m_currentSongArtist);
-        painter.drawText(QRect(0, 0, width(), height()), Qt::AlignCenter | Qt::AlignBottom, songInfo);
+        painter.drawText(textRect, Qt::AlignCenter, songInfo);
     }
 }
 
