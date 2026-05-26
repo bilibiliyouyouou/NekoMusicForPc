@@ -353,6 +353,7 @@ void DesktopLrc::parseLyrics(const QString &lyricsText)
 void DesktopLrc::updatePosition(qint64 position)
 {
     m_currentPosition = position;
+    update();
 }
 
 void DesktopLrc::setCurrentSong(const QString &title, const QString &artist)
@@ -516,7 +517,11 @@ void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
     }
 #endif
 
-    move((event->globalPosition() - QPointF(m_dragPosition)).toPoint());
+    if (window() && window()->windowHandle()) {
+        window()->windowHandle()->startSystemMove();
+    } else {
+        move((event->globalPosition() - QPointF(m_dragPosition)).toPoint());
+    }
     event->accept();
 }
 

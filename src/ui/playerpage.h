@@ -51,6 +51,7 @@ public:
     void layoutPlayerPageChrome();
     /** 抓取 host 并模糊，对齐 SPlayer .full-player backdrop-filter，避免透出背后清晰界面 */
     void refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize = QSize());
+    void emitDesktopLyricsPayload();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -108,7 +109,6 @@ private:
     void updateLyricCountdown(qint64 positionMs);
     QColor lyricCountdownDotColor() const;
     QString serializeLyricsForDesktop() const;
-    void emitDesktopLyricsPayload();
     void emitBarLyricUpdate(int lineIndex);
     void resetVideoRenderState();
     void updateVideoRenderUi();
