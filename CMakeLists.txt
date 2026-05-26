@@ -138,6 +138,9 @@ set(SOURCES
         src/ui/desktoplrc.cpp
         src/ui/desktoplrcplatform.cpp
         src/ui/favoritespage.cpp
+        src/ui/songcardwidget.cpp
+        src/ui/songlistwidget.cpp
+        src/ui/roundcoverlabel.cpp
         src/core/playerengine.cpp
         src/core/apiclient.cpp
         src/core/i18n.cpp
@@ -190,6 +193,9 @@ set(HEADERS
         src/ui/desktoplrc.h
         src/ui/desktoplrcplatform.h
         src/ui/favoritespage.h
+        src/ui/songcardwidget.h
+        src/ui/songlistwidget.h
+        src/ui/roundcoverlabel.h
         src/core/playerengine.h
         src/core/apiclient.h
         src/core/httpprotocollabel.h

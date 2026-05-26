@@ -488,6 +488,8 @@ void MainWindow::setupUi()
         else if (key == "search") switchPage(m_searchPage);
     });
     connect(m_favoritesPage, &FavoritesPage::playRequested, this, &MainWindow::playMusicById);
+    connect(m_favoritesPage, &FavoritesPage::unfavoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_favoritesPage, &FavoritesPage::playPauseRequested, this, &MainWindow::togglePlaybackForSystemUi);
     connect(m_favoritesPage, &FavoritesPage::playAllRequested, this, [this](const QList<MusicInfo> &results) {
         PlaylistManager::instance().clearPlaylist();
         PlaylistManager::instance().addAllToPlaylist(results);
@@ -538,6 +540,9 @@ void MainWindow::setupUi()
     connect(m_engine, &PlayerEngine::stateChanged, this, [this](PlayerEngine::PlaybackState state) {
         if (state == PlayerEngine::Playing) {
             m_playerBar->setLoading(false);
+        }
+        if (m_favoritesPage) {
+            m_favoritesPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
     });
 
@@ -1682,6 +1687,8 @@ void MainWindow::toggleFavorite(int musicId)
                 m_playerBar->setFavoriteStatus(false);
                 if (m_playerPage)
                     m_playerPage->setFavoriteStatus(false);
+                if (m_favoritesPage)
+                    m_favoritesPage->refresh();
                 Toast::show(this, I18n::instance().tr("cancelFavoriteSuccess"), Toast::Success);
                 qDebug() << "[收藏] 已从缓存移除并更新UI";
             } else {
