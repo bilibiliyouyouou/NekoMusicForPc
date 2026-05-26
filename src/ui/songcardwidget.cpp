@@ -15,6 +15,8 @@
 #include <QMouseEvent>
 #include <QEnterEvent>
 #include <QFontMetrics>
+#include <QApplication>
+#include <QTimer>
 
 namespace {
 
@@ -59,7 +61,7 @@ void SongCardWidget::rebuildLayout()
     outer->setSpacing(0);
 
     m_content = new QWidget(this);
-    m_content->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_content->setObjectName(QStringLiteral("songCardContent"));
     auto *lay = new QHBoxLayout(m_content);
     lay->setContentsMargins(12, 8, 12, 8);
     lay->setSpacing(0);
@@ -138,7 +140,75 @@ void SongCardWidget::rebuildLayout()
 
     outer->addWidget(m_content, 1);
 
+    for (QLabel *lbl : {m_indexLbl, m_coverLbl, m_titleLbl, m_artistLbl, m_albumLbl, m_timeLbl})
+        lbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+
+    installContentEventFilters();
     applyTheme();
+}
+
+void SongCardWidget::installContentEventFilters()
+{
+    if (!m_content)
+        return;
+
+    std::function<void(QWidget *)> walk = [&](QWidget *w) {
+        if (!w || isInteractiveButton(w))
+            return;
+        w->installEventFilter(this);
+        for (QObject *child : w->children()) {
+            if (auto *cw = qobject_cast<QWidget *>(child))
+                walk(cw);
+        }
+    };
+    walk(m_content);
+}
+
+bool SongCardWidget::isInteractiveButton(QObject *obj) const
+{
+    return obj == m_heartBtn || obj == m_playOverlay || obj == m_statusOverlay;
+}
+
+void SongCardWidget::setHover(bool hover)
+{
+    if (m_hover == hover)
+        return;
+    m_hover = hover;
+    updateHoverOverlays();
+    update();
+}
+
+void SongCardWidget::syncHoverFromCursor()
+{
+    QWidget *under = QApplication::widgetAt(mapToGlobal(rect().center()));
+    const bool inside = under && (under == this || isAncestorOf(under));
+    setHover(inside);
+}
+
+bool SongCardWidget::eventFilter(QObject *watched, QEvent *event)
+{
+    if (isInteractiveButton(watched))
+        return QWidget::eventFilter(watched, event);
+
+    switch (event->type()) {
+    case QEvent::Enter:
+        setHover(true);
+        break;
+    case QEvent::Leave:
+        QTimer::singleShot(0, this, [this]() { syncHoverFromCursor(); });
+        break;
+    case QEvent::MouseButtonDblClick: {
+        auto *me = static_cast<QMouseEvent *>(event);
+        if (me->button() == Qt::LeftButton && onActivate) {
+            onActivate(m_info);
+            return true;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void SongCardWidget::bind(const MusicInfo &info, int index)
@@ -283,11 +353,6 @@ void SongCardWidget::resizeEvent(QResizeEvent *e)
 {
     QWidget::resizeEvent(e);
     elideTexts();
-}
-
-void SongCardWidget::mousePressEvent(QMouseEvent *event)
-{
-    QWidget::mousePressEvent(event);
 }
 
 void SongCardWidget::mouseDoubleClickEvent(QMouseEvent *event)

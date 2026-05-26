@@ -32,6 +32,7 @@ public:
 signals:
     void playMusic(const MusicInfo &info);
     void playAllRequested(const QList<MusicInfo> &songs);
+    void favoriteRequested(int musicId);
     void playPauseRequested();
     void backRequested();
     void refreshSidebarPlaylists();

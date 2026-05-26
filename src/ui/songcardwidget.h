@@ -31,15 +31,19 @@ public:
     std::function<void()> onTogglePlayPause;
 
 protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
     void rebuildLayout();
+    void installContentEventFilters();
+    void setHover(bool hover);
+    void syncHoverFromCursor();
+    bool isInteractiveButton(QObject *obj) const;
     void updateIndexColumn();
     void updateHoverOverlays();
     void elideTexts();

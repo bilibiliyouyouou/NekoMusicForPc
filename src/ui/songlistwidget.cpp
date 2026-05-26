@@ -329,15 +329,15 @@ void SongListWidget::updateVisibleRows()
         SongCardWidget *card = m_rowCards.value(row, nullptr);
         if (!card) {
             card = acquireCard();
-            card->bind(m_songs[row], row);
-            card->setRemoveMode(m_removeMode);
-            card->onActivate = onSongActivate;
-            card->onPlayNext = onSongPlayNext;
-            card->onUnfavorite = onUnfavorite;
-            card->onTogglePlayPause = onTogglePlayPause;
             card->setParent(m_container);
             m_rowCards[row] = card;
         }
+        card->bind(m_songs[row], row);
+        card->setRemoveMode(m_removeMode);
+        card->onActivate = onSongActivate;
+        card->onPlayNext = onSongPlayNext;
+        card->onUnfavorite = onUnfavorite;
+        card->onTogglePlayPause = onTogglePlayPause;
         card->setFixedSize(w, kRowHeight);
         card->move(0, row * kRowStride);
         card->setPlaying(m_songs[row].id == m_currentId);

@@ -243,19 +243,9 @@ void PlaylistDetailPage::setupUi()
     root->addWidget(m_detailHeader);
 
     m_songList = new SongListWidget(this);
-    m_songList->setRemoveMode(true);
     m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
-    m_songList->onUnfavorite = [this](int musicId) {
-        if (!m_apiClient || m_playlistId <= 0)
-            return;
-        m_apiClient->removeMusicFromPlaylist(m_playlistId, musicId, [this](bool success, const QString &) {
-            if (success) {
-                reloadPlaylist();
-                emit refreshSidebarPlaylists();
-            }
-        });
-    };
+    m_songList->onUnfavorite = [this](int musicId) { emit favoriteRequested(musicId); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     connect(m_songList, &SongListWidget::scrolled, this, &PlaylistDetailPage::onListScrolled);
     root->addWidget(m_songList, 1);

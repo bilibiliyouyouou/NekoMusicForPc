@@ -782,6 +782,8 @@ void MainWindow::setupUi()
             });
     connect(m_playlistDetailPage, &PlaylistDetailPage::playPauseRequested, this,
             &MainWindow::togglePlaybackForSystemUi);
+    connect(m_playlistDetailPage, &PlaylistDetailPage::favoriteRequested, this,
+            &MainWindow::toggleFavorite);
 
     // 搜索页面返回
     connect(m_searchPage, &SearchPage::backRequested, this, [this]() {
