@@ -2,19 +2,25 @@
 
 /**
  * @file searchpage.h
- * @brief 搜索页面 — 显示音乐、歌单和歌手搜索结果
+ * @brief 搜索页 — 1:1 SPlayer Search/layout.vue + songs/playlists/artists
  */
 
 #include <QWidget>
 #include <QList>
+#include <QSet>
 
 #include "core/musicinfo.h"
 
-class QScrollArea;
-class QVBoxLayout;
 class QLabel;
 class QPushButton;
+class QStackedWidget;
+class QScrollArea;
+class QWidget;
+class QGridLayout;
 class ApiClient;
+class SongListWidget;
+class CoverListCard;
+class CoverGridHost;
 
 class SearchPage : public QWidget
 {
@@ -23,50 +29,102 @@ class SearchPage : public QWidget
 public:
     explicit SearchPage(ApiClient *apiClient, QWidget *parent = nullptr);
 
-signals:
-    void playMusic(const MusicInfo &info);
-    void playAllRequested(const QList<MusicInfo> &results);
-    void openPlaylist(int playlistId);
-    void backRequested();
-
-public slots:
     void search(const QString &query);
     void retranslate();
+    void setFavoritedMusicIds(const QSet<int> &ids);
+    void setPlaybackPaused(bool paused);
+    void updatePlayingHighlight();
+
+signals:
+    void playMusic(const MusicInfo &info);
+    void openPlaylist(int playlistId);
+    void favoriteRequested(int musicId);
+    void playPauseRequested();
 
 protected:
-    void paintEvent(QPaintEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
+    enum Tab { Songs = 0, Playlists = 1, Artists = 2 };
+
     void setupUi();
-    void fetchMusicResults();
+    void applyPageStyle();
+    void setActiveTab(Tab tab);
+    void updateTitleRow();
+    void showSongsEmpty(const QString &text);
+    void hideSongsEmpty();
+    void showPlaylistEmpty(const QString &text);
+    void hidePlaylistEmpty();
+    void showArtistEmpty(const QString &text);
+    void hideArtistEmpty();
+    void showHintState(bool hint);
+
+    void fetchMusicResults(bool append);
     void fetchPlaylistResults();
     void fetchArtistResults();
-    void buildMusicList();
-    void buildPlaylistList();
-    void buildArtistList();
-    void showMusicPage();
-    void showPlaylistPage();
-    void showArtistPage();
-    void showLoading();
-    void hideLoading();
+    void applyMusicResults();
+    void applyPlaylistResults();
+    void relayoutPlaylistGrid();
+    void applyArtistResults();
+    void showArtistDetail(const QVariantMap &artist, const QList<MusicInfo> &tracks);
+    void showArtistGrid();
+
+    void onSongListScrolled(int scrollTop);
+    int currentPlayingMusicId() const;
+
+    static MusicInfo musicFromMap(const QVariantMap &item);
 
     ApiClient *m_apiClient = nullptr;
-    QPushButton *m_musicTab = nullptr;
-    QPushButton *m_playlistTab = nullptr;
-    QPushButton *m_artistTab = nullptr;
-    QPushButton *m_playAllBtn = nullptr;
-    QLabel *m_resultCountLbl = nullptr;
-    QLabel *m_statusLabel = nullptr;
-    QScrollArea *m_scroll = nullptr;
-    QWidget *m_container = nullptr;
-    QVBoxLayout *m_listLayout = nullptr;
-    QWidget *m_musicHeader = nullptr;
+
+    QLabel *m_keywordLbl = nullptr;
+    QLabel *m_suffixLbl = nullptr;
+    QPushButton *m_tabSongs = nullptr;
+    QPushButton *m_tabPlaylists = nullptr;
+    QPushButton *m_tabArtists = nullptr;
+    QStackedWidget *m_tabStack = nullptr;
+
+    SongListWidget *m_songList = nullptr;
+    QWidget *m_songsEmptyWrap = nullptr;
+    QLabel *m_songsEmptyIcon = nullptr;
+    QLabel *m_songsEmptyLbl = nullptr;
+    QPushButton *m_loadMoreBtn = nullptr;
+
+    QScrollArea *m_playlistScroll = nullptr;
+    CoverGridHost *m_playlistGridHost = nullptr;
+    QWidget *m_playlistGridInner = nullptr;
+    QList<CoverListCard *> m_playlistCards;
+    QWidget *m_playlistEmptyWrap = nullptr;
+    QLabel *m_playlistEmptyIcon = nullptr;
+    QLabel *m_playlistEmptyLbl = nullptr;
+
+    QStackedWidget *m_artistStack = nullptr;
+    QScrollArea *m_artistGridScroll = nullptr;
+    QWidget *m_artistGridHost = nullptr;
+    QGridLayout *m_artistGrid = nullptr;
+    QWidget *m_artistEmptyWrap = nullptr;
+    QLabel *m_artistEmptyIcon = nullptr;
+    QLabel *m_artistEmptyLbl = nullptr;
+    QWidget *m_artistDetailPage = nullptr;
+    QPushButton *m_artistBackBtn = nullptr;
+    QLabel *m_artistDetailName = nullptr;
+    SongListWidget *m_artistSongList = nullptr;
+
+    QWidget *m_hintWrap = nullptr;
+    QLabel *m_hintLbl = nullptr;
 
     QString m_query;
+    Tab m_activeTab = Songs;
     QList<MusicInfo> m_musicResults;
     QList<QVariantMap> m_playlistResults;
     QList<QVariantMap> m_artistResults;
-    int m_activeTab = 0; // 0=music, 1=playlist, 2=artist
-    int m_page = 1;
-    static const int kPageSize = 20;
+    QSet<int> m_favoritedIds;
+
+    int m_musicPage = 1;
+    int m_musicTotal = 0;
+    bool m_musicLoading = false;
+    bool m_musicHasMore = false;
+    bool m_playlistLoading = false;
+    bool m_artistLoading = false;
+
+    static constexpr int kMusicPageSize = 50;
 };

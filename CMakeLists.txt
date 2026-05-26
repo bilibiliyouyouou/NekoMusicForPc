@@ -139,6 +139,7 @@ set(SOURCES
         src/ui/favoritespage.cpp
         src/ui/songcardwidget.cpp
         src/ui/songlistwidget.cpp
+        src/ui/coverlistcard.cpp
         src/ui/roundcoverlabel.cpp
         src/core/playerengine.cpp
         src/core/apiclient.cpp
@@ -193,6 +194,7 @@ set(HEADERS
         src/ui/favoritespage.h
         src/ui/songcardwidget.h
         src/ui/songlistwidget.h
+        src/ui/coverlistcard.h
         src/ui/roundcoverlabel.h
         src/core/playerengine.h
         src/core/apiclient.h

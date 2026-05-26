@@ -145,6 +145,13 @@ static QMap<QString, QString> zhCN()
     m["searchMusic"] = QStringLiteral("单曲");
     m["searchPlaylist"] = QStringLiteral("歌单");
     m["searchResults"] = QStringLiteral("搜索结果");
+    m["searchRelatedSuffix"] = QStringLiteral("的相关搜索");
+    m["searchStartHint"] = QStringLiteral("请先在顶部搜索框输入关键词并搜索");
+    m["searchEmptySongs"] = QStringLiteral("很抱歉，未能找到与 %1 相关的任何歌曲");
+    m["searchEmptyPlaylists"] = QStringLiteral("很抱歉，未能找到与 %1 相关的任何歌单");
+    m["searchEmptyArtists"] = QStringLiteral("很抱歉，未能找到与 %1 相关的任何歌手");
+    m["searchBackArtists"] = QStringLiteral("← 歌手");
+    m["loadMore"] = QStringLiteral("加载更多");
     m["noResults"] = QStringLiteral("暂无搜索结果");
 
     // --- 账户 & 登录注册 ---
@@ -841,6 +848,13 @@ static QMap<QString, QString> enUS()
     m["searchMusic"] = "Songs";
     m["searchPlaylist"] = "Playlists";
     m["searchResults"] = "Search Results";
+    m["searchRelatedSuffix"] = " search results";
+    m["searchStartHint"] = "Enter a keyword in the top search box first";
+    m["searchEmptySongs"] = "Sorry, no songs found for \"%1\"";
+    m["searchEmptyPlaylists"] = "Sorry, no playlists found for \"%1\"";
+    m["searchEmptyArtists"] = "Sorry, no artists found for \"%1\"";
+    m["searchBackArtists"] = "← Artists";
+    m["loadMore"] = "Load more";
     m["noResults"] = "No results found";
 
     // --- Account & Auth ---

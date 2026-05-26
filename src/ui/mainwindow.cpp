@@ -550,6 +550,9 @@ void MainWindow::setupUi()
         if (m_recentPage) {
             m_recentPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
+        if (m_searchPage) {
+            m_searchPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
     });
 
     // 记录最近播放，并刷新列表页正在播放高亮
@@ -561,6 +564,8 @@ void MainWindow::setupUi()
             m_playlistDetailPage->updatePlayingHighlight();
         if (m_recentPage)
             m_recentPage->updatePlayingHighlight();
+        if (m_searchPage)
+            m_searchPage->updatePlayingHighlight();
     });
 
     // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
@@ -641,25 +646,17 @@ void MainWindow::setupUi()
 
     // 搜索请求
     connect(m_titleBar, &TitleBar::searchRequested, this, [this](const QString &query) {
+        syncListPageFavoriteIds();
         m_searchPage->search(query);
         switchPage(m_searchPage);
     });
 
-    // 搜索页面返回
-    connect(m_searchPage, &SearchPage::backRequested, this, [this]() {
-        switchPage(m_homePage);
-    });
     connect(m_searchPage, &SearchPage::playMusic, this, [this](const MusicInfo &info) {
-        playMusicById(info.id, info.title, info.artist, info.coverUrl);
+        playMusicFromInfo(info);
     });
-    connect(m_searchPage, &SearchPage::playAllRequested, this, [this](const QList<MusicInfo> &results) {
-        PlaylistManager::instance().clearPlaylist();
-        PlaylistManager::instance().addAllToPlaylist(results);
-        if (!results.isEmpty()) {
-            const auto &first = results.first();
-            playMusicById(first.id, first.title, first.artist, first.coverUrl);
-        }
-    });
+    connect(m_searchPage, &SearchPage::favoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_searchPage, &SearchPage::playPauseRequested, this,
+            &MainWindow::togglePlaybackForSystemUi);
     connect(m_searchPage, &SearchPage::openPlaylist, this, [this](int playlistId) {
         m_playlistDetailPage->loadPlaylist(playlistId);
         switchPage(m_playlistDetailPage);
@@ -787,16 +784,6 @@ void MainWindow::setupUi()
             &MainWindow::togglePlaybackForSystemUi);
     connect(m_playlistDetailPage, &PlaylistDetailPage::favoriteRequested, this,
             &MainWindow::toggleFavorite);
-
-    // 搜索页面返回
-    connect(m_searchPage, &SearchPage::backRequested, this, [this]() {
-        switchPage(m_homePage);
-    });
-
-    // 搜索页面播放
-    connect(m_searchPage, &SearchPage::playMusic, this, [this](const MusicInfo &info) {
-        playMusicFromInfo(info);
-    });
 
     // 语言切换
     connect(m_settingsPage, &SettingsPage::languageChanged, m_searchPage, &SearchPage::retranslate);
@@ -1836,6 +1823,8 @@ void MainWindow::syncListPageFavoriteIds()
         m_playlistDetailPage->setFavoritedMusicIds(ids);
     if (m_recentPage)
         m_recentPage->setFavoritedMusicIds(ids);
+    if (m_searchPage)
+        m_searchPage->setFavoritedMusicIds(ids);
 }
 
 void MainWindow::maybePromptDefaultMusicPlayer()

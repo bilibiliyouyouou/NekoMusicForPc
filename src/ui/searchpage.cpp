@@ -1,841 +1,882 @@
 /**
  * @file searchpage.cpp
- * @brief 搜索页面实现
+ * @brief 搜索页 — 1:1 SPlayer Search/layout.vue + songs/playlists/artists
  */
 
 #include "searchpage.h"
+#include "songlistwidget.h"
+#include "coverlistcard.h"
 #include "core/apiclient.h"
 #include "core/i18n.h"
 #include "core/covercache.h"
 #include "core/playlistmanager.h"
 #include "theme/theme.h"
+#include "theme/thememanager.h"
 #include "ui/svgicon.h"
 #include "ui/scrollareafix.h"
 
-#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QStackedWidget>
+#include <QScrollArea>
+#include <QButtonGroup>
+#include <QShowEvent>
+#include <QMouseEvent>
+#include <QEnterEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QTimer>
-#include <QMouseEvent>
-#include <QMenu>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QStyle>
 
-// ─── 音乐结果卡片 ──────────────────────────────────────
-class SearchResultCard : public QWidget
+namespace {
+
+class SearchArtistTile : public QWidget
 {
 public:
-    explicit SearchResultCard(const MusicInfo &info, int index, QWidget *parent = nullptr)
-        : QWidget(parent), m_musicId(info.id), m_index(index), m_info(info)
+    explicit SearchArtistTile(const QVariantMap &artist, QWidget *parent = nullptr)
+        : QWidget(parent), m_artist(artist)
     {
-        setFixedHeight(70);
         setCursor(Qt::PointingHandCursor);
-        setAttribute(Qt::WA_StyledBackground, true);
-        setStyleSheet(
-            "SearchResultCard { background: transparent; border-radius: 8px; }"
-            "SearchResultCard:hover { background: rgba(230, 57, 80, 0.12); }"
-            "SearchResultCard.playing { background: rgba(230, 57, 80, 0.18); }"
-        );
+        setFixedSize(120, 160);
+        auto *lay = new QVBoxLayout(this);
+        lay->setContentsMargins(8, 12, 8, 8);
+        lay->setSpacing(8);
+        lay->setAlignment(Qt::AlignHCenter);
 
-        auto *lay = new QHBoxLayout(this);
-        lay->setContentsMargins(12, 8, 12, 8);
-        lay->setSpacing(14);
+        m_cover = new QLabel(this);
+        m_cover->setFixedSize(96, 96);
+        m_cover->setAlignment(Qt::AlignCenter);
+        loadAvatar();
+        lay->addWidget(m_cover, 0, Qt::AlignHCenter);
 
-        // 序号/播放图标
-        m_indexLbl = new QLabel(QString::number(index + 1), this);
-        m_indexLbl->setFixedSize(24, 70);
-        m_indexLbl->setAlignment(Qt::AlignCenter);
-        m_indexLbl->setStyleSheet("QLabel { font-size: 13px; color: rgba(255, 255, 255, 0.4); }");
-        lay->addWidget(m_indexLbl);
+        const QString name = artist.value(QStringLiteral("name")).toString();
+        auto *nameLbl = new QLabel(name, this);
+        nameLbl->setAlignment(Qt::AlignCenter);
+        nameLbl->setWordWrap(true);
+        nameLbl->setMaximumHeight(36);
+        nameLbl->setStyleSheet(QStringLiteral("QLabel { font-size: 13px; font-weight: 600; }"));
+        lay->addWidget(nameLbl);
 
-        // 封面
-        m_coverLbl = new QLabel(this);
-        m_coverLbl->setFixedSize(54, 54);
-        m_coverLbl->setScaledContents(false);
-        loadCover();
-        lay->addWidget(m_coverLbl);
-
-        auto *infoV = new QWidget(this);
-        auto *infoLay = new QVBoxLayout(infoV);
-        infoLay->setContentsMargins(0, 0, 0, 0);
-        infoLay->setSpacing(4);
-
-        m_titleLbl = new QLabel(info.title, infoV);
-        m_titleLbl->setStyleSheet("QLabel { font-size: 14px; font-weight: 600; color: " + QString(Theme::kTextMain) + "; }");
-        infoLay->addWidget(m_titleLbl);
-
-        QString meta = info.artist;
-        if (!info.album.isEmpty()) meta += " - " + info.album;
-        m_artistLbl = new QLabel(meta, infoV);
-        m_artistLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextSub) + "; }");
-        infoLay->addWidget(m_artistLbl);
-
-        infoLay->addStretch();
-        lay->addWidget(infoV, 1);
-
-        if (info.duration > 0) {
-            int mins = info.duration / 60;
-            int secs = info.duration % 60;
-            auto *timeLbl = new QLabel(
-                QString("%1:%2").arg(mins, 2, 10, QChar('0')).arg(secs, 2, 10, QChar('0')), this);
-            timeLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextMuted) + "; }");
-            lay->addWidget(timeLbl);
+        const int count = artist.value(QStringLiteral("musicCount")).toInt();
+        if (count > 0) {
+            auto *countLbl = new QLabel(
+                I18n::instance().tr(QStringLiteral("favoritePageSongCount")).arg(count), this);
+            countLbl->setAlignment(Qt::AlignCenter);
+            countLbl->setStyleSheet(QStringLiteral("QLabel { font-size: 11px; color: rgba(128,128,128,0.9); }"));
+            lay->addWidget(countLbl);
         }
     }
 
-    void setPlaying(bool playing) {
-        m_isPlaying = playing;
-        setProperty("playing", playing);
-        style()->unpolish(this);
-        style()->polish(this);
-        if (playing) {
-            m_indexLbl->setText(QString::fromUtf8("▶"));
-            m_indexLbl->setStyleSheet("QLabel { font-size: 13px; color: " + QString(Theme::kMint) + "; }");
-        } else {
-            m_indexLbl->setText(QString::number(m_index + 1));
-            m_indexLbl->setStyleSheet("QLabel { font-size: 13px; color: rgba(255, 255, 255, 0.4); }");
-        }
-    }
-
-    std::function<void(int)> onClicked;
-    std::function<void()> onAddToPlaylist;
-    std::function<void()> onAddToQueue;
+    std::function<void(const QVariantMap &)> onClicked;
 
 protected:
     void mousePressEvent(QMouseEvent *e) override
     {
-        if (e->button() == Qt::LeftButton && onClicked) {
-            onClicked(m_musicId);
-        }
+        if (e->button() == Qt::LeftButton && onClicked)
+            onClicked(m_artist);
         QWidget::mousePressEvent(e);
     }
 
-    void contextMenuEvent(QContextMenuEvent *event) override
+    void enterEvent(QEnterEvent *) override
     {
-        QMenu menu(this);
-        menu.setStyleSheet(
-            "QMenu { background-color: rgba(40, 40, 50, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 4px; }"
-            "QMenu::item { color: #e0e0e0; padding: 8px 24px; border-radius: 4px; }"
-            "QMenu::item:selected { background-color: rgba(255, 255, 255, 0.1); }"
-        );
-        QAction *addAction = menu.addAction(I18n::instance().tr("addToPlaylist"));
-        QAction *queueAction = menu.addAction(I18n::instance().tr("addToQueue"));
-        QAction *selected = menu.exec(event->globalPos());
-        if (selected == addAction && onAddToPlaylist) {
-            onAddToPlaylist();
-        } else if (selected == queueAction && onAddToQueue) {
-            onAddToQueue();
-        }
+        setStyleSheet(QStringLiteral("SearchArtistTile { background: rgba(230,57,80,0.08); border-radius: 16px; }"));
     }
+
+    void leaveEvent(QEvent *) override { setStyleSheet(QString()); }
 
 private:
-    void loadCover()
+    void loadAvatar()
     {
-        if (m_info.coverUrl.isEmpty()) { setPlaceholder(); return; }
-        QString musicId = QString::number(m_musicId);
-        QPixmap cached = CoverCache::instance()->get(musicId);
-        if (!cached.isNull()) { disconnect(m_coverConn); m_coverConn = {}; applyPixmap(cached); return; }
-        disconnect(m_coverConn);
-        m_coverConn = connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
-                [this, musicId](const QString &id, const QPixmap &pix) { if (id == musicId) applyPixmap(pix); });
-        CoverCache::instance()->fetchCover(musicId, m_info.coverUrl);
+        QPixmap pix(96, 96);
+        pix.fill(Qt::transparent);
+        QPainter p(&pix);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        QPainterPath path;
+        path.addEllipse(0, 0, 96, 96);
+        p.fillPath(path, QColor(128, 128, 128, 50));
+        p.setClipPath(path);
+        p.drawPixmap(36, 36, Icons::renderNamed("Artist", 24, QColor(255, 255, 255, 160)));
+        m_cover->setPixmap(pix);
     }
 
-    void setPlaceholder()
-    {
-        QPixmap pix(54, 54); pix.fill(Qt::transparent);
-        QPainter p(&pix); QPainterPath path; path.addRoundedRect(0, 0, 54, 54, 6, 6);
-        p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::renderNamed("Music", 24, QColor(255, 255, 255, 100));
-        p.drawPixmap(15, 15, icon); m_coverLbl->setPixmap(pix);
-    }
-
-    void applyPixmap(const QPixmap &pix)
-    {
-        disconnect(m_coverConn); m_coverConn = {};
-        int s = qMin(pix.width(), pix.height());
-        QPixmap scaled = pix.copy((pix.width()-s)/2, (pix.height()-s)/2, s, s)
-            .scaled(54, 54, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
-        m_coverLbl->setPixmap(scaled);
-    }
-
-    int m_musicId;
-    int m_index;
-    bool m_isPlaying = false;
-    MusicInfo m_info;
-    QLabel *m_coverLbl = nullptr;
-    QLabel *m_titleLbl = nullptr;
-    QLabel *m_artistLbl = nullptr;
-    QLabel *m_indexLbl = nullptr;
-    QMetaObject::Connection m_coverConn;
+    QVariantMap m_artist;
+    QLabel *m_cover = nullptr;
 };
 
-// ─── 歌单结果卡片 ──────────────────────────────────────
-class PlaylistResultCard : public QWidget
+QString playlistCoverUrl(const QVariantMap &pl)
 {
-public:
-    explicit PlaylistResultCard(const QVariantMap &info, QWidget *parent = nullptr)
-        : QWidget(parent), m_playlistInfo(info)
-    {
-        setFixedHeight(80);
-        setCursor(Qt::PointingHandCursor);
-        setAttribute(Qt::WA_StyledBackground, true);
-        setStyleSheet(
-            "PlaylistResultCard { background: rgba(45, 38, 65, 100); border-radius: 8px; }"
-            "PlaylistResultCard:hover { background: rgba(230, 57, 80, 0.12); }"
-        );
-
-        auto *lay = new QHBoxLayout(this);
-        lay->setContentsMargins(12, 10, 12, 10);
-        lay->setSpacing(14);
-
-        m_coverLbl = new QLabel(this);
-        m_coverLbl->setFixedSize(60, 60);
-        m_coverLbl->setStyleSheet("QLabel { border-radius: 6px; }");
-        m_coverLbl->setScaledContents(false);
-        loadCover();
-        lay->addWidget(m_coverLbl);
-
-        auto *infoV = new QWidget(this);
-        auto *infoLay = new QVBoxLayout(infoV);
-        infoLay->setContentsMargins(0, 0, 0, 0);
-        infoLay->setSpacing(4);
-
-        auto *nameLbl = new QLabel(info.value("name").toString(), infoV);
-        nameLbl->setStyleSheet("QLabel { font-size: 14px; font-weight: 600; color: " + QString(Theme::kTextMain) + "; }");
-        infoLay->addWidget(nameLbl);
-
-        QString desc = info.value("description").toString();
-        if (desc.length() > 50) desc = desc.left(50) + "...";
-        auto *descLbl = new QLabel(desc.isEmpty() ? I18n::instance().tr("description") : desc, infoV);
-        descLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextSub) + "; }");
-        descLbl->setWordWrap(true);
-        infoLay->addWidget(descLbl);
-
-        infoLay->addStretch();
-        lay->addWidget(infoV, 1);
-
-        int musicCount = info.value("musicCount").toInt();
-        auto *countLbl = new QLabel(QString("%1 %2").arg(musicCount).arg(I18n::instance().tr("songs")), this);
-        countLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextMuted) + "; }");
-        lay->addWidget(countLbl);
+    QString first = pl.value(QStringLiteral("firstMusicCover")).toString();
+    int musicId = 0;
+    if (!first.isEmpty()) {
+        const int slash = first.lastIndexOf(QLatin1Char('/'));
+        const int dot = first.lastIndexOf(QLatin1Char('.'));
+        if (slash >= 0 && dot > slash)
+            musicId = first.mid(slash + 1, dot - slash - 1).toInt();
     }
+    if (musicId <= 0)
+        musicId = pl.value(QStringLiteral("firstMusicId")).toInt();
+    return QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(musicId);
+}
 
-    std::function<void(int)> onClicked;
-
-protected:
-    void mousePressEvent(QMouseEvent *e) override
-    {
-        if (e->button() == Qt::LeftButton && onClicked) {
-            onClicked(m_playlistInfo.value("id").toInt());
-        }
-        QWidget::mousePressEvent(e);
-    }
-
-private:
-    void loadCover()
-    {
-        // 从 firstMusicCover 获取封面
-        QString firstMusicCover = m_playlistInfo.value("firstMusicCover").toString();
-        if (firstMusicCover.isEmpty()) {
-            setPlaceholder();
-            return;
-        }
-        // 从路径中提取音乐ID，例如 /music/covers/372.jpg -> 372
-        int musicId = 0;
-        int lastSlash = firstMusicCover.lastIndexOf('/');
-        int dot = firstMusicCover.lastIndexOf('.');
-        if (lastSlash >= 0 && dot > lastSlash) {
-            musicId = firstMusicCover.mid(lastSlash + 1, dot - lastSlash - 1).toInt();
-        }
-        if (musicId <= 0) { setPlaceholder(); return; }
-
-        QString coverUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(musicId);
-        QString id = QString::number(musicId);
-        QPixmap cached = CoverCache::instance()->get(id);
-        if (!cached.isNull()) { applyPixmap(cached); return; }
-        connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
-                [this, id](const QString &cid, const QPixmap &pix) { if (cid == id) applyPixmap(pix); });
-        CoverCache::instance()->fetchCover(id, coverUrl);
-    }
-
-    void setPlaceholder()
-    {
-        QPixmap pix(60, 60); pix.fill(Qt::transparent);
-        QPainter p(&pix); QPainterPath path; path.addRoundedRect(0, 0, 60, 60, 6, 6);
-        p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::renderNamed("Music", 28, QColor(255, 255, 255, 100));
-        p.drawPixmap(16, 16, icon); m_coverLbl->setPixmap(pix);
-    }
-
-    void applyPixmap(const QPixmap &pix)
-    {
-        if (pix.isNull()) { setPlaceholder(); return; }
-        QPixmap scaled = pix.scaled(60, 60, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-        m_coverLbl->setPixmap(scaled);
-    }
-
-    QVariantMap m_playlistInfo;
-    QLabel *m_coverLbl = nullptr;
-};
-
-// ─── 歌手音乐项 ──────────────────────────────────────
-class ArtistMusicItem : public QWidget
+QList<MusicInfo> tracksFromArtistMap(const QVariantMap &artist)
 {
-public:
-    explicit ArtistMusicItem(const MusicInfo &info, QWidget *parent = nullptr)
-        : QWidget(parent), m_musicId(info.id), m_info(info)
-    {
-        setFixedHeight(56);
-        setCursor(Qt::PointingHandCursor);
-        setAttribute(Qt::WA_StyledBackground, true);
-        setStyleSheet(
-            "ArtistMusicItem { background: transparent; }"
-            "ArtistMusicItem:hover { background: rgba(230, 57, 80, 0.10); border-radius: 6px; }"
-        );
-
-        auto *lay = new QHBoxLayout(this);
-        lay->setContentsMargins(20, 4, 20, 4);
-        lay->setSpacing(12);
-
-        m_coverLbl = new QLabel(this);
-        m_coverLbl->setFixedSize(40, 40);
-        m_coverLbl->setScaledContents(false);
-        loadCover();
-        lay->addWidget(m_coverLbl);
-
-        auto *infoV = new QWidget(this);
-        auto *infoLay = new QVBoxLayout(infoV);
-        infoLay->setContentsMargins(0, 0, 0, 0);
-        infoLay->setSpacing(2);
-
-        auto *titleLbl = new QLabel(info.title, infoV);
-        titleLbl->setStyleSheet("QLabel { font-size: 13px; font-weight: 500; color: " + QString(Theme::kTextMain) + "; }");
-        infoLay->addWidget(titleLbl);
-
-        auto *artistLbl = new QLabel(info.artist, infoV);
-        artistLbl->setStyleSheet("QLabel { font-size: 11px; color: " + QString(Theme::kTextSub) + "; }");
-        infoLay->addWidget(artistLbl);
-
-        infoLay->addStretch();
-        lay->addWidget(infoV, 1);
-
-        if (info.duration > 0) {
-            int mins = info.duration / 60;
-            int secs = info.duration % 60;
-            auto *timeLbl = new QLabel(
-                QString("%1:%2").arg(mins, 2, 10, QChar('0')).arg(secs, 2, 10, QChar('0')), this);
-            timeLbl->setStyleSheet("QLabel { font-size: 11px; color: " + QString(Theme::kTextMuted) + "; }");
-            lay->addWidget(timeLbl);
-        }
+    QList<MusicInfo> list;
+    QVariantList musicList = artist.value(QStringLiteral("musicList")).toList();
+    for (const auto &v : musicList) {
+        const QVariantMap m = v.toMap();
+        if (m.isEmpty())
+            continue;
+        MusicInfo info;
+        info.id = m.value(QStringLiteral("id")).toInt();
+        info.title = m.value(QStringLiteral("title")).toString();
+        info.artist = m.value(QStringLiteral("artist")).toString();
+        info.album = m.value(QStringLiteral("album")).toString();
+        info.duration = m.value(QStringLiteral("duration")).toInt();
+        info.coverUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(info.id);
+        list.append(info);
     }
+    return list;
+}
 
-    std::function<void(int)> onClicked;
-
-protected:
-    void mousePressEvent(QMouseEvent *e) override
-    {
-        if (e->button() == Qt::LeftButton && onClicked) {
-            onClicked(m_musicId);
-        }
-        QWidget::mousePressEvent(e);
-    }
-
-private:
-    void loadCover()
-    {
-        if (m_info.coverUrl.isEmpty()) { setPlaceholder(); return; }
-        QString musicId = QString::number(m_musicId);
-        QPixmap cached = CoverCache::instance()->get(musicId);
-        if (!cached.isNull()) { disconnect(m_coverConn); m_coverConn = {}; applyPixmap(cached); return; }
-        disconnect(m_coverConn);
-        m_coverConn = connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
-                [this, musicId](const QString &id, const QPixmap &pix) { if (id == musicId) applyPixmap(pix); });
-        CoverCache::instance()->fetchCover(musicId, m_info.coverUrl);
-    }
-
-    void setPlaceholder()
-    {
-        QPixmap pix(40, 40); pix.fill(Qt::transparent);
-        QPainter p(&pix); QPainterPath path; path.addRoundedRect(0, 0, 40, 40, 4, 4);
-        p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::renderNamed("Music", 18, QColor(255, 255, 255, 100));
-        p.drawPixmap(11, 11, icon); m_coverLbl->setPixmap(pix);
-    }
-
-    void applyPixmap(const QPixmap &pix)
-    {
-        disconnect(m_coverConn); m_coverConn = {};
-        int s = qMin(pix.width(), pix.height());
-        QPixmap scaled = pix.copy((pix.width()-s)/2, (pix.height()-s)/2, s, s)
-            .scaled(40, 40, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
-        m_coverLbl->setPixmap(scaled);
-    }
-
-    int m_musicId;
-    MusicInfo m_info;
-    QLabel *m_coverLbl = nullptr;
-    QMetaObject::Connection m_coverConn;
-};
-
-// ─── 歌手结果卡片 ──────────────────────────────────────
-class ArtistResultCard : public QWidget
-{
-public:
-    explicit ArtistResultCard(const QVariantMap &info, QWidget *parent = nullptr)
-        : QWidget(parent), m_artistInfo(info)
-    {
-        auto *mainLay = new QVBoxLayout(this);
-        mainLay->setContentsMargins(0, 0, 0, 0);
-        mainLay->setSpacing(0);
-
-        // 歌手头部
-        auto *headerWidget = new QWidget(this);
-        headerWidget->setFixedHeight(60);
-        headerWidget->setCursor(Qt::PointingHandCursor);
-        headerWidget->setAttribute(Qt::WA_StyledBackground, true);
-        headerWidget->setStyleSheet(
-            "QWidget { background: rgba(45, 38, 65, 100); border-radius: 8px; }"
-            "QWidget:hover { background: rgba(230, 57, 80, 0.10); }"
-        );
-        auto *headerLay = new QHBoxLayout(headerWidget);
-        headerLay->setContentsMargins(12, 8, 12, 8);
-        headerLay->setSpacing(14);
-
-        m_avatarLbl = new QLabel(headerWidget);
-        m_avatarLbl->setFixedSize(44, 44);
-        m_avatarLbl->setScaledContents(false);
-        QPixmap pix(44, 44); pix.fill(Qt::transparent);
-        QPainter p(&pix); QPainterPath path; path.addEllipse(0, 0, 44, 44);
-        p.fillPath(path, QColor(128, 128, 128, 40)); p.setClipPath(path);
-        auto icon = Icons::renderNamed("Music", 24, QColor(255, 255, 255, 100));
-        p.drawPixmap(10, 10, icon); m_avatarLbl->setPixmap(pix);
-        headerLay->addWidget(m_avatarLbl);
-
-        auto *nameLbl = new QLabel(info.value("name").toString(), headerWidget);
-        nameLbl->setStyleSheet("QLabel { font-size: 14px; font-weight: 600; color: " + QString(Theme::kTextMain) + "; }");
-        headerLay->addWidget(nameLbl, 1);
-
-        int musicCount = info.value("musicCount").toInt();
-        auto *countLbl = new QLabel(QString("%1 %2").arg(musicCount).arg(I18n::instance().tr("musicCount")), headerWidget);
-        countLbl->setStyleSheet("QLabel { font-size: 12px; color: " + QString(Theme::kTextMuted) + "; }");
-        headerLay->addWidget(countLbl);
-
-        mainLay->addWidget(headerWidget);
-
-        // 展开/收起按钮
-        m_expandBtn = new QPushButton(QString::fromUtf8("▼"), this);
-        m_expandBtn->setFixedHeight(32);
-        m_expandBtn->setCursor(Qt::PointingHandCursor);
-        m_expandBtn->setStyleSheet(
-            "QPushButton { background: transparent; border: none; color: " + QString(Theme::kTextMuted) + "; font-size: 12px; }"
-            "QPushButton:hover { color: " + QString(Theme::kTextMain) + "; }"
-        );
-        mainLay->addWidget(m_expandBtn);
-
-        // 歌手音乐列表容器
-        m_musicContainer = new QWidget(this);
-        m_musicLayout = new QVBoxLayout(m_musicContainer);
-        m_musicLayout->setContentsMargins(0, 0, 0, 0);
-        m_musicLayout->setSpacing(4);
-        m_musicContainer->setVisible(false);
-        mainLay->addWidget(m_musicContainer);
-
-        connect(m_expandBtn, &QPushButton::clicked, this, [this]() {
-            bool visible = m_musicContainer->isVisible();
-            m_musicContainer->setVisible(!visible);
-            m_expandBtn->setText(visible ? QString::fromUtf8("▼") : QString::fromUtf8("▲"));
-        });
-
-        connect(headerWidget, &QWidget::destroyed, this, [this]() { m_headerDestroyed = true; });
-    }
-
-    void setMusicList(const QList<MusicInfo> &musicList)
-    {
-        QLayoutItem *item;
-        while ((item = m_musicLayout->takeAt(0)) != nullptr) { delete item->widget(); delete item; }
-
-        for (int i = 0; i < musicList.size(); ++i) {
-            const auto &info = musicList.at(i);
-            auto *card = new ArtistMusicItem(info, m_musicContainer);
-            card->onClicked = [this, info](int) {
-                if (m_headerDestroyed) return;
-                if (onPlayMusic) onPlayMusic(info);
-            };
-            m_musicLayout->addWidget(card);
-        }
-    }
-
-    std::function<void()> onHeaderClicked;
-    std::function<void(const MusicInfo&)> onPlayMusic;
-
-private:
-    void mousePressEvent(QMouseEvent *e) override
-    {
-        // Only trigger on header area (first 60px)
-        if (e->button() == Qt::LeftButton && e->pos().y() < 60 && onHeaderClicked) {
-            onHeaderClicked();
-        }
-        QWidget::mousePressEvent(e);
-    }
-
-private:
-    QVariantMap m_artistInfo;
-    QLabel *m_avatarLbl = nullptr;
-    QPushButton *m_expandBtn = nullptr;
-    QWidget *m_musicContainer = nullptr;
-    QVBoxLayout *m_musicLayout = nullptr;
-    bool m_headerDestroyed = false;
-};
+} // namespace
 
 SearchPage::SearchPage(ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_apiClient(apiClient)
 {
-    setAttribute(Qt::WA_StyledBackground, false);
-    setAutoFillBackground(false);
+    setObjectName(QStringLiteral("searchPage"));
     setupUi();
+
+    connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
+            [this](Theme::ThemeMode) { applyPageStyle(); });
+    connect(&PlaylistManager::instance(), &PlaylistManager::playlistChanged, this,
+            &SearchPage::updatePlayingHighlight);
+    connect(&PlaylistManager::instance(), &PlaylistManager::currentIndexChanged, this,
+            &SearchPage::updatePlayingHighlight);
 }
 
 void SearchPage::setupUi()
 {
-    auto *mainLay = new QVBoxLayout(this);
-    mainLay->setContentsMargins(0, 0, 0, 0);
-    mainLay->setSpacing(0);
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(24, 12, 24, 24);
+    root->setSpacing(0);
 
-    // Header
-    auto *header = new QWidget(this);
-    header->setFixedHeight(56);
-    header->setStyleSheet("QWidget { background: " + QString(Theme::kGlassSidebar) + "; }");
-    auto *headerLay = new QHBoxLayout(header);
-    headerLay->setContentsMargins(20, 0, 20, 0);
-    headerLay->setSpacing(12);
+    auto *titleRow = new QWidget(this);
+    auto *titleLay = new QHBoxLayout(titleRow);
+    titleLay->setContentsMargins(0, 0, 0, 0);
+    titleLay->setSpacing(8);
+    titleLay->setAlignment(Qt::AlignBottom);
 
-    auto *backBtn = new QPushButton(QString::fromUtf8("←"), header);
-    backBtn->setFixedSize(36, 36);
-    backBtn->setCursor(Qt::PointingHandCursor);
-    backBtn->setStyleSheet(
-        "QPushButton { background: rgba(245,240,255,15); border: none; border-radius: 18px; "
-        "color: " + QString(Theme::kTextMain) + "; font-size: 18px; }"
-        "QPushButton:hover { background: rgba(230,57,80,40); color: " + QString(Theme::kLavender) + "; }"
-    );
-    connect(backBtn, &QPushButton::clicked, this, &SearchPage::backRequested);
-    headerLay->addWidget(backBtn);
+    m_keywordLbl = new QLabel(titleRow);
+    m_suffixLbl = new QLabel(I18n::instance().tr(QStringLiteral("searchRelatedSuffix")), titleRow);
+    titleLay->addWidget(m_keywordLbl);
+    titleLay->addWidget(m_suffixLbl);
+    titleLay->addStretch();
+    root->addWidget(titleRow);
 
-    // Tabs
-    m_musicTab = new QPushButton(I18n::instance().tr("searchMusic"), header);
-    m_musicTab->setFixedHeight(36);
-    m_musicTab->setCursor(Qt::PointingHandCursor);
-    m_musicTab->setCheckable(true);
-    m_musicTab->setChecked(true);
-    m_musicTab->setStyleSheet(
-        "QPushButton { background: transparent; border: none; color: " + QString(Theme::kTextSub) + "; "
-        "font-size: 13px; font-weight: 600; padding: 0 16px; }"
-        "QPushButton:checked { color: " + QString(Theme::kMint) + "; border-bottom: 2px solid " + QString(Theme::kMint) + "; }"
-        "QPushButton:hover { color: " + QString(Theme::kTextMain) + "; }"
-    );
-    connect(m_musicTab, &QPushButton::clicked, this, &SearchPage::showMusicPage);
-    headerLay->addWidget(m_musicTab);
+    auto *tabBar = new QWidget(this);
+    tabBar->setObjectName(QStringLiteral("searchTabBar"));
+    auto *tabLay = new QHBoxLayout(tabBar);
+    tabLay->setContentsMargins(0, 12, 0, 12);
+    tabLay->setSpacing(0);
 
-    m_playlistTab = new QPushButton(I18n::instance().tr("searchPlaylist"), header);
-    m_playlistTab->setFixedHeight(36);
-    m_playlistTab->setCursor(Qt::PointingHandCursor);
-    m_playlistTab->setCheckable(true);
-    m_playlistTab->setStyleSheet(
-        "QPushButton { background: transparent; border: none; color: " + QString(Theme::kTextSub) + "; "
-        "font-size: 13px; font-weight: 600; padding: 0 16px; }"
-        "QPushButton:checked { color: " + QString(Theme::kMint) + "; border-bottom: 2px solid " + QString(Theme::kMint) + "; }"
-        "QPushButton:hover { color: " + QString(Theme::kTextMain) + "; }"
-    );
-    connect(m_playlistTab, &QPushButton::clicked, this, &SearchPage::showPlaylistPage);
-    headerLay->addWidget(m_playlistTab);
+    auto *tabGroup = new QButtonGroup(this);
+    tabGroup->setExclusive(true);
 
-    m_artistTab = new QPushButton(I18n::instance().tr("artist"), header);
-    m_artistTab->setFixedHeight(36);
-    m_artistTab->setCursor(Qt::PointingHandCursor);
-    m_artistTab->setCheckable(true);
-    m_artistTab->setStyleSheet(
-        "QPushButton { background: transparent; border: none; color: " + QString(Theme::kTextSub) + "; "
-        "font-size: 13px; font-weight: 600; padding: 0 16px; }"
-        "QPushButton:checked { color: " + QString(Theme::kMint) + "; border-bottom: 2px solid " + QString(Theme::kMint) + "; }"
-        "QPushButton:hover { color: " + QString(Theme::kTextMain) + "; }"
-    );
-    connect(m_artistTab, &QPushButton::clicked, this, &SearchPage::showArtistPage);
-    headerLay->addWidget(m_artistTab);
+    auto makeTab = [&](const QString &key) {
+        auto *btn = new QPushButton(I18n::instance().tr(key), tabBar);
+        btn->setCheckable(true);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setFixedHeight(32);
+        tabGroup->addButton(btn);
+        tabLay->addWidget(btn);
+        return btn;
+    };
 
-    headerLay->addStretch();
-    mainLay->addWidget(header);
+    m_tabSongs = makeTab(QStringLiteral("searchMusic"));
+    m_tabPlaylists = makeTab(QStringLiteral("searchPlaylist"));
+    m_tabArtists = makeTab(QStringLiteral("artist"));
+    m_tabSongs->setChecked(true);
+    tabLay->addStretch();
 
-    // Status label
-    m_statusLabel = new QLabel(I18n::instance().tr("inputKeywordToSearch"), this);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
-    m_statusLabel->setStyleSheet(
-        "QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 14px; padding: 40px; }"
-    );
-    mainLay->addWidget(m_statusLabel);
+    connect(m_tabSongs, &QPushButton::clicked, this, [this]() { setActiveTab(Songs); });
+    connect(m_tabPlaylists, &QPushButton::clicked, this, [this]() { setActiveTab(Playlists); });
+    connect(m_tabArtists, &QPushButton::clicked, this, [this]() { setActiveTab(Artists); });
+    root->addWidget(tabBar);
 
-    // Scroll area
-    m_scroll = new QScrollArea(this);
-    m_scroll->setObjectName(QStringLiteral("searchScroll"));
-    m_scroll->setWidgetResizable(true);
-    m_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_scroll->setFrameShape(QFrame::NoFrame);
-    m_scroll->setVisible(false);
+    m_tabStack = new QStackedWidget(this);
 
-    m_container = new QWidget(m_scroll);
-    m_listLayout = new QVBoxLayout(m_container);
-    m_listLayout->setContentsMargins(16, 16, 16, 16);
-    m_listLayout->setSpacing(8);
-    m_listLayout->setAlignment(Qt::AlignTop);
+    // ── 单曲（SongList） ──
+    auto *songsPage = new QWidget(m_tabStack);
+    auto *songsLay = new QVBoxLayout(songsPage);
+    songsLay->setContentsMargins(0, 0, 0, 0);
+    songsLay->setSpacing(0);
 
-    m_scroll->setWidget(m_container);
-    nekoPolishScrollAreaViewport(m_scroll);
-    mainLay->addWidget(m_scroll, 1);
+    m_songList = new SongListWidget(songsPage);
+    m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
+    m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
+    m_songList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
+    m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
+    m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
+    connect(m_songList, &SongListWidget::scrolled, this, &SearchPage::onSongListScrolled);
+    songsLay->addWidget(m_songList, 1);
+
+    m_songsEmptyWrap = new QWidget(songsPage);
+    auto *songsEmptyLay = new QVBoxLayout(m_songsEmptyWrap);
+    songsEmptyLay->setAlignment(Qt::AlignCenter);
+    songsEmptyLay->setSpacing(12);
+    m_songsEmptyIcon = new QLabel(m_songsEmptyWrap);
+    m_songsEmptyIcon->setAlignment(Qt::AlignCenter);
+    songsEmptyLay->addWidget(m_songsEmptyIcon);
+    m_songsEmptyLbl = new QLabel(m_songsEmptyWrap);
+    m_songsEmptyLbl->setAlignment(Qt::AlignCenter);
+    m_songsEmptyLbl->setWordWrap(true);
+    songsEmptyLay->addWidget(m_songsEmptyLbl);
+    m_songsEmptyWrap->hide();
+    songsLay->addWidget(m_songsEmptyWrap);
+
+    m_loadMoreBtn = new QPushButton(songsPage);
+    m_loadMoreBtn->setCursor(Qt::PointingHandCursor);
+    m_loadMoreBtn->setFixedHeight(40);
+    m_loadMoreBtn->hide();
+    connect(m_loadMoreBtn, &QPushButton::clicked, this, [this]() { fetchMusicResults(true); });
+    songsLay->addWidget(m_loadMoreBtn, 0, Qt::AlignHCenter);
+
+    m_tabStack->addWidget(songsPage);
+
+    // ── 歌单（CoverList 网格） ──
+    auto *plPage = new QWidget(m_tabStack);
+    auto *plLay = new QVBoxLayout(plPage);
+    plLay->setContentsMargins(0, 0, 0, 0);
+
+    m_playlistScroll = new QScrollArea(plPage);
+    m_playlistScroll->setObjectName(QStringLiteral("searchScroll"));
+    m_playlistScroll->setWidgetResizable(true);
+    m_playlistScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_playlistScroll->setFrameShape(QFrame::NoFrame);
+
+    m_playlistGridHost = new CoverGridHost(m_playlistScroll);
+    m_playlistGridHost->onResized = [this]() { relayoutPlaylistGrid(); };
+    auto *plGridOuter = new QVBoxLayout(m_playlistGridHost);
+    plGridOuter->setContentsMargins(4, 20, 4, 20);
+    plGridOuter->setSpacing(0);
+    m_playlistGridInner = new QWidget(m_playlistGridHost);
+    m_playlistGridInner->setObjectName(QStringLiteral("searchCoverGridInner"));
+    plGridOuter->addWidget(m_playlistGridInner);
+    plGridOuter->addStretch();
+    m_playlistScroll->setWidget(m_playlistGridHost);
+    nekoPolishScrollAreaViewport(m_playlistScroll);
+    plLay->addWidget(m_playlistScroll, 1);
+
+    m_playlistEmptyWrap = new QWidget(plPage);
+    auto *plEmptyLay = new QVBoxLayout(m_playlistEmptyWrap);
+    plEmptyLay->setAlignment(Qt::AlignCenter);
+    plEmptyLay->setSpacing(12);
+    m_playlistEmptyIcon = new QLabel(m_playlistEmptyWrap);
+    m_playlistEmptyIcon->setAlignment(Qt::AlignCenter);
+    plEmptyLay->addWidget(m_playlistEmptyIcon);
+    m_playlistEmptyLbl = new QLabel(m_playlistEmptyWrap);
+    m_playlistEmptyLbl->setAlignment(Qt::AlignCenter);
+    m_playlistEmptyLbl->setWordWrap(true);
+    plEmptyLay->addWidget(m_playlistEmptyLbl);
+    m_playlistEmptyWrap->hide();
+    plLay->addWidget(m_playlistEmptyWrap);
+
+    m_tabStack->addWidget(plPage);
+
+    // ── 歌手（ArtistList 网格 + 详情列表） ──
+    auto *arPage = new QWidget(m_tabStack);
+    auto *arLay = new QVBoxLayout(arPage);
+    arLay->setContentsMargins(0, 0, 0, 0);
+
+    m_artistStack = new QStackedWidget(arPage);
+
+    auto *arGridPage = new QWidget(m_artistStack);
+    auto *arGridLay = new QVBoxLayout(arGridPage);
+    arGridLay->setContentsMargins(0, 0, 0, 0);
+
+    m_artistGridScroll = new QScrollArea(arGridPage);
+    m_artistGridScroll->setObjectName(QStringLiteral("searchScroll"));
+    m_artistGridScroll->setWidgetResizable(true);
+    m_artistGridScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_artistGridScroll->setFrameShape(QFrame::NoFrame);
+
+    m_artistGridHost = new QWidget(m_artistGridScroll);
+    m_artistGrid = new QGridLayout(m_artistGridHost);
+    m_artistGrid->setContentsMargins(4, 20, 4, 20);
+    m_artistGrid->setSpacing(20);
+    m_artistGrid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_artistGridScroll->setWidget(m_artistGridHost);
+    nekoPolishScrollAreaViewport(m_artistGridScroll);
+    arGridLay->addWidget(m_artistGridScroll, 1);
+
+    m_artistEmptyWrap = new QWidget(arGridPage);
+    auto *arEmptyLay = new QVBoxLayout(m_artistEmptyWrap);
+    arEmptyLay->setAlignment(Qt::AlignCenter);
+    arEmptyLay->setSpacing(12);
+    m_artistEmptyIcon = new QLabel(m_artistEmptyWrap);
+    m_artistEmptyIcon->setAlignment(Qt::AlignCenter);
+    arEmptyLay->addWidget(m_artistEmptyIcon);
+    m_artistEmptyLbl = new QLabel(m_artistEmptyWrap);
+    m_artistEmptyLbl->setAlignment(Qt::AlignCenter);
+    m_artistEmptyLbl->setWordWrap(true);
+    arEmptyLay->addWidget(m_artistEmptyLbl);
+    m_artistEmptyWrap->hide();
+    arGridLay->addWidget(m_artistEmptyWrap);
+
+    m_artistStack->addWidget(arGridPage);
+
+    m_artistDetailPage = new QWidget(m_artistStack);
+    auto *arDetailLay = new QVBoxLayout(m_artistDetailPage);
+    arDetailLay->setContentsMargins(0, 0, 0, 0);
+    arDetailLay->setSpacing(8);
+
+    auto *arHead = new QWidget(m_artistDetailPage);
+    auto *arHeadLay = new QHBoxLayout(arHead);
+    arHeadLay->setContentsMargins(0, 0, 0, 0);
+    m_artistBackBtn = new QPushButton(arHead);
+    m_artistBackBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_artistBackBtn, &QPushButton::clicked, this, &SearchPage::showArtistGrid);
+    arHeadLay->addWidget(m_artistBackBtn);
+    m_artistDetailName = new QLabel(arHead);
+    arHeadLay->addWidget(m_artistDetailName, 1);
+    arDetailLay->addWidget(arHead);
+
+    m_artistSongList = new SongListWidget(m_artistDetailPage);
+    m_artistSongList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
+    m_artistSongList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
+    m_artistSongList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
+    m_artistSongList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
+    m_artistSongList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
+    arDetailLay->addWidget(m_artistSongList, 1);
+
+    m_artistStack->addWidget(m_artistDetailPage);
+    m_artistStack->setCurrentIndex(0);
+
+    arLay->addWidget(m_artistStack, 1);
+    m_tabStack->addWidget(arPage);
+
+    root->addWidget(m_tabStack, 1);
+
+    m_hintWrap = new QWidget(this);
+    auto *hintLay = new QVBoxLayout(m_hintWrap);
+    hintLay->setAlignment(Qt::AlignCenter);
+    m_hintLbl = new QLabel(m_hintWrap);
+    m_hintLbl->setAlignment(Qt::AlignCenter);
+    m_hintLbl->setWordWrap(true);
+    hintLay->addWidget(m_hintLbl);
+    root->addWidget(m_hintWrap);
+
+    applyPageStyle();
+    showHintState(true);
+}
+
+void SearchPage::applyPageStyle()
+{
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    const QString titleFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    const QString metaFg = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.72)");
+    const QString statusFg = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.55)");
+    const QString tabBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString tabSelBg = dark ? QStringLiteral("#3a3a3a") : QStringLiteral("#ffffff");
+
+    if (m_keywordLbl) {
+        m_keywordLbl->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 36px; font-weight: 700; color: %1; }").arg(titleFg));
+    }
+    if (m_suffixLbl) {
+        m_suffixLbl->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 22px; color: %1; padding-bottom: 4px; }").arg(metaFg));
+    }
+
+    const QString tabStyle = QStringLiteral(
+        "QPushButton {"
+        "  background: transparent;"
+        "  border: none;"
+        "  border-radius: 8px;"
+        "  color: %1;"
+        "  font-size: 14px;"
+        "  font-weight: 500;"
+        "  padding: 0 16px;"
+        "}"
+        "QPushButton:checked {"
+        "  background: %2;"
+        "  color: %3;"
+        "}"
+        "QPushButton:hover:!checked { color: %3; }")
+                                .arg(metaFg, tabSelBg, titleFg);
+
+    if (auto *bar = findChild<QWidget *>(QStringLiteral("searchTabBar"))) {
+        bar->setStyleSheet(QStringLiteral("QWidget#searchTabBar { background: %1; border-radius: 10px; }")
+                              .arg(tabBg));
+    }
+    if (m_tabSongs)
+        m_tabSongs->setStyleSheet(tabStyle);
+    if (m_tabPlaylists)
+        m_tabPlaylists->setStyleSheet(tabStyle);
+    if (m_tabArtists)
+        m_tabArtists->setStyleSheet(tabStyle);
+
+    const QString emptyStyle = QStringLiteral("QLabel { font-size: 14px; color: %1; padding: 60px 24px; }")
+                                 .arg(statusFg);
+    if (m_songsEmptyLbl)
+        m_songsEmptyLbl->setStyleSheet(emptyStyle);
+    if (m_playlistEmptyLbl)
+        m_playlistEmptyLbl->setStyleSheet(emptyStyle);
+    if (m_artistEmptyLbl)
+        m_artistEmptyLbl->setStyleSheet(emptyStyle);
+    if (m_hintLbl)
+        m_hintLbl->setStyleSheet(emptyStyle);
+
+    if (m_loadMoreBtn) {
+        m_loadMoreBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: %1;"
+            "  color: %2;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 24px;"
+            "}"
+            "QPushButton:hover { background: rgba(230,57,80,0.15); }"
+            "QPushButton:disabled { color: rgba(128,128,128,0.8); }")
+                                         .arg(tabBg, titleFg));
+    }
+
+    if (m_artistBackBtn) {
+        m_artistBackBtn->setStyleSheet(QStringLiteral(
+            "QPushButton { background: transparent; border: none; color: %1; font-size: 14px; padding: 4px 8px; }"
+            "QPushButton:hover { color: #E63950; }")
+                                         .arg(titleFg));
+    }
+    if (m_artistDetailName) {
+        m_artistDetailName->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 18px; font-weight: 600; color: %1; }").arg(titleFg));
+    }
+
+    const QColor emptyIcon = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 100);
+    const QPixmap offIcon = Icons::renderNamed("SearchOff", 64, emptyIcon);
+    if (m_songsEmptyIcon)
+        m_songsEmptyIcon->setPixmap(offIcon);
+    if (m_playlistEmptyIcon)
+        m_playlistEmptyIcon->setPixmap(offIcon);
+    if (m_artistEmptyIcon)
+        m_artistEmptyIcon->setPixmap(offIcon);
+
+    if (m_songList)
+        m_songList->applyTheme();
+    if (m_artistSongList)
+        m_artistSongList->applyTheme();
+    for (auto *card : m_playlistCards)
+        card->applyTheme();
+}
+
+MusicInfo SearchPage::musicFromMap(const QVariantMap &item)
+{
+    MusicInfo info;
+    info.id = item.value(QStringLiteral("id")).toInt();
+    info.title = item.value(QStringLiteral("title")).toString();
+    info.artist = item.value(QStringLiteral("artist")).toString();
+    info.album = item.value(QStringLiteral("album")).toString();
+    info.duration = item.value(QStringLiteral("duration")).toInt();
+    info.coverUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(info.id);
+    return info;
 }
 
 void SearchPage::search(const QString &query)
 {
-    m_query = query;
-    m_page = 1;
+    m_query = query.trimmed();
+    updateTitleRow();
+    showHintState(m_query.isEmpty());
+    if (m_query.isEmpty())
+        return;
+
+    m_musicPage = 1;
     m_musicResults.clear();
     m_playlistResults.clear();
     m_artistResults.clear();
+    showArtistGrid();
 
-    showLoading();
-    fetchMusicResults();
+    if (m_songList)
+        m_songList->setSongs({});
+    hideSongsEmpty();
+    hidePlaylistEmpty();
+    hideArtistEmpty();
+
+    fetchMusicResults(false);
     fetchPlaylistResults();
     fetchArtistResults();
 }
 
-void SearchPage::showLoading()
+void SearchPage::updateTitleRow()
 {
-    m_statusLabel->setText(I18n::instance().tr("loading"));
-    m_statusLabel->show();
-    m_scroll->setVisible(false);
+    if (m_keywordLbl)
+        m_keywordLbl->setText(m_query.isEmpty() ? QStringLiteral("—") : m_query);
+    if (m_suffixLbl)
+        m_suffixLbl->setVisible(!m_query.isEmpty());
 }
 
-void SearchPage::hideLoading()
+void SearchPage::showHintState(bool hint)
 {
-    m_statusLabel->hide();
-    m_scroll->setVisible(true);
+    if (m_hintWrap)
+        m_hintWrap->setVisible(hint);
+    if (m_tabStack)
+        m_tabStack->setVisible(!hint);
+    if (hint && m_hintLbl)
+        m_hintLbl->setText(I18n::instance().tr(QStringLiteral("searchStartHint")));
 }
 
-void SearchPage::fetchMusicResults()
+void SearchPage::setActiveTab(Tab tab)
 {
-    if (!m_apiClient) return;
-    m_apiClient->searchMusic(m_query, m_page, kPageSize, [this](bool success, int total, int page, int pageSize, const QList<QVariantMap> &results) {
-        QTimer::singleShot(0, this, [this, success, results]() {
-            if (success) {
-                m_musicResults.clear();
-                for (const auto &item : results) {
-                    MusicInfo info;
-                    info.id = item.value("id").toInt();
-                    info.title = item.value("title").toString();
-                    info.artist = item.value("artist").toString();
-                    info.album = item.value("album").toString();
-                    info.duration = item.value("duration").toInt();
-                    info.coverUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(info.id);
-                    m_musicResults.append(info);
-                }
-            }
-            if (m_activeTab == 0) buildMusicList();
-        });
-    });
+    m_activeTab = tab;
+    if (m_tabStack)
+        m_tabStack->setCurrentIndex(static_cast<int>(tab));
+    if (m_tabSongs)
+        m_tabSongs->setChecked(tab == Songs);
+    if (m_tabPlaylists)
+        m_tabPlaylists->setChecked(tab == Playlists);
+    if (m_tabArtists)
+        m_tabArtists->setChecked(tab == Artists);
+}
+
+void SearchPage::fetchMusicResults(bool append)
+{
+    if (!m_apiClient || m_query.isEmpty() || m_musicLoading)
+        return;
+    m_musicLoading = true;
+    if (m_loadMoreBtn) {
+        m_loadMoreBtn->setEnabled(false);
+        m_loadMoreBtn->setText(I18n::instance().tr(QStringLiteral("loading")));
+    }
+
+    const int page = append ? m_musicPage + 1 : 1;
+    m_apiClient->searchMusic(m_query, page, kMusicPageSize,
+                             [this, append, page](bool success, int total, int, int,
+                                                  const QList<QVariantMap> &results) {
+                                 m_musicLoading = false;
+                                 if (!success) {
+                                     if (!append)
+                                         showSongsEmpty(
+                                             I18n::instance().tr(QStringLiteral("searchEmptySongs"))
+                                                 .arg(m_query));
+                                     if (m_loadMoreBtn)
+                                         m_loadMoreBtn->hide();
+                                     return;
+                                 }
+
+                                 m_musicPage = page;
+                                 m_musicTotal = total > 0 ? total : static_cast<int>(results.size());
+                                 if (!append)
+                                     m_musicResults.clear();
+                                 for (const auto &item : results)
+                                     m_musicResults.append(musicFromMap(item));
+
+                                 m_musicHasMore = m_musicResults.size() < m_musicTotal;
+                                 applyMusicResults();
+                             });
+}
+
+void SearchPage::applyMusicResults()
+{
+    if (m_musicResults.isEmpty()) {
+        if (m_songList)
+            m_songList->setSongs({});
+        showSongsEmpty(I18n::instance().tr(QStringLiteral("searchEmptySongs")).arg(m_query));
+        if (m_loadMoreBtn)
+            m_loadMoreBtn->hide();
+        return;
+    }
+
+    hideSongsEmpty();
+    if (m_songList) {
+        m_songList->setSongs(m_musicResults);
+        updatePlayingHighlight();
+    }
+
+    if (m_loadMoreBtn) {
+        const bool showMore = m_musicHasMore;
+        m_loadMoreBtn->setVisible(showMore);
+        m_loadMoreBtn->setEnabled(true);
+        m_loadMoreBtn->setText(I18n::instance().tr(QStringLiteral("loadMore")));
+    }
 }
 
 void SearchPage::fetchPlaylistResults()
 {
-    if (!m_apiClient) return;
+    if (!m_apiClient || m_query.isEmpty() || m_playlistLoading)
+        return;
+    m_playlistLoading = true;
     m_apiClient->fetchPlaylists(m_query, [this](bool success, const QList<QVariantMap> &results) {
-        QTimer::singleShot(0, this, [this, success, results]() {
-            if (success) {
-                m_playlistResults = results;
-            }
-            if (m_activeTab == 1) buildPlaylistList();
-        });
+        m_playlistLoading = false;
+        if (success)
+            m_playlistResults = results;
+        else
+            m_playlistResults.clear();
+        applyPlaylistResults();
     });
+}
+
+void SearchPage::applyPlaylistResults()
+{
+    for (auto *card : m_playlistCards) {
+        card->deleteLater();
+    }
+    m_playlistCards.clear();
+
+    if (m_playlistResults.isEmpty()) {
+        m_playlistScroll->hide();
+        showPlaylistEmpty(I18n::instance().tr(QStringLiteral("searchEmptyPlaylists")).arg(m_query));
+        return;
+    }
+
+    hidePlaylistEmpty();
+    m_playlistScroll->show();
+
+    for (const auto &pl : m_playlistResults) {
+        CoverListItemData info;
+        info.id = pl.value(QStringLiteral("id")).toInt();
+        info.name = pl.value(QStringLiteral("name")).toString();
+        info.description = pl.value(QStringLiteral("description")).toString();
+        info.musicCount = pl.value(QStringLiteral("musicCount")).toInt();
+        info.coverUrl = playlistCoverUrl(pl);
+
+        auto *card = new CoverListCard(info, m_playlistGridInner);
+        connect(card, &CoverListCard::clicked, this, &SearchPage::openPlaylist);
+        connect(card, &CoverListCard::playClicked, this, &SearchPage::openPlaylist);
+        m_playlistCards.append(card);
+    }
+    relayoutPlaylistGrid();
+}
+
+void SearchPage::relayoutPlaylistGrid()
+{
+    if (!m_playlistGridInner || m_playlistCards.isEmpty())
+        return;
+
+    QLayout *oldLay = m_playlistGridInner->layout();
+    if (oldLay) {
+        QLayoutItem *item;
+        while ((item = oldLay->takeAt(0)) != nullptr)
+            delete item;
+        delete oldLay;
+    }
+
+    auto *grid = new QGridLayout(m_playlistGridInner);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setSpacing(20);
+    grid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+
+    const int hostW = m_playlistScroll ? m_playlistScroll->viewport()->width() : m_playlistGridHost->width();
+    const int gap = 20;
+    const int minCell = 160;
+    const int usable = qMax(minCell, hostW - 8);
+    int cols = qMax(1, (usable + gap) / (minCell + gap));
+    const int cellW = (usable - gap * (cols - 1)) / cols;
+
+    int row = 0;
+    int col = 0;
+    for (auto *card : m_playlistCards) {
+        card->setCellWidth(cellW);
+        card->applyTheme();
+        grid->addWidget(card, row, col);
+        col++;
+        if (col >= cols) {
+            col = 0;
+            row++;
+        }
+    }
 }
 
 void SearchPage::fetchArtistResults()
 {
-    if (!m_apiClient) return;
+    if (!m_apiClient || m_query.isEmpty() || m_artistLoading)
+        return;
+    m_artistLoading = true;
     m_apiClient->searchArtists(m_query, [this](bool success, const QVariantMap &result) {
-        QTimer::singleShot(0, this, [this, success, result]() {
-            if (success) {
-                m_artistResults.clear();
-                m_artistResults.append(result);
-            }
-            if (m_activeTab == 2) buildArtistList();
-        });
+        m_artistLoading = false;
+        m_artistResults.clear();
+        if (success && !result.isEmpty())
+            m_artistResults.append(result);
+        applyArtistResults();
     });
 }
 
-void SearchPage::buildMusicList()
+void SearchPage::applyArtistResults()
 {
-    QLayoutItem *item;
-    while ((item = m_listLayout->takeAt(0)) != nullptr) { delete item->widget(); delete item; }
-
-    if (m_musicResults.isEmpty()) {
-        auto *emptyLbl = new QLabel(I18n::instance().tr("noResults"), m_container);
-        emptyLbl->setAlignment(Qt::AlignCenter);
-        emptyLbl->setStyleSheet("QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 14px; padding: 40px; }");
-        m_listLayout->addWidget(emptyLbl);
-    } else {
-        // Play all button + result count header
-        auto *headerWidget = new QWidget(m_container);
-        auto *headerLay = new QHBoxLayout(headerWidget);
-        headerLay->setContentsMargins(0, 0, 0, 8);
-
-        m_playAllBtn = new QPushButton(I18n::instance().tr("playAll"), headerWidget);
-        m_playAllBtn->setFixedHeight(36);
-        m_playAllBtn->setCursor(Qt::PointingHandCursor);
-        m_playAllBtn->setStyleSheet(
-            "QPushButton { background: " + QString(Theme::kMint) + "; border: none; border-radius: 18px; "
-            "color: " + QString(Theme::kBgMid) + "; font-size: 13px; font-weight: 600; padding: 0 20px; }"
-            "QPushButton:hover { background: " + QString(Theme::kMintLt) + "; }"
-        );
-        connect(m_playAllBtn, &QPushButton::clicked, this, [this]() {
-            emit playAllRequested(m_musicResults);
-        });
-        headerLay->addWidget(m_playAllBtn);
-
-        m_resultCountLbl = new QLabel(QString("%1 %2").arg(m_musicResults.size()).arg(I18n::instance().tr("songs")), headerWidget);
-        m_resultCountLbl->setStyleSheet("QLabel { font-size: 13px; color: " + QString(Theme::kTextMuted) + "; }");
-        headerLay->addWidget(m_resultCountLbl);
-        headerLay->addStretch();
-
-        m_listLayout->addWidget(headerWidget);
-
-        // Music cards
-        for (int i = 0; i < m_musicResults.size(); ++i) {
-            const auto &info = m_musicResults.at(i);
-            auto *card = new SearchResultCard(info, i, m_container);
-            card->onClicked = [this, info](int) { emit playMusic(info); };
-            card->onAddToPlaylist = [this, info]() {
-                // Will be connected by MainWindow
-            };
-            card->onAddToQueue = [this, info]() {
-                PlaylistManager::instance().addToPlaylist(info);
-            };
-            m_listLayout->addWidget(card);
-        }
+    while (QLayoutItem *it = m_artistGrid->takeAt(0)) {
+        if (QWidget *w = it->widget())
+            w->deleteLater();
+        delete it;
     }
-    m_listLayout->addStretch(1);
-    hideLoading();
-}
-
-void SearchPage::buildPlaylistList()
-{
-    QLayoutItem *item;
-    while ((item = m_listLayout->takeAt(0)) != nullptr) { delete item->widget(); delete item; }
-
-    if (m_playlistResults.isEmpty()) {
-        auto *emptyLbl = new QLabel(I18n::instance().tr("noResults"), m_container);
-        emptyLbl->setAlignment(Qt::AlignCenter);
-        emptyLbl->setStyleSheet("QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 14px; padding: 40px; }");
-        m_listLayout->addWidget(emptyLbl);
-    } else {
-        for (const auto &info : m_playlistResults) {
-            auto *card = new PlaylistResultCard(info, m_container);
-            int playlistId = info.value("id").toInt();
-            card->onClicked = [this](int id) { emit openPlaylist(id); };
-            m_listLayout->addWidget(card);
-        }
-    }
-    m_listLayout->addStretch(1);
-    hideLoading();
-}
-
-void SearchPage::buildArtistList()
-{
-    QLayoutItem *item;
-    while ((item = m_listLayout->takeAt(0)) != nullptr) { delete item->widget(); delete item; }
 
     if (m_artistResults.isEmpty()) {
-        auto *emptyLbl = new QLabel(I18n::instance().tr("noResults"), m_container);
-        emptyLbl->setAlignment(Qt::AlignCenter);
-        emptyLbl->setStyleSheet("QLabel { color: " + QString(Theme::kTextSub) + "; font-size: 14px; padding: 40px; }");
-        m_listLayout->addWidget(emptyLbl);
-    } else {
-        for (const auto &info : m_artistResults) {
-            auto *card = new ArtistResultCard(info, m_container);
-            card->onHeaderClicked = [this]() {};
-            card->onPlayMusic = [this](const MusicInfo &info) {
-                emit playMusic(info);
-            };
+        m_artistGridScroll->hide();
+        showArtistEmpty(I18n::instance().tr(QStringLiteral("searchEmptyArtists")).arg(m_query));
+        return;
+    }
 
-            // 解析歌手音乐列表
-            QVariantMap artistObj = info.value("artist").toMap();
-            if (artistObj.isEmpty()) artistObj = info;
-            QVariantList musicList = artistObj.value("musicList").toList();
-            if (musicList.isEmpty()) musicList = info.value("musicList").toList();
+    hideArtistEmpty();
+    m_artistGridScroll->show();
 
-            QList<MusicInfo> artistMusicList;
-            for (const auto &m : musicList) {
-                MusicInfo mi;
-                mi.id = m.toMap().value("id").toInt();
-                mi.title = m.toMap().value("title").toString();
-                mi.artist = m.toMap().value("artist").toString();
-                mi.album = m.toMap().value("album").toString();
-                mi.duration = m.toMap().value("duration").toInt();
-                mi.coverUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(mi.id);
-                artistMusicList.append(mi);
-            }
-            card->setMusicList(artistMusicList);
+    const int colW = 130;
+    const int cols = qMax(1, m_artistGridHost->width() / colW);
+    int row = 0;
+    int col = 0;
 
-            m_listLayout->addWidget(card);
+    for (const auto &ar : m_artistResults) {
+        auto *tile = new SearchArtistTile(ar, m_artistGridHost);
+        tile->onClicked = [this](const QVariantMap &artist) {
+            showArtistDetail(artist, tracksFromArtistMap(artist));
+        };
+        m_artistGrid->addWidget(tile, row, col);
+        col++;
+        if (col >= cols) {
+            col = 0;
+            row++;
         }
     }
-    m_listLayout->addStretch(1);
-    hideLoading();
 }
 
-void SearchPage::showMusicPage()
+void SearchPage::showArtistDetail(const QVariantMap &artist, const QList<MusicInfo> &tracks)
 {
-    m_activeTab = 0;
-    m_musicTab->setChecked(true);
-    m_playlistTab->setChecked(false);
-    m_artistTab->setChecked(false);
-    if (!m_musicResults.isEmpty()) buildMusicList();
-    else if (!m_query.isEmpty()) showLoading();
+    if (m_artistDetailName)
+        m_artistDetailName->setText(artist.value(QStringLiteral("name")).toString());
+    if (m_artistSongList) {
+        m_artistSongList->setSongs(tracks);
+        updatePlayingHighlight();
+    }
+    if (m_artistStack)
+        m_artistStack->setCurrentIndex(1);
 }
 
-void SearchPage::showPlaylistPage()
+void SearchPage::showArtistGrid()
 {
-    m_activeTab = 1;
-    m_playlistTab->setChecked(true);
-    m_musicTab->setChecked(false);
-    m_artistTab->setChecked(false);
-    if (!m_playlistResults.isEmpty()) buildPlaylistList();
-    else if (!m_query.isEmpty()) showLoading();
+    if (m_artistStack)
+        m_artistStack->setCurrentIndex(0);
 }
 
-void SearchPage::showArtistPage()
+void SearchPage::showSongsEmpty(const QString &text)
 {
-    m_activeTab = 2;
-    m_artistTab->setChecked(true);
-    m_musicTab->setChecked(false);
-    m_playlistTab->setChecked(false);
-    if (!m_artistResults.isEmpty()) buildArtistList();
-    else if (!m_query.isEmpty()) showLoading();
+    if (m_songList)
+        m_songList->hide();
+    if (m_songsEmptyLbl)
+        m_songsEmptyLbl->setText(text);
+    if (m_songsEmptyWrap)
+        m_songsEmptyWrap->show();
+}
+
+void SearchPage::hideSongsEmpty()
+{
+    if (m_songsEmptyWrap)
+        m_songsEmptyWrap->hide();
+    if (m_songList)
+        m_songList->show();
+}
+
+void SearchPage::showPlaylistEmpty(const QString &text)
+{
+    if (m_playlistScroll)
+        m_playlistScroll->hide();
+    if (m_playlistEmptyLbl)
+        m_playlistEmptyLbl->setText(text);
+    if (m_playlistEmptyWrap)
+        m_playlistEmptyWrap->show();
+}
+
+void SearchPage::hidePlaylistEmpty()
+{
+    if (m_playlistEmptyWrap)
+        m_playlistEmptyWrap->hide();
+}
+
+void SearchPage::showArtistEmpty(const QString &text)
+{
+    if (m_artistGridScroll)
+        m_artistGridScroll->hide();
+    if (m_artistEmptyWrap) {
+        if (m_artistEmptyLbl)
+            m_artistEmptyLbl->setText(text);
+        m_artistEmptyWrap->show();
+    }
+}
+
+void SearchPage::hideArtistEmpty()
+{
+    if (m_artistEmptyWrap)
+        m_artistEmptyWrap->hide();
+}
+
+void SearchPage::onSongListScrolled(int scrollTop)
+{
+    if (m_activeTab != Songs || m_musicLoading || !m_musicHasMore)
+        return;
+    const int contentH = m_musicResults.size() * SongListWidget::kRowStride;
+    const int viewH = m_songList ? m_songList->height() : 0;
+    if (viewH > 0 && scrollTop + viewH >= contentH - 120)
+        fetchMusicResults(true);
+}
+
+int SearchPage::currentPlayingMusicId() const
+{
+    const auto &mgr = PlaylistManager::instance();
+    const int idx = mgr.currentIndex();
+    if (idx < 0 || idx >= mgr.playlist().size())
+        return -1;
+    return mgr.playlist().at(idx).id;
+}
+
+void SearchPage::updatePlayingHighlight()
+{
+    const int id = currentPlayingMusicId();
+    if (m_songList)
+        m_songList->setCurrentPlayingId(id);
+    if (m_artistSongList)
+        m_artistSongList->setCurrentPlayingId(id);
+}
+
+void SearchPage::setFavoritedMusicIds(const QSet<int> &ids)
+{
+    m_favoritedIds = ids;
+    if (m_songList)
+        m_songList->refreshFavoriteDisplay();
+    if (m_artistSongList)
+        m_artistSongList->refreshFavoriteDisplay();
+}
+
+void SearchPage::setPlaybackPaused(bool paused)
+{
+    if (m_songList)
+        m_songList->setPlaybackPaused(paused);
+    if (m_artistSongList)
+        m_artistSongList->setPlaybackPaused(paused);
 }
 
 void SearchPage::retranslate()
 {
-    m_musicTab->setText(I18n::instance().tr("searchMusic"));
-    m_playlistTab->setText(I18n::instance().tr("searchPlaylist"));
-    m_artistTab->setText(I18n::instance().tr("artist"));
-    if (m_playAllBtn) m_playAllBtn->setText(I18n::instance().tr("playAll"));
-    if (m_resultCountLbl && !m_musicResults.isEmpty()) {
-        m_resultCountLbl->setText(QString("%1 %2").arg(m_musicResults.size()).arg(I18n::instance().tr("songs")));
-    }
+    if (m_suffixLbl)
+        m_suffixLbl->setText(I18n::instance().tr(QStringLiteral("searchRelatedSuffix")));
+    if (m_tabSongs)
+        m_tabSongs->setText(I18n::instance().tr(QStringLiteral("searchMusic")));
+    if (m_tabPlaylists)
+        m_tabPlaylists->setText(I18n::instance().tr(QStringLiteral("searchPlaylist")));
+    if (m_tabArtists)
+        m_tabArtists->setText(I18n::instance().tr(QStringLiteral("artist")));
+    if (m_artistBackBtn)
+        m_artistBackBtn->setText(I18n::instance().tr(QStringLiteral("searchBackArtists")));
+    if (m_loadMoreBtn && m_loadMoreBtn->isVisible())
+        m_loadMoreBtn->setText(I18n::instance().tr(QStringLiteral("loadMore")));
+    if (m_songList)
+        m_songList->retranslate();
+    if (m_artistSongList)
+        m_artistSongList->retranslate();
+    if (m_hintWrap && m_hintWrap->isVisible())
+        showHintState(true);
+    applyPageStyle();
 }
 
-void SearchPage::paintEvent(QPaintEvent *event)
+void SearchPage::showEvent(QShowEvent *event)
 {
-    QWidget::paintEvent(event);
+    QWidget::showEvent(event);
+    updatePlayingHighlight();
 }
