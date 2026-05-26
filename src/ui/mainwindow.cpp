@@ -73,6 +73,14 @@ public:
 
     std::function<void()> onClicked;
 
+    void setFullPlayerMode(bool on)
+    {
+        if (m_fullPlayerMode == on)
+            return;
+        m_fullPlayerMode = on;
+        update();
+    }
+
     void refreshBackdrop(QWidget *host, QWidget *drawerPanel)
     {
         if (!host)
@@ -81,7 +89,8 @@ public:
         exclude.append(this);
         if (drawerPanel)
             exclude.append(drawerPanel);
-        m_blurPixmap = GlassPaint::grabBlurredBackdrop(host, exclude, 48.0);
+        const qreal blurRadius = m_fullPlayerMode ? 80.0 : 48.0;
+        m_blurPixmap = GlassPaint::grabBlurredBackdrop(host, exclude, blurRadius);
         update();
     }
 
@@ -127,10 +136,11 @@ protected:
         p.setRenderHint(QPainter::SmoothPixmapTransform, true);
         if (!m_blurPixmap.isNull())
             p.drawPixmap(rect(), m_blurPixmap);
-        else
+        else if (!m_fullPlayerMode)
             p.fillRect(rect(), QColor(36, 36, 36, 220));
-        // 模糊之上轻微压暗（SPlayer 遮罩在 blur 上叠一层半透明黑）
-        p.fillRect(rect(), QColor(0, 0, 0, 72));
+        // 主界面：blur + 轻压暗；播放页：仅 blur（SPlayer .full-player background transparent）
+        if (!m_fullPlayerMode)
+            p.fillRect(rect(), QColor(0, 0, 0, 72));
     }
 
     void mousePressEvent(QMouseEvent *event) override
@@ -151,6 +161,7 @@ private:
     }
 
     QPixmap m_blurPixmap;
+    bool m_fullPlayerMode = false;
     QGraphicsOpacityEffect *m_opacityFx = nullptr;
     QPropertyAnimation *m_fadeAnim = nullptr;
 };
@@ -1055,11 +1066,14 @@ void MainWindow::showPlaylistDrawer()
 {
     if (!m_playlistPanel)
         return;
+    const bool fullPlayer = m_playerPageVisible && m_playerPage && playlistDrawerHost() == m_playerPage;
     if (m_playerBar)
         m_playerBar->setFloatingProgressSuppressed(true);
+    m_playlistPanel->setFullPlayerMode(fullPlayer);
     syncPlaylistDrawerGeometry();
     if (m_playlistScrim) {
         auto *scrim = static_cast<PlaylistDrawerScrim *>(m_playlistScrim);
+        scrim->setFullPlayerMode(fullPlayer);
         scrim->refreshBackdrop(playlistDrawerHost(), m_playlistPanel);
         scrim->fadeIn();
     }
@@ -1525,10 +1539,14 @@ void MainWindow::resizeEvent(QResizeEvent *event)
             m_playerPage->setGeometry(m_midWidget->rect());
     }
     if (m_playlistPanel && m_playlistPanel->isDrawerOpen()) {
+        const bool fullPlayer = m_playerPageVisible && m_playerPage && playlistDrawerHost() == m_playerPage;
+        m_playlistPanel->setFullPlayerMode(fullPlayer);
         syncPlaylistDrawerGeometry();
-        if (m_playlistScrim)
-            static_cast<PlaylistDrawerScrim *>(m_playlistScrim)
-                ->refreshBackdrop(playlistDrawerHost(), m_playlistPanel);
+        if (m_playlistScrim) {
+            auto *scrim = static_cast<PlaylistDrawerScrim *>(m_playlistScrim);
+            scrim->setFullPlayerMode(fullPlayer);
+            scrim->refreshBackdrop(playlistDrawerHost(), m_playlistPanel);
+        }
     }
     if (m_playerBar && m_playerBar->isVisible())
         m_playerBar->relayoutChrome();

@@ -297,11 +297,11 @@ PlaylistPanel::PlaylistPanel(QWidget *parent)
     setFixedWidth(kDrawerWidth);
     hide();
 
-    auto *shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(28);
-    shadow->setOffset(-6, 0);
-    shadow->setColor(QColor(0, 0, 0, 100));
-    setGraphicsEffect(shadow);
+    m_drawerShadow = new QGraphicsDropShadowEffect(this);
+    m_drawerShadow->setBlurRadius(28);
+    m_drawerShadow->setOffset(-6, 0);
+    m_drawerShadow->setColor(QColor(0, 0, 0, 100));
+    setGraphicsEffect(m_drawerShadow);
 
     setupUi();
     applyPanelChrome();
@@ -316,6 +316,21 @@ PlaylistPanel::PlaylistPanel(QWidget *parent)
 
     m_lastPlaylistSize = PlaylistManager::instance().count();
     refresh();
+}
+
+void PlaylistPanel::setFullPlayerMode(bool on)
+{
+    if (m_fullPlayerMode == on)
+        return;
+    m_fullPlayerMode = on;
+    setAttribute(Qt::WA_TranslucentBackground, on);
+    if (on) {
+        setGraphicsEffect(nullptr);
+    } else if (m_drawerShadow) {
+        setGraphicsEffect(m_drawerShadow);
+    }
+    applyPanelChrome();
+    update();
 }
 
 void PlaylistPanel::applyPanelChrome()
@@ -734,11 +749,13 @@ void PlaylistPanel::togglePanel()
 void PlaylistPanel::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+    if (m_fullPlayerMode)
+        return;
+
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
 
-  // 左侧圆角 + 左边框（贴宿主右缘的抽屉）
     QPainterPath clip;
     const QRect r = rect();
     const int rad = 12;

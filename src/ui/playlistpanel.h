@@ -28,6 +28,8 @@ public:
     bool isDrawerOpen() const { return m_drawerOpen; }
     /** 宿主尺寸变化时保持贴右（打开中则保持展开，关闭则保持屏外） */
     void syncToHost();
+    /** 全屏播放页内打开：抽屉透明，仅靠背后模糊（对齐 SPlayer .full-player） */
+    void setFullPlayerMode(bool on);
 
 signals:
     void playRequested(int musicId);
@@ -77,5 +79,7 @@ private:
     int m_lastPlaylistSize = 0;
     bool m_drawerOpen = false;
     bool m_animating = false;
+    bool m_fullPlayerMode = false;
     class QPropertyAnimation *m_slideAnim = nullptr;
+    class QGraphicsDropShadowEffect *m_drawerShadow = nullptr;
 };
