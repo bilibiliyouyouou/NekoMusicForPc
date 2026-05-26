@@ -31,6 +31,8 @@ qrc_*
 Thumbs.db
 .qoder
 
+qt-win
+
 # Old Electron project
 dist/
 dist-electron/
