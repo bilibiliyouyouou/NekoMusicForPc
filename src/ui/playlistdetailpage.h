@@ -62,6 +62,8 @@ private:
     void updateCollectPlaylistButton();
     void refreshPlaylistCollectedState();
     void toggleCollectPlaylist();
+    void showSongContextMenu(const MusicInfo &info, const QPoint &globalPos);
+    void removeSongFromPlaylist(const MusicInfo &info);
     int currentUserId() const;
 
     ApiClient *m_apiClient = nullptr;

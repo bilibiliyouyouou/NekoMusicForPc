@@ -16,6 +16,7 @@
 #include "ui/svgicon.h"
 #include "ui/lineinputdialog.h"
 #include "ui/toast.h"
+#include "ui/songcontextmenu.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -27,9 +28,9 @@
 #include <QShowEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPoint>
 #include <QMenu>
 #include <QAction>
-#include <QPoint>
 #include <QDialog>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -260,6 +261,9 @@ void PlaylistDetailPage::setupUi()
     m_songList = new SongListWidget(this);
     m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
+    m_songList->onSongContextMenu = [this](const MusicInfo &info, const QPoint &pos) {
+        showSongContextMenu(info, pos);
+    };
     m_songList->onUnfavorite = [this](int musicId) { emit favoriteRequested(musicId); };
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
@@ -728,6 +732,45 @@ void PlaylistDetailPage::toggleCollectPlaylist()
             }
         });
     }
+}
+
+void PlaylistDetailPage::showSongContextMenu(const MusicInfo &info, const QPoint &globalPos)
+{
+    if (!m_isUserPlaylist || m_playlistId <= 0 || info.id <= 0)
+        return;
+
+    SongContextMenuPopup::Entry entry;
+    entry.iconName = "Delete";
+    entry.label = I18n::instance().tr(QStringLiteral("removeFromPlaylist"));
+    entry.action = [this, info]() { removeSongFromPlaylist(info); };
+
+    SongContextMenuPopup::showAt(window() ? window() : this, globalPos, {entry});
+}
+
+void PlaylistDetailPage::removeSongFromPlaylist(const MusicInfo &info)
+{
+    if (!m_apiClient || m_playlistId <= 0 || info.id <= 0)
+        return;
+
+    m_apiClient->removeMusicFromPlaylist(m_playlistId, info.id, [this, musicId = info.id](bool success, const QString &message) {
+        if (!success) {
+            const QString msg =
+                message.isEmpty() ? I18n::instance().tr(QStringLiteral("musicAddFailed")) : message;
+            Toast::show(this, msg, Toast::Error);
+            return;
+        }
+
+        for (int i = m_allSongs.size() - 1; i >= 0; --i) {
+            if (m_allSongs[i].id == musicId) {
+                m_allSongs.removeAt(i);
+                break;
+            }
+        }
+        applyFilter();
+        updateHeaderMeta();
+        updateCoverImage();
+        Toast::show(this, I18n::instance().tr(QStringLiteral("musicRemovedSuccess")), Toast::Success);
+    });
 }
 
 void PlaylistDetailPage::editPlaylistDescription()

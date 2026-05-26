@@ -30,9 +30,11 @@ public:
     std::function<void(const MusicInfo &)> onPlayNext;
     std::function<void(int)> onUnfavorite;
     std::function<void()> onTogglePlayPause;
+    std::function<void(const MusicInfo &, const QPoint &)> onContextMenu;
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;

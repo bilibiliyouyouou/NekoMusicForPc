@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QList>
+#include <QPoint>
 #include <functional>
 
 #include "core/musicinfo.h"
@@ -38,6 +39,7 @@ public:
 
     std::function<void(const MusicInfo &)> onSongActivate;
     std::function<void(const MusicInfo &)> onSongPlayNext;
+    std::function<void(const MusicInfo &, const QPoint &)> onSongContextMenu;
     std::function<void(int)> onUnfavorite;
     std::function<void()> onTogglePlayPause;
     std::function<bool(int)> isFavorited;

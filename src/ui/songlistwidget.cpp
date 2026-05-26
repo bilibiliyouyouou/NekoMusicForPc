@@ -312,6 +312,7 @@ void SongListWidget::releaseCard(SongCardWidget *card)
     card->hide();
     card->onActivate = nullptr;
     card->onPlayNext = nullptr;
+    card->onContextMenu = nullptr;
     card->onUnfavorite = nullptr;
     card->onTogglePlayPause = nullptr;
     m_cardPool.append(card);
@@ -348,6 +349,7 @@ void SongListWidget::updateVisibleRows()
         card->setRemoveMode(m_removeMode);
         card->onActivate = onSongActivate;
         card->onPlayNext = onSongPlayNext;
+        card->onContextMenu = onSongContextMenu;
         card->onUnfavorite = onUnfavorite;
         card->onTogglePlayPause = onTogglePlayPause;
         card->setFavorited(isFavorited ? isFavorited(m_songs[row].id) : false);

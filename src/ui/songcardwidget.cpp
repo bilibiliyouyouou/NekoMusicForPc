@@ -14,6 +14,7 @@
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QEnterEvent>
+#include <QContextMenuEvent>
 #include <QFontMetrics>
 #include <QApplication>
 #include <QTimer>
@@ -365,6 +366,13 @@ void SongCardWidget::resizeEvent(QResizeEvent *e)
 {
     QWidget::resizeEvent(e);
     elideTexts();
+}
+
+void SongCardWidget::contextMenuEvent(QContextMenuEvent *event)
+{
+    if (onContextMenu)
+        onContextMenu(m_info, event->globalPos());
+    event->accept();
 }
 
 void SongCardWidget::mouseDoubleClickEvent(QMouseEvent *event)
