@@ -290,6 +290,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_engine->setVolume(static_cast<float>(v));
         if (m_playerBar)
             m_playerBar->setVolumePercentSynced(qBound(0, static_cast<int>(qRound(v * 100.0)), 100));
+        if (m_playerPage)
+            m_playerPage->setVolumePercentSynced(qBound(0, static_cast<int>(qRound(v * 100.0)), 100));
     });
     connect(m_engine, &PlayerEngine::stateChanged, this, &MainWindow::refreshSystemMediaIntegration);
     connect(m_engine, &PlayerEngine::mediaPlaybackStateChanged, this, &MainWindow::refreshSystemMediaIntegration);
@@ -750,6 +752,12 @@ void MainWindow::setupUi()
     connect(m_playerPage, &PlayerPage::playlistClicked, this, &MainWindow::togglePlaylistPanel);
     connect(m_playerPage, &PlayerPage::desktopLyricsToggled, this, [this](bool enabled) {
         applyDesktopLyricsEnabled(enabled, true);
+    });
+    connect(m_playerBar, &PlayerBar::volumePercentChanged, m_playerPage, &PlayerPage::setVolumePercentSynced);
+    connect(m_playerPage, &PlayerPage::volumePercentChanged, m_playerBar, &PlayerBar::setVolumePercentSynced);
+    connect(m_playerPage, &PlayerPage::volumePercentChanged, this, [this](int p) {
+        if (m_systemMedia)
+            m_systemMedia->syncVolumeFromEngine(p / 100.0);
     });
 
     // 播放位置变化时更新歌词高亮

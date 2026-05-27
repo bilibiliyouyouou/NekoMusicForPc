@@ -65,6 +65,9 @@ constexpr int kPpProgressMaxW = 480;
 constexpr qreal kCoverScalePaused = 0.9;
 constexpr qreal kCoverScalePlaying = 1.0;
 constexpr int kCoverScaleAnimMs = 500;
+constexpr int kVolumePanelExtraLiftPx = 12;
+constexpr int kVolumeLeaveAutoHideMs = 3000;
+const QString kSettingsKeyVolume = QStringLiteral("player/volume");
 
 const QColor kPpIconAccent = QColor(255, 143, 158, 255);
 
@@ -538,9 +541,18 @@ protected:
         case PpInk::Playlist:
             pm = Icons::renderNamed("PlayList", px, hi ? cA : cN);
             break;
-        case PpInk::Volume:
-            pm = Icons::renderNamed("VolumeUp", px, hi ? cA : cN);
+        case PpInk::Volume: {
+            const int band = property("ppVol").toInt();
+            const char *name = "VolumeUp";
+            if (band == 0)
+                name = "VolumeOff";
+            else if (band == 1)
+                name = "VolumeMute";
+            else if (band == 2)
+                name = "VolumeDown";
+            pm = Icons::renderNamed(name, px, hi ? cA : cN);
             break;
+        }
         case PpInk::DesktopLyric: {
             const bool on = isCheckable() && isChecked();
             pm = Icons::renderNamed("DesktopLyric2", px, on ? cA : (hi ? cA : cN));
@@ -603,6 +615,9 @@ protected:
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QEasingCurve>
+#include <QSlider>
+#include <QCoreApplication>
+#include <QCursor>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_engine(engine), m_apiClient(apiClient)
@@ -659,7 +674,13 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
         connect(m_engine, &PlayerEngine::audioMetaReady, this, &PlayerPage::refineAudioQualityFromEngine);
 }
 
-PlayerPage::~PlayerPage() = default;
+PlayerPage::~PlayerPage()
+{
+    if (m_ppVolumeAppFilterInstalled && QCoreApplication::instance()) {
+        QCoreApplication::instance()->removeEventFilter(this);
+        m_ppVolumeAppFilterInstalled = false;
+    }
+}
 
 void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize)
 {
@@ -1498,12 +1519,20 @@ void PlayerPage::setupPlayerControl()
     m_ppPlaylistBtn->setToolTip(I18n::instance().tr("playlist"));
     connect(m_ppPlaylistBtn, &QPushButton::clicked, this, &PlayerPage::playlistClicked);
 
-    m_ppVolumeBtn = new PlayerPageInkButton(m_ppRightTools);
+    auto *volWrapper = new QWidget(m_ppRightTools);
+    volWrapper->setObjectName(QStringLiteral("ppVolumeWrapper"));
+    auto *volLay = new QHBoxLayout(volWrapper);
+    volLay->setContentsMargins(0, 0, 0, 0);
+    volLay->setSpacing(0);
+
+    m_ppVolumeBtn = new PlayerPageInkButton(volWrapper);
     m_ppVolumeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
     m_ppVolumeBtn->setIconSize(QSize(kPpSideIcon, kPpSideIcon));
     m_ppVolumeBtn->setProperty("ppInk", int(PpInk::Volume));
+    m_ppVolumeBtn->setProperty("ppVol", 3);
     m_ppVolumeBtn->setCursor(Qt::PointingHandCursor);
     m_ppVolumeBtn->setToolTip(I18n::instance().tr("volume"));
+    volLay->addWidget(m_ppVolumeBtn);
 
     m_ppDesktopLrcBtn = new PlayerPageInkButton(m_ppRightTools);
     m_ppDesktopLrcBtn->setObjectName(QStringLiteral("ppDesktopLrcBtn"));
@@ -1525,8 +1554,54 @@ void PlayerPage::setupPlayerControl()
     });
 
     rightLay->addWidget(m_ppDesktopLrcBtn);
-    rightLay->addWidget(m_ppVolumeBtn);
+    rightLay->addWidget(volWrapper);
     rightLay->addWidget(m_ppPlaylistBtn);
+
+    QWidget *volHost = window();
+    if (!volHost)
+        volHost = this;
+    m_ppVolumePanel = new QWidget(volHost);
+    m_ppVolumePanel->setObjectName(QStringLiteral("ppVolumePanel"));
+    m_ppVolumePanel->setFixedSize(44, 168);
+    m_ppVolumePanel->setFocusPolicy(Qt::NoFocus);
+    m_ppVolumePanel->hide();
+    m_ppVolumePanel->installEventFilter(this);
+    volWrapper->installEventFilter(this);
+
+    auto *vpLay = new QVBoxLayout(m_ppVolumePanel);
+    vpLay->setContentsMargins(10, 12, 10, 12);
+    vpLay->setSpacing(8);
+    m_ppVolumeSlider = new QSlider(Qt::Vertical, m_ppVolumePanel);
+    m_ppVolumeSlider->setRange(0, 100);
+    vpLay->addWidget(m_ppVolumeSlider, 1, Qt::AlignHCenter);
+    m_ppVolumeLabel = new QLabel(QStringLiteral("80%"), m_ppVolumePanel);
+    m_ppVolumeLabel->setAlignment(Qt::AlignCenter);
+    vpLay->addWidget(m_ppVolumeLabel);
+
+    m_ppVolumeOpacityFx = new QGraphicsOpacityEffect(m_ppVolumePanel);
+    m_ppVolumeOpacityFx->setOpacity(0.0);
+    m_ppVolumePanel->setGraphicsEffect(m_ppVolumeOpacityFx);
+    m_ppVolumeOpAnim = new QPropertyAnimation(m_ppVolumeOpacityFx, "opacity", this);
+    m_ppVolumePosAnim = new QPropertyAnimation(m_ppVolumePanel, "pos", this);
+    connect(m_ppVolumeOpAnim, &QPropertyAnimation::finished, this, [this]() {
+        if (!m_ppVolumePanelClosing || !m_ppVolumePanel)
+            return;
+        m_ppVolumePanel->hide();
+        m_ppVolumePanelClosing = false;
+        if (m_ppVolumeAppFilterInstalled && QCoreApplication::instance()) {
+            QCoreApplication::instance()->removeEventFilter(this);
+            m_ppVolumeAppFilterInstalled = false;
+        }
+    });
+    m_ppVolumeLeaveTimer = new QTimer(this);
+    m_ppVolumeLeaveTimer->setSingleShot(true);
+    m_ppVolumeLeaveTimer->setInterval(kVolumeLeaveAutoHideMs);
+    connect(m_ppVolumeLeaveTimer, &QTimer::timeout, this, [this]() {
+        if (!m_ppVolumePanel || !m_ppVolumePanel->isVisible() || m_ppVolumePanelClosing)
+            return;
+        if (!volumePanelHotRectGlobal().contains(QCursor::pos()))
+            hideVolumePanel();
+    });
 
     barLay->addWidget(m_ppLeftTools, 1);
     barLay->addWidget(center, 1);
@@ -1550,6 +1625,10 @@ void PlayerPage::connectPlayerControlEngine()
 {
     if (!m_engine)
         return;
+
+    QSettings volSettings;
+    const int initialVol = qBound(0, volSettings.value(kSettingsKeyVolume, 80).toInt(), 100);
+    setVolumePercentSynced(initialVol);
 
     connect(m_ppPlayBtn, &QPushButton::clicked, this, [this]() {
         if (m_engine->isActuallyPlaying())
@@ -1584,6 +1663,22 @@ void PlayerPage::connectPlayerControlEngine()
             return;
         const qint64 position = static_cast<qint64>(m_ppProgress->value()) * m_engine->duration() / 1000;
         m_engine->setPosition(position);
+    });
+    connect(m_ppVolumeBtn, &QPushButton::clicked, this, [this]() {
+        if (m_ppVolumePanel && m_ppVolumePanel->isVisible() && !m_ppVolumePanelClosing)
+            hideVolumePanel();
+        else
+            showVolumePanel();
+    });
+    connect(m_ppVolumeSlider, &QSlider::valueChanged, this, [this](int v) {
+        setVolumePercentSynced(v);
+        emit volumePercentChanged(v);
+    });
+    connect(m_ppVolumeSlider, &QSlider::sliderReleased, this, [this]() {
+        if (!m_ppVolumeSlider)
+            return;
+        QSettings s;
+        s.setValue(kSettingsKeyVolume, m_ppVolumeSlider->value());
     });
 }
 
@@ -1804,8 +1899,116 @@ void PlayerPage::setDesktopLyricsChecked(bool checked)
     m_ppDesktopLrcBtn->update();
 }
 
+void PlayerPage::setVolumePercentSynced(int percent)
+{
+    if (!m_engine)
+        return;
+    percent = qBound(0, percent, 100);
+    m_engine->setVolume(static_cast<float>(percent / 100.0));
+    if (m_ppVolumeSlider) {
+        const QSignalBlocker blocker(m_ppVolumeSlider);
+        m_ppVolumeSlider->setValue(percent);
+    }
+    if (m_ppVolumeLabel)
+        m_ppVolumeLabel->setText(QStringLiteral("%1%").arg(percent));
+    updateVolumeIcon(percent);
+}
+
+void PlayerPage::updateVolumeIcon(int percent)
+{
+    if (!m_ppVolumeBtn)
+        return;
+    int band = 3;
+    if (percent == 0)
+        band = 0;
+    else if (percent < 40)
+        band = 1;
+    else if (percent < 70)
+        band = 2;
+    m_ppVolumeBtn->setProperty("ppVol", band);
+    m_ppVolumeBtn->update();
+}
+
+QRect PlayerPage::volumePanelHotRectGlobal() const
+{
+    if (!m_ppVolumeBtn || !m_ppVolumePanel)
+        return {};
+    const QRect btnGlobal(m_ppVolumeBtn->mapToGlobal(QPoint(0, 0)), m_ppVolumeBtn->size());
+    const QRect panelGlobal(m_ppVolumePanel->mapToGlobal(QPoint(0, 0)), m_ppVolumePanel->size());
+    return btnGlobal.united(panelGlobal);
+}
+
+void PlayerPage::showVolumePanel()
+{
+    if (!m_ppVolumePanel || !m_ppVolumeBtn || !m_ppVolumeOpacityFx || !m_ppVolumeOpAnim || !m_ppVolumePosAnim)
+        return;
+    m_ppVolumePanelClosing = false;
+    m_ppVolumeOpAnim->stop();
+    m_ppVolumePosAnim->stop();
+    if (m_ppVolumeLeaveTimer)
+        m_ppVolumeLeaveTimer->stop();
+
+    QWidget *host = m_ppVolumePanel->parentWidget();
+    if (!host)
+        host = window();
+    if (!host)
+        host = this;
+    const QPoint ref = m_ppVolumeBtn->mapTo(host, QPoint(0, 0));
+    const int x = ref.x() + (m_ppVolumeBtn->width() - m_ppVolumePanel->width()) / 2;
+    const int y = ref.y() - m_ppVolumePanel->height() + 8 - kVolumePanelExtraLiftPx;
+    const QPoint finalPos(x, y);
+    const QPoint startPos(x, y + 10);
+
+    m_ppVolumePanel->move(startPos);
+    m_ppVolumeOpacityFx->setOpacity(0.0);
+    m_ppVolumePanel->show();
+    m_ppVolumePanel->raise();
+
+    m_ppVolumeOpAnim->setDuration(200);
+    m_ppVolumeOpAnim->setEasingCurve(QEasingCurve::OutCubic);
+    m_ppVolumeOpAnim->setStartValue(0.0);
+    m_ppVolumeOpAnim->setEndValue(1.0);
+
+    m_ppVolumePosAnim->setDuration(200);
+    m_ppVolumePosAnim->setEasingCurve(QEasingCurve::OutCubic);
+    m_ppVolumePosAnim->setStartValue(startPos);
+    m_ppVolumePosAnim->setEndValue(finalPos);
+    m_ppVolumeOpAnim->start();
+    m_ppVolumePosAnim->start();
+
+    if (!m_ppVolumeAppFilterInstalled && QCoreApplication::instance()) {
+        QCoreApplication::instance()->installEventFilter(this);
+        m_ppVolumeAppFilterInstalled = true;
+    }
+}
+
+void PlayerPage::hideVolumePanel()
+{
+    if (!m_ppVolumePanel || !m_ppVolumeOpacityFx || !m_ppVolumeOpAnim || !m_ppVolumePanel->isVisible())
+        return;
+    if (m_ppVolumeLeaveTimer)
+        m_ppVolumeLeaveTimer->stop();
+    m_ppVolumeOpAnim->stop();
+    if (m_ppVolumePosAnim)
+        m_ppVolumePosAnim->stop();
+    m_ppVolumePanelClosing = true;
+    m_ppVolumeOpAnim->setDuration(160);
+    m_ppVolumeOpAnim->setEasingCurve(QEasingCurve::InCubic);
+    m_ppVolumeOpAnim->setStartValue(m_ppVolumeOpacityFx->opacity());
+    m_ppVolumeOpAnim->setEndValue(0.0);
+    m_ppVolumeOpAnim->start();
+}
+
 bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
 {
+    if (event->type() == QEvent::MouseButtonPress && m_ppVolumePanel && m_ppVolumePanel->isVisible()
+        && !m_ppVolumePanelClosing) {
+        auto *me = static_cast<QMouseEvent *>(event);
+        const QPoint g = me->globalPosition().toPoint();
+        if (!volumePanelHotRectGlobal().contains(g))
+            hideVolumePanel();
+    }
+
     auto *target = qobject_cast<QWidget *>(watched);
     const bool onPageTree = (watched == this) || (target && isAncestorOf(target));
 
@@ -1866,6 +2069,35 @@ bool PlayerPage::eventFilter(QObject *watched, QEvent *event)
         }
     }
 
+    if (watched->objectName() == QStringLiteral("ppVolumeWrapper")) {
+        if (event->type() == QEvent::Enter) {
+            if (m_ppVolumeLeaveTimer)
+                m_ppVolumeLeaveTimer->stop();
+            showVolumePanel();
+        } else if (event->type() == QEvent::Leave) {
+            if (m_ppVolumePanel && m_ppVolumePanel->isVisible()) {
+                if (!volumePanelHotRectGlobal().contains(QCursor::pos())) {
+                    if (m_ppVolumeLeaveTimer)
+                        m_ppVolumeLeaveTimer->start();
+                } else if (m_ppVolumeLeaveTimer) {
+                    m_ppVolumeLeaveTimer->stop();
+                }
+            }
+        }
+    } else if (watched == m_ppVolumePanel) {
+        if (event->type() == QEvent::Enter) {
+            if (m_ppVolumeLeaveTimer)
+                m_ppVolumeLeaveTimer->stop();
+        } else if (event->type() == QEvent::Leave) {
+            if (!volumePanelHotRectGlobal().contains(QCursor::pos())) {
+                if (m_ppVolumeLeaveTimer)
+                    m_ppVolumeLeaveTimer->start();
+            } else if (m_ppVolumeLeaveTimer) {
+                m_ppVolumeLeaveTimer->stop();
+            }
+        }
+    }
+
     return QWidget::eventFilter(watched, event);
 }
 
@@ -1878,17 +2110,9 @@ void PlayerPage::wheelEvent(QWheelEvent *event)
             double v = m_engine->volume();
             v += (delta > 0 ? 0.05 : -0.05);
             v = qBound(0.0, v, 1.0);
-            m_engine->setVolume(static_cast<float>(v));
             const int pct = qBound(0, static_cast<int>(qRound(v * 100.0)), 100);
-            if (m_ppVolumeBtn) {
-                int band = 2;
-                if (pct == 0)
-                    band = 0;
-                else if (pct < 35)
-                    band = 1;
-                m_ppVolumeBtn->setProperty("ppVol", band);
-                m_ppVolumeBtn->update();
-            }
+            setVolumePercentSynced(pct);
+            emit volumePercentChanged(pct);
             event->accept();
             return;
         }

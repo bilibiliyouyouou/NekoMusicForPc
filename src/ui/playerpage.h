@@ -21,6 +21,7 @@
 class ApiClient;
 class QTimer;
 class QWheelEvent;
+class QSlider;
 
 struct LyricLine {
     qint64 time;
@@ -51,6 +52,7 @@ public:
     QColor accentIconColor() const;
     void setFavoriteStatus(bool isFavorited);
     void setDesktopLyricsChecked(bool checked);
+    void setVolumePercentSynced(int percent);
     void layoutPlayerPageChrome();
     /** 抓取 host 并模糊，对齐 SPlayer .full-player backdrop-filter，避免透出背后清晰界面 */
     void refreshUnderlayBackdrop(QWidget *source, const QSize &targetSize = QSize());
@@ -71,6 +73,7 @@ signals:
     void addToPlaylistClicked(int musicId);
     void playlistClicked();
     void desktopLyricsToggled(bool enabled);
+    void volumePercentChanged(int percent);
     /** 播放页歌词更新后同步桌面歌词（LRC 文本，空表示无歌词） */
     void lyricsPayloadReady(const QString &lrcText);
     /** 底栏艺人行：当前歌词行（含翻译括号）；lineIndex&lt;0 表示尚无对应当前时间的行 */
@@ -81,6 +84,10 @@ private:
     void setupPlayerControl();
     void connectPlayerControlEngine();
     void updatePlayControlState();
+    void updateVolumeIcon(int percent);
+    void showVolumePanel();
+    void hideVolumePanel();
+    QRect volumePanelHotRectGlobal() const;
     void updateCoverPlayScale(bool playing);
     void applyCoverVisualScale(qreal scale);
     void refreshCoverLayout();
@@ -173,6 +180,15 @@ private:
     QPushButton *m_ppPlayModeBtn = nullptr;
     QPushButton *m_ppPlaylistBtn = nullptr;
     QPushButton *m_ppVolumeBtn = nullptr;
+    QWidget *m_ppVolumePanel = nullptr;
+    QSlider *m_ppVolumeSlider = nullptr;
+    QLabel *m_ppVolumeLabel = nullptr;
+    QGraphicsOpacityEffect *m_ppVolumeOpacityFx = nullptr;
+    QPropertyAnimation *m_ppVolumeOpAnim = nullptr;
+    QPropertyAnimation *m_ppVolumePosAnim = nullptr;
+    QTimer *m_ppVolumeLeaveTimer = nullptr;
+    bool m_ppVolumePanelClosing = false;
+    bool m_ppVolumeAppFilterInstalled = false;
     QPushButton *m_ppDesktopLrcBtn = nullptr;
     QPushButton *m_ppPrevBtn = nullptr;
     QPushButton *m_ppPlayBtn = nullptr;
