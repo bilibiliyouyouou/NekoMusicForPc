@@ -224,7 +224,7 @@ static QMap<QString, QString> zhCN()
     m["installNow"] = QStringLiteral("立即安装");
     m["installLater"] = QStringLiteral("稍后安装");
     m["updateViaAur"] = QStringLiteral("通过 AUR 更新");
-    m["updateViaAurHint"] = QStringLiteral("将在终端中执行：%1 -S %2");
+    m["updateViaAurHint"] = QStringLiteral("点击「立即更新」后将在终端显示命令，请自行执行：%1");
     m["updateViaAurNoHelper"] = QStringLiteral("未检测到 yay 或 paru，将打开 AUR 包页面");
     m["openAurPage"] = QStringLiteral("打开 AUR 页面");
     m["updateOpenWebHint"] = QStringLiteral("请从网页下载并安装新版本");
@@ -288,7 +288,7 @@ static QMap<QString, QString> zhCN()
     m["installNow"] = QStringLiteral("立即安装");
     m["installLater"] = QStringLiteral("稍后安装");
     m["updateViaAur"] = QStringLiteral("通过 AUR 更新");
-    m["updateViaAurHint"] = QStringLiteral("将在终端中执行：%1 -S %2");
+    m["updateViaAurHint"] = QStringLiteral("点击「立即更新」后将在终端显示命令，请自行执行：%1");
     m["updateViaAurNoHelper"] = QStringLiteral("未检测到 yay 或 paru，将打开 AUR 包页面");
     m["openAurPage"] = QStringLiteral("打开 AUR 页面");
     m["updateOpenWebHint"] = QStringLiteral("请从网页下载并安装新版本");
@@ -735,7 +735,7 @@ static QMap<QString, QString> nyaCN()
     m["installNow"] = QStringLiteral("现在就合体喵！");
     m["installLater"] = QStringLiteral("晚点再合体喵~");
     m["updateViaAur"] = QStringLiteral("走 AUR 进化喵！");
-    m["updateViaAurHint"] = QStringLiteral("会在终端里跑：%1 -S %2 喵~");
+    m["updateViaAurHint"] = QStringLiteral("点「马上进化」会在终端显示命令，自己敲喵：%1");
     m["updateViaAurNoHelper"] = QStringLiteral("没找到 yay/paru，只好带你去 AUR 页面喵...");
     m["openAurPage"] = QStringLiteral("打开 AUR 页面喵");
     m["updateOpenWebHint"] = QStringLiteral("去网页下载新版本再安装喵~");
@@ -955,7 +955,7 @@ static QMap<QString, QString> enUS()
     m["installNow"] = "Install Now";
     m["installLater"] = "Install Later";
     m["updateViaAur"] = "Update via AUR";
-    m["updateViaAurHint"] = "Will run in terminal: %1 -S %2";
+    m["updateViaAurHint"] = "Terminal will show this command after you click Update: %1";
     m["updateViaAurNoHelper"] = "yay or paru not found; opening AUR package page";
     m["openAurPage"] = "Open AUR Page";
     m["updateOpenWebHint"] = "Download and install the new version from the web";
@@ -1019,7 +1019,7 @@ static QMap<QString, QString> enUS()
     m["installNow"] = "Install Now";
     m["installLater"] = "Install Later";
     m["updateViaAur"] = "Update via AUR";
-    m["updateViaAurHint"] = "Will run in terminal: %1 -S %2";
+    m["updateViaAurHint"] = "Terminal will show this command after you click Update: %1";
     m["updateViaAurNoHelper"] = "yay or paru not found; opening AUR package page";
     m["openAurPage"] = "Open AUR Page";
     m["updateOpenWebHint"] = "Download and install the new version from the web";

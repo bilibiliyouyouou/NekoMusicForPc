@@ -71,8 +71,8 @@ void UpdateChecker::checkForUpdates()
 
             info.installKind = resolveInstallKind(platformKey, urlTemplate);
             if (info.installKind == UpdateInstallKind::ArchAurHelper) {
-                const QString archUrl = pcObj.value(QStringLiteral("arch")).toString();
-                info.downloadUrl = archUrl.isEmpty() ? aurPackagePageUrl() : archUrl;
+                // version.json 仅有 windows / mac / linux，Arch 走 AUR，不下载 pc.linux 的 deb
+                info.downloadUrl = aurPackagePageUrl();
             } else {
                 info.downloadUrl = urlTemplate.replace(QStringLiteral("{pc_ver}"), remoteVersion);
             }
@@ -151,10 +151,6 @@ QString UpdateChecker::getPlatformKey() const
 #elif defined(Q_OS_MACOS)
     return QStringLiteral("mac");
 #elif defined(Q_OS_LINUX)
-    if (detectLinuxInstallBackend() == LinuxInstallBackend::Arch)
-        return QStringLiteral("arch");
-    if (detectLinuxInstallBackend() == LinuxInstallBackend::Debian)
-        return QStringLiteral("linux");
     return QStringLiteral("linux");
 #else
     return QStringLiteral("windows");

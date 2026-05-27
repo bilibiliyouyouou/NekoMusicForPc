@@ -117,24 +117,6 @@ void UpdateDialog::setupUi()
     m_statusLbl->hide();
     containerLay->addWidget(m_statusLbl);
 
-    if (m_installKind == UpdateInstallKind::ArchAurHelper) {
-        const QString helper = findAurHelper();
-        if (helper.isEmpty()) {
-            m_statusLbl->setText(I18n::instance().tr("updateViaAurNoHelper"));
-            m_updateBtn->setText(I18n::instance().tr("openAurPage"));
-        } else {
-            m_statusLbl->setText(
-                I18n::instance().tr("updateViaAurHint").arg(helper, aurPackageName()));
-            m_updateBtn->setText(I18n::instance().tr("updateViaAur"));
-        }
-        m_statusLbl->show();
-        m_statusLbl->setWordWrap(true);
-    } else if (m_installKind == UpdateInstallKind::OpenWebPage) {
-        m_statusLbl->setText(I18n::instance().tr("updateOpenWebHint"));
-        m_statusLbl->show();
-        m_statusLbl->setWordWrap(true);
-    }
-
     containerLay->addStretch();
 
     // 按钮
@@ -186,6 +168,22 @@ void UpdateDialog::setupUi()
         setupDownloadingUi();
     });
     btnLay->addWidget(m_updateBtn, 1);
+
+    if (m_installKind == UpdateInstallKind::ArchAurHelper) {
+        const QString cmd = aurUpdateCommand();
+        if (cmd.isEmpty()) {
+            m_statusLbl->setText(I18n::instance().tr("updateViaAurNoHelper"));
+            m_updateBtn->setText(I18n::instance().tr("openAurPage"));
+        } else {
+            m_statusLbl->setText(I18n::instance().tr("updateViaAurHint").arg(cmd));
+        }
+        m_statusLbl->setWordWrap(true);
+        m_statusLbl->show();
+    } else if (m_installKind == UpdateInstallKind::OpenWebPage) {
+        m_statusLbl->setText(I18n::instance().tr("updateOpenWebHint"));
+        m_statusLbl->setWordWrap(true);
+        m_statusLbl->show();
+    }
 
     containerLay->addLayout(btnLay);
 

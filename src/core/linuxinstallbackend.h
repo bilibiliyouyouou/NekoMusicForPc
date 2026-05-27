@@ -20,5 +20,8 @@ QString aurPackagePageUrl();
 /** 已安装的 AUR 助手可执行名：yay、paru，无则返回空 */
 QString findAurHelper();
 
-/** 在终端中以当前用户执行 AUR 更新；无助手则打开 AUR 页面。返回是否启动了终端 */
+/** 建议的 AUR 更新命令（如 yay -S neko-cloud-music），无助手时返回空 */
+QString aurUpdateCommand();
+
+/** 在终端中显示更新命令并进入交互 shell，由用户自行执行；无助手则打开 AUR 页面 */
 bool launchAurUpdateInTerminal();

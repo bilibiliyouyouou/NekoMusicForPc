@@ -45,21 +45,32 @@ QString findAurHelper()
 #endif
 }
 
+QString aurUpdateCommand()
+{
+    const QString helper = findAurHelper();
+    if (helper.isEmpty())
+        return {};
+    return QStringLiteral("%1 -S %2").arg(helper, aurPackageName());
+}
+
 bool launchAurUpdateInTerminal()
 {
 #if !defined(Q_OS_LINUX)
     return false;
 #else
-    const QString helper = findAurHelper();
-    const QString pkg = aurPackageName();
+    const QString cmd = aurUpdateCommand();
 
-    if (helper.isEmpty()) {
+    if (cmd.isEmpty()) {
         QDesktopServices::openUrl(QUrl(aurPackagePageUrl()));
         return false;
     }
 
-    const QString inner = QStringLiteral("%1 -S --needed %2; echo; read -p \"Press Enter to close...\" _")
-                              .arg(helper, pkg);
+    const QString inner = QStringLiteral(
+                              "echo '请执行以下命令更新 Neko 云音乐：';"
+                              "echo '  %1';"
+                              "echo;"
+                              "exec bash -i")
+                              .arg(cmd);
 
     const auto tryLaunch = [&](const QString &program, const QStringList &args) -> bool {
         if (QStandardPaths::findExecutable(program).isEmpty())
