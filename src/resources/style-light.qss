@@ -692,12 +692,12 @@ QTextEdit:focus {
     background: transparent;
 }
 
-/* 播放键 48×48：圆角不得超过半边长 */
+/* 播放键 44×44：圆角不得超过半边长（22） */
 #pbPlayBtn {
     background: qlineargradient(x1:0,y1:0,x2:0.35,y2:1,
         stop:0 #FFB7C5, stop:1 #D62839);
     border: none;
-    border-radius: 24px;
+    border-radius: 22px;
     color: #16101f;
     font-size: 16px;
 }
