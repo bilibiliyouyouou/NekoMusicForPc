@@ -199,6 +199,10 @@ namespace {
 /** 单次远程起播：超过此时长仍未进入 Playing 则计一次失败并重试（最多 3 次）。 */
 constexpr int kStreamReadyTimeoutMs = 12000;
 constexpr int kStreamRetryDelayMs = 350;
+/** 起播稳定后再后台缓存，避免与 QMediaPlayer 并行拉同一 URL 触发服务端断流 */
+constexpr int kBgCacheDelayMs = 2500;
+/** 断流后若 .part 已达此大小则改播本地部分文件 */
+constexpr qint64 kMinPartResumeBytes = 512 * 1024;
 
 QString buildShareClipboardText(const MusicInfo &m)
 {
@@ -1200,7 +1204,6 @@ void MainWindow::startRemotePlaybackWithBackgroundCache(int musicId, quint64 pla
     m_streamPauseWhenReady = pauseWhenReady;
     m_remoteStreamFailureCount = 0;
 
-    startBackgroundCacheDownload(musicId, playSeq, remoteUrl);
     attachStreamPlaybackGuards(musicId, playSeq);
     m_engine->play(remoteUrl);
 }
@@ -1256,13 +1259,18 @@ void MainWindow::attachStreamPlaybackGuards(int musicId, quint64 playSeq)
     });
 
     m_streamPlayConn = connect(m_engine, &PlayerEngine::stateChanged, this,
-        [this, playSeq](PlayerEngine::PlaybackState st) {
+        [this, playSeq, musicId](PlayerEngine::PlaybackState st) {
             if (playSeq != m_enginePlaySeq || st != PlayerEngine::Playing)
                 return;
             m_streamRetryActive = false;
             cancelStreamWatch();
             if (m_streamPauseWhenReady)
                 QTimer::singleShot(50, this, [this]() { m_engine->pause(); });
+            QTimer::singleShot(kBgCacheDelayMs, this, [this, playSeq, musicId]() {
+                if (playSeq != m_enginePlaySeq || m_streamRemoteUrl.isEmpty())
+                    return;
+                startBackgroundCacheDownload(musicId, playSeq, m_streamRemoteUrl);
+            });
         });
 
     m_streamErrorConn = connect(m_engine, &PlayerEngine::mediaError, this,
@@ -1270,23 +1278,39 @@ void MainWindow::attachStreamPlaybackGuards(int musicId, quint64 playSeq)
             if (playSeq != m_enginePlaySeq)
                 return;
             qDebug() << "[Music] 远程播放错误 id=" << musicId << err;
-            handleRemoteStreamFailure(musicId, playSeq);
+            handleRemoteStreamFailure(musicId, playSeq, true);
         });
 
     m_streamAttemptTimer->start();
 }
 
-void MainWindow::handleRemoteStreamFailure(int musicId, quint64 playSeq)
+void MainWindow::handleRemoteStreamFailure(int musicId, quint64 playSeq, bool midPlaybackError)
 {
     if (playSeq != m_enginePlaySeq)
         return;
-    if (m_engine->playbackState() == PlayerEngine::Playing)
+    if (!midPlaybackError && m_engine->playbackState() == PlayerEngine::Playing)
         return;
     if (m_streamFailHandledThisRound)
         return;
     m_streamFailHandledThisRound = true;
 
+    const qint64 resumePos = midPlaybackError ? m_engine->position() : 0;
     m_engine->stop();
+    m_downloader->cancel();
+
+    if (midPlaybackError) {
+        const QString partPath = MusicDownloader::cachedAudioFilePath(musicId) + QStringLiteral(".part");
+        if (QFileInfo(partPath).size() >= kMinPartResumeBytes) {
+            qDebug() << "[Music] 断流，尝试从部分缓存续播 id=" << musicId << "pos=" << resumePos;
+            m_remoteStreamFailureCount = 0;
+            m_streamRetryActive = true;
+            cancelStreamWatch();
+            attachStreamPlaybackGuards(musicId, playSeq);
+            m_engine->playLocalResuming(partPath, resumePos);
+            return;
+        }
+    }
+
     m_remoteStreamFailureCount++;
     if (m_remoteStreamFailureCount >= 3) {
         m_streamRetryActive = false;
@@ -1301,6 +1325,7 @@ void MainWindow::handleRemoteStreamFailure(int musicId, quint64 playSeq)
     QTimer::singleShot(kStreamRetryDelayMs, this, [this, musicId, playSeq]() {
         if (playSeq != m_enginePlaySeq)
             return;
+        m_streamRetryActive = true;
         attachStreamPlaybackGuards(musicId, playSeq);
         m_engine->play(m_streamRemoteUrl);
     });

@@ -105,6 +105,8 @@ void MusicDownloader::download(const QUrl &url, int musicId)
 
     QNetworkRequest req(url);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    // 避免与 QMediaPlayer 并行 HTTP/2 拉流时触发服务端 Internal server error / 断流
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
     m_reply = m_nam.get(req);
     // 不要设置parent，让reply在完成后自动删除
     // m_reply->setParent(this);

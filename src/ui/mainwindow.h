@@ -120,7 +120,8 @@ private:
                                                 bool pauseWhenReady = false);
     void startBackgroundCacheDownload(int musicId, quint64 playSeq, const QUrl &url);
     void attachStreamPlaybackGuards(int musicId, quint64 playSeq);
-    void handleRemoteStreamFailure(int musicId, quint64 playSeq);
+  /** @param midPlaybackError true=播放中途断流（Demuxing failed 等），需强制恢复 */
+    void handleRemoteStreamFailure(int musicId, quint64 playSeq, bool midPlaybackError = false);
 
     bool m_switching = false;
     bool m_playerPageVisible = false;
