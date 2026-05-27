@@ -142,14 +142,29 @@ ProbeResult probeSuffixFallback(const QString &suffix)
     return r;
 }
 
+QByteArray audioPayloadAfterLeadingTags(const QByteArray &data)
+{
+    if (data.size() >= 10 && data.startsWith("ID3")) {
+        const int tagSize = ((uchar(data[6]) & 0x7f) << 21) | ((uchar(data[7]) & 0x7f) << 14)
+                            | ((uchar(data[8]) & 0x7f) << 7) | (uchar(data[9]) & 0x7f);
+        const int off = 10 + tagSize;
+        if (off > 0 && off < data.size())
+            return data.mid(off);
+    }
+    return data;
+}
+
 } // namespace
 
 int normalizeBitrateBps(int rawBps)
 {
     if (rawBps <= 0)
         return 0;
-    // Qt/FFmpeg 有时上报 kbps（如 3295）而非 bps
-    if (rawBps < 100000)
+    // 已是 bps（常见 128000、1411200）
+    if (rawBps >= 10000)
+        return rawBps;
+    // Qt/标签里的 kbps（64–4000）；勿把 960 等误当成 960kbps→Hi-Res
+    if (rawBps >= 64 && rawBps <= 4000)
         return rawBps * 1000;
     return rawBps;
 }
@@ -159,7 +174,8 @@ Tier tierFromBitrateBps(int bitrateBps)
     bitrateBps = normalizeBitrateBps(bitrateBps);
     if (bitrateBps <= 0)
         return Tier::Unknown;
-    if (bitrateBps >= 960000)
+    // 仅极高码率标 Hi-Res（96kHz/24bit FLAC 通常 >2Mbps）；避免 960*1000 误判
+    if (bitrateBps >= 2000000)
         return Tier::HiRes;
     if (bitrateBps >= 441000)
         return Tier::SQ;
@@ -179,7 +195,8 @@ ProbeResult probeBuffer(const QByteArray &head, const QString &suffixHint)
         return out;
     }
 
-    if (parseFlac(head, out) || parseWav(head, out) || parseMp3(head, out))
+    const QByteArray payload = audioPayloadAfterLeadingTags(head);
+    if (parseFlac(payload, out) || parseWav(payload, out) || parseMp3(payload, out))
         return ensureVisibleTier(out);
 
     const QString suf = suffixHint.isEmpty() ? QString() : QFileInfo(suffixHint).suffix();

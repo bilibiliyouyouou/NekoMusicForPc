@@ -1113,6 +1113,8 @@ void PlayerPage::refineAudioQualityFromEngine()
     r.bitrateBps = bps;
     r.tier = AudioQuality::tierFromBitrateBps(bps);
     r = AudioQuality::ensureVisibleTier(r);
+    if (m_hasFileProbedQuality && int(r.tier) > int(m_fileProbedQuality.tier))
+        return;
     if (m_qualityFromPlayerMeta && m_lastQuality.tier == r.tier && m_lastQuality.bitrateBps == r.bitrateBps)
         return;
     m_qualityFromPlayerMeta = true;
@@ -1132,6 +1134,7 @@ void PlayerPage::scheduleAudioQualityProbe()
     ++m_qualityProbeGen;
     const int probeGen = m_qualityProbeGen;
     m_qualityFromPlayerMeta = false;
+    m_hasFileProbedQuality = false;
 
     const MusicInfo info = m_engine ? m_engine->currentMusic() : MusicInfo{};
     const int musicId = m_musicId != 0 ? m_musicId : info.id;
@@ -1150,6 +1153,8 @@ void PlayerPage::scheduleAudioQualityProbe()
     }
 
     if (AudioQuality::isDefinitiveProbe(initial)) {
+        m_fileProbedQuality = initial;
+        m_hasFileProbedQuality = true;
         applyAudioQualityBadge(initial);
         return;
     }

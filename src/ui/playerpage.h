@@ -229,5 +229,7 @@ private:
     QNetworkReply *m_qualityReply = nullptr;
     int m_qualityProbeGen = 0;
     AudioQuality::ProbeResult m_lastQuality;
+    AudioQuality::ProbeResult m_fileProbedQuality;
     bool m_qualityFromPlayerMeta = false;
+    bool m_hasFileProbedQuality = false;
 };
