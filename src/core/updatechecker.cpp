@@ -4,6 +4,7 @@
  */
 
 #include "updatechecker.h"
+#include "linuxinstallbackend.h"
 #include "theme/theme.h"
 #include "version.h"
 
@@ -57,21 +58,24 @@ void UpdateChecker::checkForUpdates()
 
         // 比较版本号
         if (remoteVersion != m_currentVersion) {
-            // 获取当前平台的下载链接
-            QString platformKey = getPlatformKey();
-            QString urlTemplate = pcObj.value(platformKey).toString();
-            if (urlTemplate.isEmpty()) {
-                // 回退到 windows
-                urlTemplate = pcObj.value("windows").toString();
-            }
-
-            // 替换 {pc_ver} 占位符
-            QString downloadUrl = urlTemplate.replace("{pc_ver}", remoteVersion);
-
             UpdateInfo info;
             info.hasUpdate = true;
             info.version = remoteVersion;
-            info.downloadUrl = downloadUrl;
+
+            const QString platformKey = getPlatformKey();
+            QString urlTemplate = pcObj.value(platformKey).toString();
+            if (urlTemplate.isEmpty() && platformKey != QStringLiteral("windows"))
+                urlTemplate = pcObj.value(QStringLiteral("linux")).toString();
+            if (urlTemplate.isEmpty())
+                urlTemplate = pcObj.value(QStringLiteral("windows")).toString();
+
+            info.installKind = resolveInstallKind(platformKey, urlTemplate);
+            if (info.installKind == UpdateInstallKind::ArchAurHelper) {
+                const QString archUrl = pcObj.value(QStringLiteral("arch")).toString();
+                info.downloadUrl = archUrl.isEmpty() ? aurPackagePageUrl() : archUrl;
+            } else {
+                info.downloadUrl = urlTemplate.replace(QStringLiteral("{pc_ver}"), remoteVersion);
+            }
             emit updateAvailable(info);
         } else {
             emit noUpdate();
@@ -143,12 +147,39 @@ QString UpdateChecker::getOSType() const
 QString UpdateChecker::getPlatformKey() const
 {
 #if defined(Q_OS_WIN)
-    return "windows";
+    return QStringLiteral("windows");
 #elif defined(Q_OS_MACOS)
-    return "mac";
+    return QStringLiteral("mac");
 #elif defined(Q_OS_LINUX)
-    return "linux";
+    if (detectLinuxInstallBackend() == LinuxInstallBackend::Arch)
+        return QStringLiteral("arch");
+    if (detectLinuxInstallBackend() == LinuxInstallBackend::Debian)
+        return QStringLiteral("linux");
+    return QStringLiteral("linux");
 #else
-    return "windows";
+    return QStringLiteral("windows");
+#endif
+}
+
+UpdateInstallKind UpdateChecker::resolveInstallKind(const QString &platformKey,
+                                                     const QString &downloadUrl) const
+{
+#if defined(Q_OS_LINUX)
+    Q_UNUSED(platformKey);
+    if (detectLinuxInstallBackend() == LinuxInstallBackend::Arch)
+        return UpdateInstallKind::ArchAurHelper;
+    if (detectLinuxInstallBackend() == LinuxInstallBackend::Debian)
+        return UpdateInstallKind::DownloadInstaller;
+    if (downloadUrl.endsWith(QStringLiteral(".deb"), Qt::CaseInsensitive))
+        return UpdateInstallKind::DownloadInstaller;
+    return UpdateInstallKind::OpenWebPage;
+#elif defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    Q_UNUSED(platformKey);
+    Q_UNUSED(downloadUrl);
+    return UpdateInstallKind::DownloadInstaller;
+#else
+    Q_UNUSED(platformKey);
+    Q_UNUSED(downloadUrl);
+    return UpdateInstallKind::OpenWebPage;
 #endif
 }

@@ -159,6 +159,7 @@ set(SOURCES
         src/core/embeddedlyrics.cpp
         src/core/playlistmanager.cpp
         src/core/updatechecker.cpp
+        src/core/linuxinstallbackend.cpp
         src/ui/playlistlistitem.cpp
         src/ui/playlistdetailpage.cpp
         src/ui/addtoplaylistdialog.cpp

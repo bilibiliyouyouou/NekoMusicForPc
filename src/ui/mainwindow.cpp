@@ -1936,15 +1936,20 @@ void MainWindow::checkForUpdates(bool showNoUpdateToast)
 
     connect(m_updateChecker, &UpdateChecker::updateAvailable, this, [this](const UpdateInfo &info) {
         qDebug() << "[更新] 发现新版本:" << info.version << "下载链接:" << info.downloadUrl;
-        m_updateDialog = new UpdateDialog(m_updateChecker->currentVersion(), info.version, info.downloadUrl, this);
+        m_updateDialog = new UpdateDialog(m_updateChecker->currentVersion(), info.version,
+                                         info.downloadUrl, info.installKind, this);
 
-        connect(m_updateDialog, &UpdateDialog::downloadRequested, this, [this](const QString &url) {
-            m_updateChecker->downloadUpdate(url);
-        });
-
-        connect(m_updateChecker, &UpdateChecker::downloadProgress, m_updateDialog, &UpdateDialog::showDownloadProgress);
-        connect(m_updateChecker, &UpdateChecker::downloadFinished, m_updateDialog, &UpdateDialog::showDownloadFinished);
-        connect(m_updateChecker, &UpdateChecker::downloadFailed, m_updateDialog, &UpdateDialog::showDownloadFailed);
+        if (info.installKind == UpdateInstallKind::DownloadInstaller) {
+            connect(m_updateDialog, &UpdateDialog::downloadRequested, this, [this](const QString &url) {
+                m_updateChecker->downloadUpdate(url);
+            });
+            connect(m_updateChecker, &UpdateChecker::downloadProgress, m_updateDialog,
+                    &UpdateDialog::showDownloadProgress);
+            connect(m_updateChecker, &UpdateChecker::downloadFinished, m_updateDialog,
+                    &UpdateDialog::showDownloadFinished);
+            connect(m_updateChecker, &UpdateChecker::downloadFailed, m_updateDialog,
+                    &UpdateDialog::showDownloadFailed);
+        }
 
         m_updateDialog->exec();
     });

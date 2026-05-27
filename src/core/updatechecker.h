@@ -12,10 +12,20 @@
 #include <QNetworkReply>
 #include <QString>
 
+enum class UpdateInstallKind {
+    /** 下载安装包（Windows exe、Linux deb 等） */
+    DownloadInstaller,
+    /** Arch：通过 yay / paru / pacman 更新 AUR 包 */
+    ArchAurHelper,
+    /** 仅打开网页（无可用包管理器时） */
+    OpenWebPage,
+};
+
 struct UpdateInfo {
     bool hasUpdate = false;
     QString version;
     QString downloadUrl;
+    UpdateInstallKind installKind = UpdateInstallKind::DownloadInstaller;
 };
 
 class UpdateChecker : public QObject
@@ -41,6 +51,8 @@ signals:
 private:
     QString getOSType() const;
     QString getPlatformKey() const;
+    UpdateInstallKind resolveInstallKind(const QString &platformKey,
+                                         const QString &downloadUrl) const;
 
     QString m_currentVersion;
     QNetworkAccessManager m_nam;

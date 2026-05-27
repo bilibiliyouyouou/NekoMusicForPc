@@ -5,6 +5,7 @@
 
 #include "updatedialog.h"
 #include "core/i18n.h"
+#include "core/linuxinstallbackend.h"
 #include "theme/theme.h"
 
 #include <QVBoxLayout>
@@ -23,9 +24,10 @@
 #include <QDir>
 
 UpdateDialog::UpdateDialog(const QString &currentVersion, const QString &newVersion,
-                           const QString &downloadUrl, QWidget *parent)
+                           const QString &downloadUrl, UpdateInstallKind installKind,
+                           QWidget *parent)
     : QDialog(parent), m_currentVersion(currentVersion), m_newVersion(newVersion),
-      m_downloadUrl(downloadUrl)
+      m_downloadUrl(downloadUrl), m_installKind(installKind)
 {
     setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint | Qt::WindowSystemMenuHint);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -115,6 +117,24 @@ void UpdateDialog::setupUi()
     m_statusLbl->hide();
     containerLay->addWidget(m_statusLbl);
 
+    if (m_installKind == UpdateInstallKind::ArchAurHelper) {
+        const QString helper = findAurHelper();
+        if (helper.isEmpty()) {
+            m_statusLbl->setText(I18n::instance().tr("updateViaAurNoHelper"));
+            m_updateBtn->setText(I18n::instance().tr("openAurPage"));
+        } else {
+            m_statusLbl->setText(
+                I18n::instance().tr("updateViaAurHint").arg(helper, aurPackageName()));
+            m_updateBtn->setText(I18n::instance().tr("updateViaAur"));
+        }
+        m_statusLbl->show();
+        m_statusLbl->setWordWrap(true);
+    } else if (m_installKind == UpdateInstallKind::OpenWebPage) {
+        m_statusLbl->setText(I18n::instance().tr("updateOpenWebHint"));
+        m_statusLbl->show();
+        m_statusLbl->setWordWrap(true);
+    }
+
     containerLay->addStretch();
 
     // 按钮
@@ -151,11 +171,20 @@ void UpdateDialog::setupUi()
         "  font-size: 14px; font-weight: 600; "
         "}"
         "QPushButton:hover { opacity: 0.9; }");
-    connect(m_updateBtn, &QPushButton::clicked, this, [this]()
-            {
+    connect(m_updateBtn, &QPushButton::clicked, this, [this]() {
+        if (m_installKind == UpdateInstallKind::ArchAurHelper) {
+            launchAurUpdateInTerminal();
+            accept();
+            return;
+        }
+        if (m_installKind == UpdateInstallKind::OpenWebPage) {
+            QDesktopServices::openUrl(QUrl(m_downloadUrl));
+            accept();
+            return;
+        }
         emit downloadRequested(m_downloadUrl);
-        // 切换到下载状态
-        setupDownloadingUi(); });
+        setupDownloadingUi();
+    });
     btnLay->addWidget(m_updateBtn, 1);
 
     containerLay->addLayout(btnLay);
@@ -192,7 +221,12 @@ void UpdateDialog::setupFinishedUi(const QString &filePath)
                 QProcess::startDetached("open", {filePath});
                 accept();
 #elif defined(Q_OS_LINUX)
-                // Linux: 创建安装脚本，使用 pkexec 弹出图形密码认证
+                if (detectLinuxInstallBackend() != LinuxInstallBackend::Debian) {
+                    QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
+                    accept();
+                    return;
+                }
+                // Debian 系：pkexec dpkg -i
                 // 1. pkexec dpkg -i 安装包（会弹出系统密码框）
                 // 2. 杀死旧进程
                 // 3. sleep 1秒

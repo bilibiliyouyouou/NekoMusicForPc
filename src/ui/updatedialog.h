@@ -7,6 +7,8 @@
 
 #include <QDialog>
 
+#include "core/updatechecker.h"
+
 class QLabel;
 class QPushButton;
 class QProgressBar;
@@ -17,7 +19,9 @@ class UpdateDialog : public QDialog
 
 public:
     explicit UpdateDialog(const QString &currentVersion, const QString &newVersion,
-                         const QString &downloadUrl, QWidget *parent = nullptr);
+                          const QString &downloadUrl,
+                          UpdateInstallKind installKind = UpdateInstallKind::DownloadInstaller,
+                          QWidget *parent = nullptr);
 
 signals:
     void downloadRequested(const QString &url);
@@ -40,6 +44,7 @@ private:
     QString m_currentVersion;
     QString m_newVersion;
     QString m_downloadUrl;
+    UpdateInstallKind m_installKind = UpdateInstallKind::DownloadInstaller;
 
     QLabel *m_titleLbl = nullptr;
     QLabel *m_currentVerLbl = nullptr;
