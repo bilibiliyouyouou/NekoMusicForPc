@@ -1164,7 +1164,12 @@ void PlayerPage::scheduleAudioQualityProbe()
         return;
     }
 
-    hideAudioQualityBadge();
+    // 远程文件：如果是“后缀兜底”的初始档位（可能只有 HQ/MQ、没有任何数值），
+    // 先展示出来避免闪烁，但仍会继续走 HTTP HEAD + Range 探测以升级到更准确的 Hi-Res。
+    if (initial.tier != AudioQuality::Tier::Unknown)
+        applyAudioQualityBadge(initial);
+    else
+        hideAudioQualityBadge();
 
     if (musicId <= 0)
         return;

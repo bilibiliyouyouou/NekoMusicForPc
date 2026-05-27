@@ -275,7 +275,9 @@ bool isDefinitiveProbe(const ProbeResult &result)
         return false;
     if (result.sampleRateHz > 0 || result.bitsPerSample > 0 || result.bitrateBps > 0)
         return true;
-    return result.tier >= Tier::MQ;
+    // 只有后缀/兜底猜到的档位通常没有任何数值信息（rate/bits/bitrate 都是 0）。
+    // 这类“猜测 HQ/MQ/LQ”不算确定档位，必须让后续 HTTP Range/缓存探测去升级。
+    return result.tier >= Tier::SQ;
 }
 
 ProbeResult guessInitialTier(bool isLocalFile, const QString &localPath)
