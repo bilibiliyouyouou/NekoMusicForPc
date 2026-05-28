@@ -74,6 +74,7 @@ private:
     void applyTheme();
     void switchPage(QWidget *target);
     void showMusicListPage(bool isHot);
+    void showDailyRecommendationsPage();
     void showPlaylistDetailPage(int localId);
     void playMusicById(int musicId, const QString &title, const QString &artist, const QString &coverUrl = QString());
     void playMusicFromInfo(const MusicInfo &info);
@@ -133,6 +134,7 @@ private:
     RecentPage *m_recentPage = nullptr;
     MusicListPage *m_hotMusicPage = nullptr;
     MusicListPage *m_latestMusicPage = nullptr;
+    MusicListPage *m_dailyMusicPage = nullptr;
     PlayerPage *m_playerPage = nullptr;
     PlaylistDetailPage *m_playlistDetailPage = nullptr;
     SearchPage *m_searchPage = nullptr;

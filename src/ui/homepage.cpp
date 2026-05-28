@@ -10,6 +10,7 @@
 #include "homepage.h"
 #include "core/i18n.h"
 #include "core/covercache.h"
+#include "core/usermanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/playlistcard.h"
@@ -33,7 +34,10 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QtConcurrent>
+#include <QDate>
+#include <QPainterPath>
 
 namespace {
 
@@ -128,7 +132,7 @@ public:
     MusicAggregateCard(Type type, int firstId, int totalCount, QWidget *parent = nullptr)
         : QWidget(parent), m_firstId(firstId), m_type(type), m_totalCount(totalCount)
     {
-        setFixedSize(204, 260);
+        setFixedSize(212, 266);
         setCursor(Qt::PointingHandCursor);
         setAttribute(Qt::WA_StyledBackground, false);
 
@@ -157,21 +161,22 @@ public:
         vlay->addLayout(grid);
 
         // 标题 & 数量
-        auto *titleLbl = new QLabel(
+        m_titleLbl = new QLabel(
             type == Hot ? I18n::instance().tr("hot_music") : I18n::instance().tr("latest_music"), glassBody);
-        titleLbl->setObjectName(type == Hot ? "hpHotTitle" : "hpLatestTitle");
-        vlay->addWidget(titleLbl);
+        m_titleLbl->setObjectName(type == Hot ? "hpHotTitle" : "hpLatestTitle");
+        vlay->addWidget(m_titleLbl);
 
-        auto *countLbl = new QLabel(
+        m_countLbl = new QLabel(
             QString::number(totalCount) + I18n::instance().tr("songs"), glassBody);
-        countLbl->setObjectName(type == Hot ? "hpHotCount" : "hpLatestCount");
-        vlay->addWidget(countLbl);
+        m_countLbl->setObjectName(type == Hot ? "hpHotCount" : "hpLatestCount");
+        vlay->addWidget(m_countLbl);
 
         vlay->addStretch();
 
         auto *outer = new QVBoxLayout(this);
         outer->setContentsMargins(0, 0, 0, 0);
         outer->addWidget(m_glass);
+        applyTheme();
     }
 
     void applyTheme()
@@ -179,6 +184,19 @@ public:
         applyAggregateGlass(m_glass);
         for (auto *cover : m_covers)
             cover->setPlaceholder();
+        const bool dark = Theme::ThemeManager::instance().isDarkMode();
+        if (m_titleLbl) {
+            m_titleLbl->setStyleSheet(QStringLiteral(
+                "QLabel { font-size: 15px; font-weight: 700; color: %1; }")
+                                          .arg(dark ? QStringLiteral("rgba(244,246,255,0.95)")
+                                                    : QStringLiteral("rgba(33,37,41,0.95)")));
+        }
+        if (m_countLbl) {
+            m_countLbl->setStyleSheet(QStringLiteral(
+                "QLabel { font-size: 12px; font-weight: 500; color: %1; }")
+                                          .arg(dark ? QStringLiteral("rgba(244,246,255,0.62)")
+                                                    : QStringLiteral("rgba(33,37,41,0.56)")));
+        }
     }
 
     void retranslate() {
@@ -227,6 +245,8 @@ private:
     int m_totalCount;
     GlassWidget *m_glass = nullptr;
     QList<CoverLabel *> m_covers;
+    QLabel *m_titleLbl = nullptr;
+    QLabel *m_countLbl = nullptr;
 };
 
 // Store for retranslate
@@ -244,6 +264,7 @@ HomePage::HomePage(QWidget *parent) : QWidget(parent)
             [this](Theme::ThemeMode) {
                 for (auto *card : m_aggCards)
                     card->applyTheme();
+                applyDailyEntryStyle();
             });
 
     // 延迟加载数据，先显示UI
@@ -277,6 +298,54 @@ void HomePage::setupUi()
     auto *lay = new QVBoxLayout(container);
     lay->setContentsMargins(28, 16, 28, 32);
     lay->setSpacing(20);
+
+    m_dailyEntry = new QPushButton(container);
+    m_dailyEntry->setObjectName("hpDailyRecommendEntry");
+    m_dailyEntry->setCursor(Qt::PointingHandCursor);
+    m_dailyEntry->setMinimumHeight(92);
+    m_dailyEntry->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_dailyEntry->setFlat(true);
+    auto *dailyLay = new QHBoxLayout(m_dailyEntry);
+    dailyLay->setContentsMargins(12, 10, 12, 10);
+    dailyLay->setSpacing(12);
+
+    m_dailyCover = new QLabel(m_dailyEntry);
+    m_dailyCover->setFixedSize(70, 70);
+    m_dailyCover->setObjectName("hpDailyCover");
+    dailyLay->addWidget(m_dailyCover, 0, Qt::AlignVCenter);
+
+    auto *dailyTextWrap = new QWidget(m_dailyEntry);
+    auto *dailyTextLay = new QVBoxLayout(dailyTextWrap);
+    dailyTextLay->setContentsMargins(0, 2, 0, 2);
+    dailyTextLay->setSpacing(6);
+
+    auto *dailyTopRow = new QWidget(dailyTextWrap);
+    auto *dailyTopLay = new QHBoxLayout(dailyTopRow);
+    dailyTopLay->setContentsMargins(0, 0, 0, 0);
+    dailyTopLay->setSpacing(6);
+
+    m_dailyIcon = new QLabel(dailyTopRow);
+    m_dailyIcon->setFixedSize(16, 16);
+    dailyTopLay->addWidget(m_dailyIcon, 0, Qt::AlignVCenter);
+
+    m_dailyTitle = new QLabel(dailyTopRow);
+    dailyTopLay->addWidget(m_dailyTitle, 0, Qt::AlignVCenter);
+    dailyTopLay->addStretch();
+
+    m_dailyDesc = new QLabel(dailyTextWrap);
+    m_dailyDesc->setWordWrap(false);
+
+    dailyTextLay->addWidget(dailyTopRow);
+    dailyTextLay->addWidget(m_dailyDesc);
+    dailyLay->addWidget(dailyTextWrap, 1, Qt::AlignVCenter);
+
+    connect(m_dailyEntry, &QPushButton::clicked, this, [this]() {
+        emit navigateToDailyRecommendations();
+    });
+    lay->addWidget(m_dailyEntry);
+    refreshDailyEntry();
+    applyDailyEntryStyle();
+    setDailyCoverPlaceholder();
 
     // ─── 推荐歌单标题 ─────────────────────────────────
     auto *titleLabel = new QLabel(I18n::instance().tr("recommend_playlists"), container);
@@ -320,10 +389,13 @@ void HomePage::refreshData()
     fetchHotMusic();
     fetchPlaylists();
     fetchLatestMusic();
+    fetchDailyEntryCover();
 }
 
 void HomePage::retranslate()
 {
+    refreshDailyEntry();
+
     auto *tl = findChild<QLabel *>("hpSectionTitle");
     if (tl) tl->setText(I18n::instance().tr("recommend_playlists"));
     auto *ll = findChild<QLabel *>("hpLoading");
@@ -332,6 +404,176 @@ void HomePage::retranslate()
     for (auto *card : m_aggCards) {
         card->retranslate();
         card->applyTheme();
+    }
+}
+
+void HomePage::refreshDailyEntry()
+{
+    if (!m_dailyEntry)
+        return;
+    const QString day = QDate::currentDate().toString(QStringLiteral("dd"));
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (m_dailyIcon) {
+        QPixmap icon = Icons::renderNamed("Calendar-Empty", 18,
+                                          dark ? QColor(244, 246, 255, 220)
+                                               : QColor(33, 37, 41, 210));
+        if (!icon.isNull()) {
+            QPainter p(&icon);
+            p.setRenderHint(QPainter::TextAntialiasing, true);
+            QFont f = p.font();
+            f.setPixelSize(8);
+            f.setBold(true);
+            p.setFont(f);
+            p.setPen(QColor(230, 57, 80));
+            p.drawText(icon.rect().adjusted(0, 5, 0, 0), Qt::AlignHCenter | Qt::AlignTop, day);
+            p.end();
+        }
+        m_dailyIcon->setPixmap(icon);
+    }
+    if (m_dailyTitle)
+        m_dailyTitle->setText(I18n::instance().tr("dailyRecommend"));
+    if (m_dailyDesc)
+        m_dailyDesc->setText(QStringLiteral("根据你的音乐口味 · 每日更新"));
+
+}
+
+void HomePage::setDailyCoverPlaceholder()
+{
+    if (!m_dailyCover)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    QPixmap pm(70, 70);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    QPainterPath path;
+    path.addRoundedRect(0, 0, 70, 70, 10, 10);
+    QLinearGradient g(0, 0, 70, 70);
+    g.setColorAt(0.0, dark ? QColor(66, 49, 84) : QColor(255, 224, 232));
+    g.setColorAt(1.0, dark ? QColor(45, 34, 64) : QColor(233, 215, 255));
+    p.fillPath(path, g);
+    p.setClipPath(path);
+    const QPixmap musicIc = Icons::renderNamed("Music", 26,
+                                               dark ? QColor(255, 255, 255, 220)
+                                                    : QColor(84, 62, 112, 220));
+    p.drawPixmap((70 - 26) / 2, (70 - 26) / 2, musicIc);
+    p.end();
+    m_dailyCover->setPixmap(pm);
+}
+
+void HomePage::setDailyCoverByMusicId(int musicId)
+{
+    if (!m_dailyCover || musicId <= 0) {
+        setDailyCoverPlaceholder();
+        return;
+    }
+    disconnect(m_dailyCoverConn);
+    m_dailyCoverConn = {};
+    const QString key = QString::number(musicId);
+    if (QPixmap cached = CoverCache::instance()->get(key); !cached.isNull()) {
+        m_dailyCover->setPixmap(cached.scaled(70, 70, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+        return;
+    }
+    setDailyCoverPlaceholder();
+    m_dailyCoverConn = connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
+                               [this, key](const QString &id, const QPixmap &pix) {
+                                   if (id != key || pix.isNull() || !m_dailyCover)
+                                       return;
+                                   m_dailyCover->setPixmap(
+                                       pix.scaled(70, 70, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+                               });
+    const QString coverUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(musicId);
+    CoverCache::instance()->fetchCover(key, coverUrl);
+}
+
+void HomePage::fetchDailyEntryCover()
+{
+    if (!UserManager::instance().isLoggedIn()) {
+        setDailyCoverPlaceholder();
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/user/recommendations/daily").arg(Theme::kApiBase));
+    QNetworkRequest req(url);
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    req.setTransferTimeout(5000);
+    QNetworkReply *reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            setDailyCoverPlaceholder();
+            return;
+        }
+        const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
+        if (!root.value("success").toBool()) {
+            setDailyCoverPlaceholder();
+            return;
+        }
+        QJsonArray arr = root.value("data").toArray();
+        if (arr.isEmpty())
+            arr = root.value("results").toArray();
+        if (arr.isEmpty())
+            arr = root.value("recommendations").toArray();
+        if (arr.isEmpty()) {
+            setDailyCoverPlaceholder();
+            return;
+        }
+        QJsonObject first = arr.first().toObject();
+        if (first.contains("music") && first.value("music").isObject())
+            first = first.value("music").toObject();
+        else if (first.contains("song") && first.value("song").isObject())
+            first = first.value("song").toObject();
+        else if (first.contains("track") && first.value("track").isObject())
+            first = first.value("track").toObject();
+        int musicId = first.value("id").toInt();
+        if (musicId <= 0)
+            musicId = first.value("musicId").toInt();
+        setDailyCoverByMusicId(musicId);
+    });
+}
+
+void HomePage::applyDailyEntryStyle()
+{
+    if (!m_dailyEntry)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    if (dark) {
+        m_dailyEntry->setStyleSheet(
+            "QPushButton#hpDailyRecommendEntry {"
+            " background: rgba(28,28,28,0.56);"
+            " border: 1px solid rgba(255,255,255,0.12);"
+            " border-radius: 10px;"
+            " text-align: left;"
+            "}"
+            "QPushButton#hpDailyRecommendEntry:hover {"
+            " background: rgba(40,40,40,0.74);"
+            " border: 1px solid rgba(255,255,255,0.22);"
+            "}"
+            "QPushButton#hpDailyRecommendEntry:pressed {"
+            " background: rgba(48,48,48,0.82);"
+            "}");
+        if (m_dailyTitle)
+            m_dailyTitle->setStyleSheet("QLabel { font-size: 18px; font-weight: 700; color: rgba(245,247,255,0.98); }");
+        if (m_dailyDesc)
+            m_dailyDesc->setStyleSheet("QLabel { font-size: 13px; font-weight: 500; color: rgba(245,247,255,0.68); }");
+    } else {
+        m_dailyEntry->setStyleSheet(
+            "QPushButton#hpDailyRecommendEntry {"
+            " background: rgba(255,255,255,0.90);"
+            " border: 1px solid rgba(0,0,0,0.08);"
+            " border-radius: 10px;"
+            " text-align: left;"
+            "}"
+            "QPushButton#hpDailyRecommendEntry:hover {"
+            " background: rgba(255,255,255,0.98);"
+            " border: 1px solid rgba(0,0,0,0.14);"
+            "}"
+            "QPushButton#hpDailyRecommendEntry:pressed {"
+            " background: rgba(242,243,246,0.96);"
+            "}");
+        if (m_dailyTitle)
+            m_dailyTitle->setStyleSheet("QLabel { font-size: 18px; font-weight: 700; color: rgba(28,28,32,0.98); }");
+        if (m_dailyDesc)
+            m_dailyDesc->setStyleSheet("QLabel { font-size: 13px; font-weight: 500; color: rgba(28,28,32,0.62); }");
     }
 }
 

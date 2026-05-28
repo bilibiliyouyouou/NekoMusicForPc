@@ -138,6 +138,8 @@ static QMap<QString, QString> zhCN()
     m["hotMusicDesc"] = QStringLiteral("播放次数最高的热门歌曲");
     m["latestMusic"] = QStringLiteral("最新音乐");
     m["latestMusicDesc"] = QStringLiteral("刚刚上传的最新歌曲");
+    m["dailyRecommend"] = QStringLiteral("每日推荐");
+    m["dailyRecommendDesc"] = QStringLiteral("根据你的收藏口味生成");
     m["newSongs"] = QStringLiteral("新歌上架");
     m["discoverMusic"] = QStringLiteral("去发现音乐");
     m["recommendPlaylists"] = QStringLiteral("推荐歌单");
@@ -591,6 +593,8 @@ static QMap<QString, QString> nyaCN()
     m["hotMusicDesc"] = QStringLiteral("大家都在听的火热音乐喵~");
     m["latestMusic"] = QStringLiteral("新鲜出炉喵~");
     m["latestMusicDesc"] = QStringLiteral("刚刚诞生到这个世界的音乐喵~");
+    m["dailyRecommend"] = QStringLiteral("今日推荐喵~");
+    m["dailyRecommendDesc"] = QStringLiteral("按你的收藏口味挑出来的喵~");
     m["newSongs"] = QStringLiteral("新歌上架了喵~");
     m["discoverMusic"] = QStringLiteral("一起去冒险寻歌喵！");
     m["recommendPlaylists"] = QStringLiteral("为您挑选的礼物喵~");
@@ -868,6 +872,8 @@ static QMap<QString, QString> enUS()
     m["hotMusicDesc"] = "Most played popular songs";
     m["latestMusic"] = "Latest Music";
     m["latestMusicDesc"] = "Recently uploaded songs";
+    m["dailyRecommend"] = "Daily Picks";
+    m["dailyRecommendDesc"] = "Generated from your favorites taste";
     m["newSongs"] = "New Songs";
     m["discoverMusic"] = "Discover Music";
     m["recommendPlaylists"] = "Recommended Playlists";

@@ -21,7 +21,7 @@ class MusicListPage : public QWidget
     Q_OBJECT
 
 public:
-    enum Type { Hot, Latest };
+    enum Type { Hot, Latest, Daily };
 
     explicit MusicListPage(Type type, QWidget *parent = nullptr);
 
@@ -57,6 +57,7 @@ private:
     void showSongContextMenu(const MusicInfo &info, const QPoint &globalPos);
     int currentPlayingMusicId() const;
     void updateHeaderMeta();
+    void backfillDurationsFromMusicInfo(int gen);
     QString pageTitle() const;
     QString pageDesc() const;
 
@@ -78,4 +79,5 @@ private:
     QList<MusicInfo> m_musicList;
     QSet<int> m_favoritedIds;
     int m_fetchGeneration = 0;
+    bool m_durationBackfillScheduled = false;
 };

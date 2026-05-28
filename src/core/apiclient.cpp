@@ -53,6 +53,42 @@ void ApiClient::fetchLatest(int limit, MusicListCb cb) {
     });
 }
 
+void ApiClient::fetchDailyRecommendations(MusicListCb cb) {
+    if (!UserManager::instance().isLoggedIn()) {
+        cb(false, {});
+        return;
+    }
+    QUrl url(QString::fromUtf8("%1/api/user/recommendations/daily")
+                 .arg(QString::fromUtf8(Theme::kApiBase)));
+    QNetworkRequest req(url);
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    auto *reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) { cb(false, {}); return; }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        bool ok = root.value("success").toBool();
+        QList<QVariantMap> res;
+        if (ok) {
+            QJsonArray arr = root.value("data").toArray();
+            if (arr.isEmpty())
+                arr = root.value("results").toArray();
+            if (arr.isEmpty())
+                arr = root.value("recommendations").toArray();
+
+            for (const auto &v : arr) {
+                QJsonObject obj = v.toObject();
+                // 兼容 { music: {...} } 结构
+                if (obj.contains("music") && obj.value("music").isObject())
+                    obj = obj.value("music").toObject();
+                res.append(obj.toVariantMap());
+            }
+        }
+        cb(ok, res);
+    });
+}
+
 void ApiClient::fetchFavorites(MusicListCb cb) {
     QUrl url(QString::fromUtf8("%1/api/user/favorites").arg(Theme::kApiBase));
     QNetworkRequest req(url);

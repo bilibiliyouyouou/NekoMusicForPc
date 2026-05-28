@@ -12,12 +12,15 @@
 #include <QWidget>
 #include <QNetworkAccessManager>
 #include <QMouseEvent>
+#include <QMetaObject>
 #include "playlistcard.h"
 #include "core/musicinfo.h"
 
 class GlassWidget;
 class QScrollArea;
 class QHBoxLayout;
+class QPushButton;
+class QLabel;
 
 class HomePage : public QWidget
 {
@@ -30,6 +33,7 @@ signals:
     void navigateToPlaylist(int id);
     void playMusic(int id);
     void navigateToMusicList(bool isHot);  // 导航到音乐列表页面
+    void navigateToDailyRecommendations();
     void addToQueue(const MusicInfo &info);
 
 public slots:
@@ -41,16 +45,27 @@ protected:
 
 private:
     void setupUi();
+    void refreshDailyEntry();
+    void applyDailyEntryStyle();
 
     void fetchHotMusic();     // 热门音乐卡片
     void fetchPlaylists();    // 推荐歌单卡片
     void fetchLatestMusic();  // 最新音乐卡片
+    void fetchDailyEntryCover();
+    void setDailyCoverPlaceholder();
+    void setDailyCoverByMusicId(int musicId);
 
     void rebuildRecommendSection();
 
     QScrollArea *m_scroll = nullptr;
     QHBoxLayout *m_cardLayout = nullptr;
     QWidget *m_cardContainer = nullptr;
+    QPushButton *m_dailyEntry = nullptr;
+    QLabel *m_dailyCover = nullptr;
+    QLabel *m_dailyIcon = nullptr;
+    QLabel *m_dailyTitle = nullptr;
+    QLabel *m_dailyDesc = nullptr;
+    QMetaObject::Connection m_dailyCoverConn;
 
     QList<PlaylistInfo> m_playlists;
     QList<MusicInfo> m_hotMusic;

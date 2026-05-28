@@ -22,6 +22,7 @@ public:
     using MusicListCb = std::function<void(bool, const QList<QVariantMap>&)>;
     void fetchRanking(MusicListCb cb);
     void fetchLatest(int limit, MusicListCb cb);
+    void fetchDailyRecommendations(MusicListCb cb);
     void fetchFavorites(MusicListCb cb);
     
     // 音乐搜索

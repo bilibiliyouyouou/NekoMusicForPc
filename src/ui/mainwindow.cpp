@@ -380,6 +380,7 @@ void MainWindow::setupUi()
     m_recentPage = new RecentPage(this);
     m_hotMusicPage = new MusicListPage(MusicListPage::Hot, this);
     m_latestMusicPage = new MusicListPage(MusicListPage::Latest, this);
+    m_dailyMusicPage = new MusicListPage(MusicListPage::Daily, this);
     m_playlistDetailPage = new PlaylistDetailPage(m_apiClient, this);
     m_searchPage = new SearchPage(m_apiClient, this);
     m_artistDetailPage = new ArtistDetailPage(this);
@@ -390,6 +391,7 @@ void MainWindow::setupUi()
     m_stack->addWidget(m_recentPage);
     m_stack->addWidget(m_hotMusicPage);
     m_stack->addWidget(m_latestMusicPage);
+    m_stack->addWidget(m_dailyMusicPage);
     m_stack->addWidget(m_playlistDetailPage);
     m_stack->addWidget(m_searchPage);
     m_stack->addWidget(m_artistDetailPage);
@@ -555,6 +557,9 @@ void MainWindow::setupUi()
         if (m_latestMusicPage) {
             m_latestMusicPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
+        if (m_dailyMusicPage) {
+            m_dailyMusicPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
     });
 
     // 记录最近播放，并刷新列表页正在播放高亮
@@ -574,6 +579,8 @@ void MainWindow::setupUi()
             m_hotMusicPage->updatePlayingHighlight();
         if (m_latestMusicPage)
             m_latestMusicPage->updatePlayingHighlight();
+        if (m_dailyMusicPage)
+            m_dailyMusicPage->updatePlayingHighlight();
     });
 
     // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
@@ -643,12 +650,16 @@ void MainWindow::setupUi()
 
     // 音乐列表页面导航
     connect(m_homePage, &HomePage::navigateToMusicList, this, &MainWindow::showMusicListPage);
+    connect(m_homePage, &HomePage::navigateToDailyRecommendations, this, &MainWindow::showDailyRecommendationsPage);
 
     // 音乐列表页面返回
     connect(m_hotMusicPage, &MusicListPage::backRequested, this, [this]() {
         switchPage(m_homePage);
     });
     connect(m_latestMusicPage, &MusicListPage::backRequested, this, [this]() {
+        switchPage(m_homePage);
+    });
+    connect(m_dailyMusicPage, &MusicListPage::backRequested, this, [this]() {
         switchPage(m_homePage);
     });
 
@@ -694,6 +705,7 @@ void MainWindow::setupUi()
             &MainWindow::togglePlaybackForSystemUi);
     connect(m_hotMusicPage, &MusicListPage::playMusic, this, &MainWindow::playMusicFromInfo);
     connect(m_latestMusicPage, &MusicListPage::playMusic, this, &MainWindow::playMusicFromInfo);
+    connect(m_dailyMusicPage, &MusicListPage::playMusic, this, &MainWindow::playMusicFromInfo);
 
     const auto onMusicListPlayAll = [this](const QList<MusicInfo> &results) {
         if (results.isEmpty())
@@ -704,11 +716,15 @@ void MainWindow::setupUi()
     };
     connect(m_hotMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
     connect(m_latestMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
+    connect(m_dailyMusicPage, &MusicListPage::playAllRequested, this, onMusicListPlayAll);
 
     connect(m_hotMusicPage, &MusicListPage::addToQueue, this, [this](const MusicInfo &info) {
         PlaylistManager::instance().addToPlaylist(info);
     });
     connect(m_latestMusicPage, &MusicListPage::addToQueue, this, [this](const MusicInfo &info) {
+        PlaylistManager::instance().addToPlaylist(info);
+    });
+    connect(m_dailyMusicPage, &MusicListPage::addToQueue, this, [this](const MusicInfo &info) {
         PlaylistManager::instance().addToPlaylist(info);
     });
 
@@ -718,12 +734,18 @@ void MainWindow::setupUi()
     connect(m_latestMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicInfo &info) {
         showAddToPlaylistDialog(info);
     });
+    connect(m_dailyMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicInfo &info) {
+        showAddToPlaylistDialog(info);
+    });
 
     connect(m_hotMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
     connect(m_latestMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_dailyMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
     connect(m_hotMusicPage, &MusicListPage::playPauseRequested, this,
             &MainWindow::togglePlaybackForSystemUi);
     connect(m_latestMusicPage, &MusicListPage::playPauseRequested, this,
+            &MainWindow::togglePlaybackForSystemUi);
+    connect(m_dailyMusicPage, &MusicListPage::playPauseRequested, this,
             &MainWindow::togglePlaybackForSystemUi);
 
     connect(m_playerBar, &PlayerBar::coverClicked, this, &MainWindow::openPlayerPage);
@@ -768,6 +790,7 @@ void MainWindow::setupUi()
     // 语言切换
     connect(m_settingsPage, &SettingsPage::languageChanged, m_hotMusicPage, &MusicListPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_latestMusicPage, &MusicListPage::retranslate);
+    connect(m_settingsPage, &SettingsPage::languageChanged, m_dailyMusicPage, &MusicListPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_playlistDetailPage, &PlaylistDetailPage::retranslate);
     connect(m_settingsPage, &SettingsPage::checkForUpdatesRequested, this, [this]() {
         checkForUpdates(true);
@@ -872,6 +895,8 @@ void MainWindow::switchPage(QWidget *target)
         m_hotMusicPage->releaseCachedData();
     else if (current == m_latestMusicPage)
         m_latestMusicPage->releaseCachedData();
+    else if (current == m_dailyMusicPage)
+        m_dailyMusicPage->releaseCachedData();
 
     m_switching = true;
 
@@ -923,6 +948,13 @@ void MainWindow::showMusicListPage(bool isHot)
         m_latestMusicPage->refresh();
         switchPage(m_latestMusicPage);
     }
+}
+
+void MainWindow::showDailyRecommendationsPage()
+{
+    syncListPageFavoriteIds();
+    m_dailyMusicPage->refresh();
+    switchPage(m_dailyMusicPage);
 }
 
 void MainWindow::showPlaylistDetailPage(int localId)
@@ -1910,6 +1942,8 @@ void MainWindow::syncListPageFavoriteIds()
         m_hotMusicPage->setFavoritedMusicIds(ids);
     if (m_latestMusicPage)
         m_latestMusicPage->setFavoritedMusicIds(ids);
+    if (m_dailyMusicPage)
+        m_dailyMusicPage->setFavoritedMusicIds(ids);
 }
 
 void MainWindow::maybePromptDefaultMusicPlayer()

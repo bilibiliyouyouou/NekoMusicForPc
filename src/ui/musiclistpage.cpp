@@ -8,6 +8,7 @@
 #include "core/apiclient.h"
 #include "core/i18n.h"
 #include "core/playlistmanager.h"
+#include "core/usermanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
@@ -19,13 +20,247 @@
 #include <QMenu>
 #include <QTimer>
 #include <QShowEvent>
+#include <QDateTime>
+#include <QVariantList>
+#include <QRegularExpression>
+
+namespace {
+
+int parseDurationTextToSeconds(const QString &raw);
+
+QVariant firstNonNull(const QVariantMap &a, const QVariantMap &b, const QString &key)
+{
+    const QVariant va = a.value(key);
+    if (va.isValid() && !va.isNull() && !va.toString().isEmpty())
+        return va;
+    return b.value(key);
+}
+
+QVariantMap unwrapMusicNode(const QVariantMap &item)
+{
+    const QStringList keys = {QStringLiteral("music"), QStringLiteral("song"),
+                              QStringLiteral("track"), QStringLiteral("data")};
+    for (const QString &k : keys) {
+        const QVariant v = item.value(k);
+        if (v.canConvert<QVariantMap>()) {
+            const QVariantMap m = v.toMap();
+            if (!m.isEmpty())
+                return m;
+        }
+    }
+    return {};
+}
+
+QVariant deepFindByKeys(const QVariant &node, const QStringList &keys, int depth = 0)
+{
+    if (depth > 6 || !node.isValid() || node.isNull())
+        return {};
+    if (node.canConvert<QVariantMap>()) {
+        const QVariantMap map = node.toMap();
+        for (const QString &k : keys) {
+            const QVariant v = map.value(k);
+            if (v.isValid() && !v.isNull() && !v.toString().isEmpty())
+                return v;
+        }
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it) {
+            const QVariant hit = deepFindByKeys(it.value(), keys, depth + 1);
+            if (hit.isValid() && !hit.isNull() && !hit.toString().isEmpty())
+                return hit;
+        }
+    }
+    if (node.canConvert<QVariantList>()) {
+        const QVariantList list = node.toList();
+        for (const QVariant &v : list) {
+            const QVariant hit = deepFindByKeys(v, keys, depth + 1);
+            if (hit.isValid() && !hit.isNull() && !hit.toString().isEmpty())
+                return hit;
+        }
+    }
+    return {};
+}
+
+int deepFindDurationSeconds(const QVariant &node, int depth = 0)
+{
+    if (depth > 8 || !node.isValid() || node.isNull())
+        return 0;
+
+    auto parseCandidate = [](const QVariant &v) -> int {
+        if (!v.isValid() || v.isNull())
+            return 0;
+        bool ok = false;
+        qint64 n = v.toLongLong(&ok);
+        if (ok && n > 0) {
+            if (n > 10000)
+                n /= 1000;
+            return int(n);
+        }
+        return 0;
+    };
+
+    if (node.canConvert<QVariantMap>()) {
+        const QVariantMap map = node.toMap();
+        static const QStringList durationKeys = {
+            QStringLiteral("duration"), QStringLiteral("durationSec"), QStringLiteral("durationMs"),
+            QStringLiteral("dt"), QStringLiteral("length"), QStringLiteral("timeLength"),
+            QStringLiteral("songTime"), QStringLiteral("lengthMs"), QStringLiteral("durationText"),
+            QStringLiteral("durationStr"), QStringLiteral("dtText"), QStringLiteral("duration_time")};
+
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it) {
+            const QString key = it.key().toLower();
+            if (durationKeys.contains(it.key()) || key.contains(QStringLiteral("duration"))
+                || key == QStringLiteral("dt") || key.contains(QStringLiteral("length"))) {
+                int v = parseCandidate(it.value());
+                if (v <= 0)
+                    v = parseDurationTextToSeconds(it.value().toString());
+                if (v > 0 && v >= 10 && v <= 30 * 60)
+                    return v;
+            }
+        }
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it) {
+            const int sub = deepFindDurationSeconds(it.value(), depth + 1);
+            if (sub > 0)
+                return sub;
+        }
+    } else if (node.canConvert<QVariantList>()) {
+        const QVariantList list = node.toList();
+        for (const QVariant &v : list) {
+            const int sub = deepFindDurationSeconds(v, depth + 1);
+            if (sub > 0)
+                return sub;
+        }
+    } else {
+        const int v = parseDurationTextToSeconds(node.toString());
+        if (v > 0)
+            return v;
+    }
+    return 0;
+}
+
+int parseDurationTextToSeconds(const QString &raw)
+{
+    const QString s = raw.trimmed();
+    if (s.isEmpty())
+        return 0;
+    if (s.contains(QLatin1Char(':'))) {
+        const QStringList parts = s.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+        if (parts.size() == 2) {
+            return parts[0].toInt() * 60 + parts[1].toInt();
+        }
+        if (parts.size() == 3) {
+            return parts[0].toInt() * 3600 + parts[1].toInt() * 60 + parts[2].toInt();
+        }
+    }
+    bool ok = false;
+    const int v = s.toInt(&ok);
+    if (ok && v > 0)
+        return v;
+    static const QRegularExpression msRe(QStringLiteral("^(\\d+)\\s*ms$"),
+                                         QRegularExpression::CaseInsensitiveOption);
+    const auto m = msRe.match(s);
+    if (m.hasMatch())
+        return m.captured(1).toInt() / 1000;
+    return 0;
+}
+
+int parseDurationSeconds(const QVariantMap &item)
+{
+    int v = item.value(QStringLiteral("duration")).toInt();
+    if (v <= 0)
+        v = item.value(QStringLiteral("durationSec")).toInt();
+    if (v <= 0)
+        v = item.value(QStringLiteral("dt")).toInt();
+    if (v <= 0)
+        v = item.value(QStringLiteral("length")).toInt();
+    if (v <= 0)
+        v = item.value(QStringLiteral("durationMs")).toInt();
+    if (v <= 0)
+        v = parseDurationTextToSeconds(item.value(QStringLiteral("duration")).toString());
+    if (v <= 0)
+        v = parseDurationTextToSeconds(item.value(QStringLiteral("durationText")).toString());
+    if (v <= 0)
+        v = parseDurationTextToSeconds(item.value(QStringLiteral("durationStr")).toString());
+    if (v <= 0)
+        v = parseDurationTextToSeconds(item.value(QStringLiteral("dtText")).toString());
+    if (v <= 0)
+        return 0;
+    // 兼容毫秒字段（如 dt/durationMs）并统一为秒。
+    if (v > 10000)
+        v /= 1000;
+    if (v < 10 || v > 30 * 60)
+        return 0;
+    return v;
+}
+
+int parseDurationSeconds(const QVariantMap &primary, const QVariantMap &fallback)
+{
+    const int a = parseDurationSeconds(primary);
+    if (a > 0)
+        return a;
+    return parseDurationSeconds(fallback);
+}
+
+int parseDurationSecondsFromInfoMap(const QVariantMap &info)
+{
+    QVariantMap wrapped;
+    wrapped.insert(QStringLiteral("duration"), info.value(QStringLiteral("duration")));
+    wrapped.insert(QStringLiteral("durationSec"), info.value(QStringLiteral("durationSec")));
+    wrapped.insert(QStringLiteral("durationMs"), info.value(QStringLiteral("durationMs")));
+    wrapped.insert(QStringLiteral("dt"), info.value(QStringLiteral("dt")));
+    wrapped.insert(QStringLiteral("length"), info.value(QStringLiteral("length")));
+    wrapped.insert(QStringLiteral("durationText"), info.value(QStringLiteral("durationText")));
+    wrapped.insert(QStringLiteral("durationStr"), info.value(QStringLiteral("durationStr")));
+    return parseDurationSeconds(wrapped);
+}
+
+qint64 parseTimestampMs(const QVariantMap &item)
+{
+    qint64 ts = item.value(QStringLiteral("createdAt")).toLongLong();
+    if (ts <= 0)
+        ts = item.value(QStringLiteral("uploadedAt")).toLongLong();
+    if (ts <= 0)
+        ts = item.value(QStringLiteral("uploadTime")).toLongLong();
+    if (ts <= 0)
+        ts = item.value(QStringLiteral("publishTime")).toLongLong();
+    if (ts <= 0)
+        ts = item.value(QStringLiteral("created_at")).toLongLong();
+    if (ts <= 0)
+    {
+        const QString s = item.value(QStringLiteral("createdAt")).toString().trimmed();
+        if (!s.isEmpty()) {
+            QDateTime dt = QDateTime::fromString(s, Qt::ISODateWithMs);
+            if (!dt.isValid())
+                dt = QDateTime::fromString(s, Qt::ISODate);
+            if (dt.isValid())
+                ts = dt.toMSecsSinceEpoch();
+        }
+    }
+    if (ts <= 0)
+        return 0;
+    // 兼容秒级时间戳
+    if (ts > 0 && ts < 1000000000000LL)
+        ts *= 1000;
+    return ts;
+}
+
+qint64 parseTimestampMs(const QVariantMap &primary, const QVariantMap &fallback)
+{
+    const qint64 a = parseTimestampMs(primary);
+    if (a > 0)
+        return a;
+    return parseTimestampMs(fallback);
+}
+
+} // namespace
 
 MusicListPage::MusicListPage(Type type, QWidget *parent)
     : QWidget(parent)
     , m_type(type)
     , m_api(new ApiClient(this))
 {
-    setObjectName(m_type == Hot ? QStringLiteral("hotMusicPage") : QStringLiteral("latestMusicPage"));
+    setObjectName(
+        m_type == Hot ? QStringLiteral("hotMusicPage")
+                      : (m_type == Latest ? QStringLiteral("latestMusicPage")
+                                          : QStringLiteral("dailyMusicPage")));
     setAttribute(Qt::WA_StyledBackground, false);
     setAutoFillBackground(false);
     setupUi();
@@ -111,8 +346,10 @@ void MusicListPage::setupUi()
     root->addWidget(m_header);
 
     m_songList = new SongListWidget(this);
-    m_songList->setListDisplayMode(m_type == Hot ? SongListWidget::ListDisplayMode::HotRanking
-                                                 : SongListWidget::ListDisplayMode::LatestUpload);
+    m_songList->setListDisplayMode(
+        m_type == Hot ? SongListWidget::ListDisplayMode::HotRanking
+                      : (m_type == Latest ? SongListWidget::ListDisplayMode::LatestUpload
+                                          : SongListWidget::ListDisplayMode::Default));
     m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongContextMenu = [this](const MusicInfo &info, const QPoint &pos) {
@@ -145,12 +382,20 @@ void MusicListPage::setupUi()
 
 QString MusicListPage::pageTitle() const
 {
-    return m_type == Hot ? I18n::instance().tr("hotMusic") : I18n::instance().tr("latestMusic");
+    if (m_type == Hot)
+        return I18n::instance().tr("hotMusic");
+    if (m_type == Latest)
+        return I18n::instance().tr("latestMusic");
+    return I18n::instance().tr("dailyRecommend");
 }
 
 QString MusicListPage::pageDesc() const
 {
-    return m_type == Hot ? I18n::instance().tr("hotMusicDesc") : I18n::instance().tr("latestMusicDesc");
+    if (m_type == Hot)
+        return I18n::instance().tr("hotMusicDesc");
+    if (m_type == Latest)
+        return I18n::instance().tr("latestMusicDesc");
+    return I18n::instance().tr("dailyRecommendDesc");
 }
 
 void MusicListPage::applyPageStyle()
@@ -290,6 +535,12 @@ void MusicListPage::hidePageStatus()
 void MusicListPage::fetchData()
 {
     const int gen = m_fetchGeneration;
+    if (m_type == Daily && !UserManager::instance().isLoggedIn()) {
+        m_musicList.clear();
+        updateHeaderMeta();
+        showPageStatus(I18n::instance().tr("pleaseLoginFirst"), "Person");
+        return;
+    }
 
     auto finish = [this, gen](bool success, const QList<QVariantMap> &results) {
         QTimer::singleShot(0, this, [this, success, results, gen]() {
@@ -299,23 +550,59 @@ void MusicListPage::fetchData()
             if (success) {
                 m_musicList.reserve(results.size());
                 for (const auto &item : results) {
+                    const QVariantMap nested = unwrapMusicNode(item);
+                    const QVariantMap &primary = nested.isEmpty() ? item : nested;
+                    const QVariantMap &fallback = nested.isEmpty() ? QVariantMap{} : item;
+                    const QVariant root = QVariant(item);
                     MusicInfo info;
-                    info.id = item.value("id").toInt();
-                    info.title = item.value("title").toString();
-                    info.artist = item.value("artist").toString();
-                    info.album = item.value("album").toString();
-                    info.duration = item.value("duration").toInt();
+                    info.id = firstNonNull(primary, fallback, QStringLiteral("id")).toInt();
+                    if (info.id <= 0)
+                        info.id = firstNonNull(primary, fallback, QStringLiteral("musicId")).toInt();
+                    if (info.id <= 0)
+                        info.id = deepFindByKeys(root, {QStringLiteral("id"), QStringLiteral("musicId")}).toInt();
+                    info.title = firstNonNull(primary, fallback, QStringLiteral("title")).toString();
+                    info.artist = firstNonNull(primary, fallback, QStringLiteral("artist")).toString();
+                    info.album = firstNonNull(primary, fallback, QStringLiteral("album")).toString();
+                    info.duration = (m_type == Daily) ? 0 : parseDurationSeconds(primary, fallback);
+                    if (info.title.isEmpty())
+                        info.title = firstNonNull(primary, fallback, QStringLiteral("name")).toString();
+                    if (info.artist.isEmpty())
+                        info.artist = firstNonNull(primary, fallback, QStringLiteral("author")).toString();
+                    if (info.album.isEmpty())
+                        info.album = firstNonNull(primary, fallback, QStringLiteral("albumName")).toString();
+                    if (m_type != Daily && info.duration <= 0) {
+                        const QVariant dv = deepFindByKeys(
+                            root, {QStringLiteral("duration"), QStringLiteral("durationSec"),
+                                   QStringLiteral("durationMs"), QStringLiteral("dt"),
+                                   QStringLiteral("length"), QStringLiteral("durationText"),
+                                   QStringLiteral("durationStr"), QStringLiteral("dtText")});
+                        QVariantMap dm;
+                        dm.insert(QStringLiteral("duration"), dv);
+                        info.duration = parseDurationSeconds(dm);
+                    }
+                    if (m_type != Daily && info.duration <= 0)
+                        info.duration = deepFindDurationSeconds(root);
+                    if (info.title.isEmpty())
+                        info.title = deepFindByKeys(root, {QStringLiteral("title"), QStringLiteral("name")}).toString();
+                    if (info.artist.isEmpty())
+                        info.artist = deepFindByKeys(root, {QStringLiteral("artist"), QStringLiteral("author")}).toString();
+                    if (info.album.isEmpty())
+                        info.album = deepFindByKeys(root, {QStringLiteral("album"), QStringLiteral("albumName")}).toString();
                     info.coverUrl = QString::fromUtf8("%1/api/music/cover/%2")
                                         .arg(Theme::kApiBase)
                                         .arg(info.id);
+                    if (info.id <= 0)
+                        continue;
                     if (m_type == Hot)
-                        info.playCount = item.value(QStringLiteral("playCount")).toInt();
+                        info.playCount =
+                            firstNonNull(primary, fallback, QStringLiteral("playCount")).toInt();
                     else
-                        info.uploadedAtMs = item.value(QStringLiteral("createdAt")).toLongLong();
+                        info.uploadedAtMs = parseTimestampMs(primary, fallback);
                     m_musicList.append(info);
                 }
             }
             presentSongs();
+            backfillDurationsFromMusicInfo(gen);
         });
     };
 
@@ -323,8 +610,12 @@ void MusicListPage::fetchData()
         m_api->fetchRanking([finish](bool success, const QList<QVariantMap> &results) {
             finish(success, results);
         });
-    } else {
+    } else if (m_type == Latest) {
         m_api->fetchLatest(300, [finish](bool success, const QList<QVariantMap> &results) {
+            finish(success, results);
+        });
+    } else {
+        m_api->fetchDailyRecommendations([finish](bool success, const QList<QVariantMap> &results) {
             finish(success, results);
         });
     }
@@ -348,6 +639,43 @@ void MusicListPage::presentSongs()
         m_songList->show();
     }
     updatePlayingHighlight();
+}
+
+void MusicListPage::backfillDurationsFromMusicInfo(int gen)
+{
+    if (m_type != Daily)
+        return;
+    for (int i = 0; i < m_musicList.size(); ++i) {
+        if (m_musicList[i].id <= 0 || m_musicList[i].duration > 0)
+            continue;
+        const int idx = i;
+        const int musicId = m_musicList[i].id;
+        m_api->fetchMusicInfo(musicId, [this, gen, idx](bool ok, const QVariantMap &infoMap) {
+            if (!ok || gen != m_fetchGeneration)
+                return;
+            if (idx < 0 || idx >= m_musicList.size())
+                return;
+            if (m_musicList[idx].duration > 0)
+                return;
+            const int sec = parseDurationSecondsFromInfoMap(infoMap);
+            if (sec <= 0)
+                return;
+            m_musicList[idx].duration = sec;
+            if (!m_durationBackfillScheduled) {
+                m_durationBackfillScheduled = true;
+                QTimer::singleShot(0, this, [this]() {
+                    m_durationBackfillScheduled = false;
+                    if (m_songList) {
+                        m_songList->setSongs(m_musicList);
+                        m_songList->refreshFavoriteDisplay();
+                        m_songList->show();
+                    }
+                    updateHeaderMeta();
+                    updatePlayingHighlight();
+                });
+            }
+        });
+    }
 }
 
 void MusicListPage::updateHeaderMeta()
