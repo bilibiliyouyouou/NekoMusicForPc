@@ -1127,6 +1127,9 @@ void PlayerPage::refineAudioQualityFromEngine()
 {
     if (!m_engine)
         return;
+    // 文件头探测（本地/缓存）优先级更高，避免 FLAC 被播放器元数据回退成 HQ。
+    if (m_hasFileProbedQuality)
+        return;
     const int bps = AudioQuality::normalizeBitrateBps(m_engine->audioBitRateBps());
     if (bps <= 0)
         return;
@@ -1134,8 +1137,6 @@ void PlayerPage::refineAudioQualityFromEngine()
     r.bitrateBps = bps;
     r.tier = AudioQuality::tierFromBitrateBps(bps);
     r = AudioQuality::ensureVisibleTier(r);
-    if (m_hasFileProbedQuality && int(r.tier) > int(m_fileProbedQuality.tier))
-        return;
     if (m_qualityFromPlayerMeta && m_lastQuality.tier == r.tier && m_lastQuality.bitrateBps == r.bitrateBps)
         return;
     m_qualityFromPlayerMeta = true;
