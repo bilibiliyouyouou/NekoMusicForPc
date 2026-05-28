@@ -9,7 +9,7 @@ license=('AGPL-3.0-or-later')
 depends=('qt6-base' 'qt6-multimedia' 'qt6-svg')
 makedepends=('cmake' 'ninja')
 
-_commit=0f5c92f5ae671986b2e55e3194f3d08734eb673e
+_commit=8b8a6bd49d4ac737ae8ac55279ce95ea4394fe0f
 source=("${pkgname}-${_commit}.tar.gz::${url}/archive/${_commit}.tar.gz")
 sha256sums=('SKIP')
 
