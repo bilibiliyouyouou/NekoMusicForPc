@@ -134,6 +134,8 @@ void Sidebar::setupUi()
 
     // 播放列表容器
     m_playlistContainer = new QWidget(container);
+    m_playlistContainer->setAttribute(Qt::WA_TranslucentBackground);
+    m_playlistContainer->setAutoFillBackground(false);
     m_playlistLayout = new QVBoxLayout(m_playlistContainer);
     m_playlistLayout->setContentsMargins(4, 0, 4, 0);
     m_playlistLayout->setSpacing(2);
@@ -174,6 +176,8 @@ void Sidebar::setupUi()
 
     // 收藏歌单容器
     m_favPlaylistContainer = new QWidget(container);
+    m_favPlaylistContainer->setAttribute(Qt::WA_TranslucentBackground);
+    m_favPlaylistContainer->setAutoFillBackground(false);
     m_favPlaylistLayout = new QVBoxLayout(m_favPlaylistContainer);
     m_favPlaylistLayout->setContentsMargins(4, 0, 4, 0);
     m_favPlaylistLayout->setSpacing(2);

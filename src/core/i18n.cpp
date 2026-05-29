@@ -771,6 +771,30 @@ static QMap<QString, QString> nyaCN()
     m["checkForUpdates"] = QStringLiteral("看看有没有变聪明喵？");
     m["alreadyLatest"] = QStringLiteral("已经是顶级形态了喵~");
     m["version"] = QStringLiteral("版本代号喵~");
+    
+    // --- 网易云歌单导入喵~ ---
+    m["importNeteasePlaylist"] = QStringLiteral("导入网易云歌单喵~");
+    m["importNeteaseDesc"] = QStringLiteral("把网易云的歌单链接或ID告诉人家，人家帮你搬过来喵~");
+    m["inputNeteaseLink"] = QStringLiteral("输入网易云歌单链接或ID喵...");
+    m["createNewPlaylist"] = QStringLiteral("➕ 变出一个新歌单喵~");
+    m["creatingPlaylist"] = QStringLiteral("正在变出歌单中喵...");
+    m["fetchPlaylist"] = QStringLiteral("获取歌单喵~");
+    m["selectTargetPlaylist"] = QStringLiteral("选择目标歌单喵：");
+    m["startImport"] = QStringLiteral("开始导入喵！");
+    m["invalidNeteaseLink"] = QStringLiteral("这个链接看不懂喵...给个正确的嘛~");
+    m["fetchPlaylistFailed"] = QStringLiteral("获取歌单失败了喵...");
+    m["emptyNeteasePlaylist"] = QStringLiteral("歌单空空的没有歌喵...");
+    m["neteasePlaylistInfo"] = QStringLiteral("歌单：%1（共 %2 首歌曲喵）");
+    m["loadPlaylistsFailed"] = QStringLiteral("加载歌单列表失败了喵...");
+    m["noPlaylistsToImport"] = QStringLiteral("没有歌单可以放歌喵，先创建一个嘛~");
+    m["noTracksToImport"] = QStringLiteral("没有歌曲可导入喵~");
+    m["searchingTracks"] = QStringLiteral("正在努力搜索匹配歌曲喵...");
+    m["searchFailed"] = QStringLiteral("搜索失败了喵...");
+    m["noMatchedTracks"] = QStringLiteral("找不到匹配的歌曲喵...");
+    m["addingToPlaylist"] = QStringLiteral("正在添加 %1 首歌曲到歌单喵...");
+    m["addToPlaylistFailed"] = QStringLiteral("添加到歌单失败了喵...");
+    m["importSuccess"] = QStringLiteral("导入成功喵！添加了 %1 首，共 %2 首，%3 首没找到喵~");
+    
     return m;
 }
 
