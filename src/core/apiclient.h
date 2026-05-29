@@ -158,6 +158,7 @@ public:
     };
     using BatchAddMusicCb = std::function<void(bool ok, const BatchAddResult &result)>;
     void batchAddMusicToPlaylist(int playlistId, const QList<int> &musicIds, BatchAddMusicCb cb);
+    void batchAddFavorites(const QList<int> &musicIds, BatchAddMusicCb cb);
 
 private:
     QNetworkAccessManager m_nam;

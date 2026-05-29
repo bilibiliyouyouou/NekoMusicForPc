@@ -28,7 +28,7 @@ public:
     NeteaseImportDialog(ApiClient *apiClient, QWidget *parent = nullptr);
 
 signals:
-    void importCompleted();
+    void importCompleted(int addedCount, int totalCount, int failCount, bool importedToFavorites);
 
 private slots:
     void onFetchPlaylist();
@@ -38,11 +38,18 @@ private:
     void setupUi();
     void updatePlaylistCombo();
     void doImport(int targetPlaylistId);
+    void finishImport(const ApiClient::BatchSearchResult &searchResult,
+                      bool addSuccess,
+                      const ApiClient::BatchAddResult &addResult,
+                      bool importedToFavorites);
     void setStep(int step);
     void setError(const QString &error);
     void setProgress(const QString &status);
     
     static QString parsePlaylistId(const QString &input);
+
+    static constexpr int kImportTargetFavorites = -2;
+    static constexpr int kImportTargetNewPlaylist = -1;
 
     ApiClient *m_apiClient = nullptr;
     

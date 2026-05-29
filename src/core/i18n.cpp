@@ -491,6 +491,7 @@ static QMap<QString, QString> zhCN()
     m["noTracksToImport"] = QStringLiteral("没有歌曲可导入");
     m["searchingTracks"] = QStringLiteral("正在搜索匹配歌曲...");
     m["searchFailed"] = QStringLiteral("搜索失败");
+    m["searchServiceBusy"] = QStringLiteral("服务繁忙，请稍后再试");
     m["noMatchedTracks"] = QStringLiteral("未找到匹配的歌曲");
     m["addingToPlaylist"] = QStringLiteral("正在添加 %1 首歌曲到歌单...");
     m["addToPlaylistFailed"] = QStringLiteral("添加到歌单失败");
@@ -771,6 +772,7 @@ static QMap<QString, QString> nyaCN()
     m["noTracksToImport"] = QStringLiteral("没有歌曲可导入喵~");
     m["searchingTracks"] = QStringLiteral("正在努力搜索匹配歌曲喵...");
     m["searchFailed"] = QStringLiteral("搜索失败了喵...");
+    m["searchServiceBusy"] = QStringLiteral("服务繁忙，请稍后再试喵");
     m["noMatchedTracks"] = QStringLiteral("找不到匹配的歌曲喵...");
     m["addingToPlaylist"] = QStringLiteral("正在添加 %1 首歌曲到歌单喵...");
     m["addToPlaylistFailed"] = QStringLiteral("添加到歌单失败了喵...");
@@ -1268,6 +1270,7 @@ static QMap<QString, QString> enUS()
     m["noTracksToImport"] = "No tracks to import";
     m["searchingTracks"] = "Searching for matching tracks...";
     m["searchFailed"] = "Search failed";
+    m["searchServiceBusy"] = "Server is busy. Please try again later.";
     m["noMatchedTracks"] = "No matching tracks found";
     m["addingToPlaylist"] = "Adding %1 tracks to playlist...";
     m["addToPlaylistFailed"] = "Failed to add to playlist";

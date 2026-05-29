@@ -519,9 +519,17 @@ void MainWindow::setupUi()
             return;
         }
         auto *dlg = new NeteaseImportDialog(m_apiClient, this);
-        connect(dlg, &NeteaseImportDialog::importCompleted, this, [this]() {
+        connect(dlg, &NeteaseImportDialog::importCompleted, this,
+                [this](int addedCount, int totalCount, int failCount, bool importedToFavorites) {
             m_sidebar->refreshPlaylists();
-            Toast::show(this, I18n::instance().tr("importSuccess"), Toast::Success);
+            if (importedToFavorites && m_favoritesPage)
+                m_favoritesPage->refresh();
+            Toast::show(this,
+                        I18n::instance().tr(QStringLiteral("importSuccess"))
+                            .arg(addedCount)
+                            .arg(totalCount)
+                            .arg(failCount),
+                        Toast::Success);
         });
         dlg->exec();
         dlg->deleteLater();

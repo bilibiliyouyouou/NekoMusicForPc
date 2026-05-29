@@ -171,9 +171,12 @@ void NeteaseImportDialog::setupUi()
           dark ? QStringLiteral("rgba(230, 57, 80, 0.38)") : QStringLiteral("rgba(230, 57, 80, 0.22)")));
     m_targetPlaylistCombo->hide();
     connect(m_targetPlaylistCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
-        // 当选择"新建歌单"时显示输入框
-        bool isCreateNew = (m_targetPlaylistCombo->currentData().toInt() == -1);
+        Q_UNUSED(index);
+        const int targetId = m_targetPlaylistCombo->currentData().toInt();
+        const bool isCreateNew = (targetId == kImportTargetNewPlaylist);
         m_newPlaylistEdit->setVisible(isCreateNew);
+        if (isCreateNew && m_newPlaylistEdit->text().trimmed().isEmpty())
+            m_newPlaylistEdit->setText(m_neteasePlaylistName);
     });
     targetLayout->addWidget(m_targetPlaylistCombo, 1);
     
@@ -286,43 +289,26 @@ QString NeteaseImportDialog::parsePlaylistId(const QString &input)
     const QString trimmed = input.trimmed();
     if (trimmed.isEmpty())
         return QString();
-    
-    // 纯数字（直接是歌单 ID）
+
     static QRegularExpression digitsOnly(QStringLiteral("^\\d+$"));
     if (digitsOnly.match(trimmed).hasMatch())
         return trimmed;
-    
-    // URL 格式：playlist?id=xxx
+
     static QRegularExpression playlistQueryId(QStringLiteral("playlist\\?id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
     auto match = playlistQueryId.match(trimmed);
     if (match.hasMatch())
         return match.captured(1);
-    
-    // URL 格式：?id=xxx 或 &id=xxx
+
     static QRegularExpression urlIdParam(QStringLiteral("[?&]id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
     match = urlIdParam.match(trimmed);
     if (match.hasMatch())
         return match.captured(1);
-    
-    // URL 格式：playlist/xxx
+
     static QRegularExpression playlistPathId(QStringLiteral("playlist/(\\d+)"), QRegularExpression::CaseInsensitiveOption);
     match = playlistPathId.match(trimmed);
     if (match.hasMatch())
         return match.captured(1);
-    
-    // 从复制的分享内容中提取（包含 http 链接的任意文本）
-    // 例如：分享xxx的歌单《xxx》 https://music.163.com/playlist?id=12345678&userid=xxx
-    static QRegularExpression anyPlaylistId(QStringLiteral("music\\.163\\.com.*?[?&]id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
-    match = anyPlaylistId.match(trimmed);
-    if (match.hasMatch())
-        return match.captured(1);
-    
-    // 最后尝试：在整段文本中找任意长数字（>= 7 位，歌单 ID 通常很长）
-    static QRegularExpression longDigits(QStringLiteral("(\\d{7,})"));
-    match = longDigits.match(trimmed);
-    if (match.hasMatch())
-        return match.captured(1);
-    
+
     return QString();
 }
 
@@ -367,9 +353,10 @@ void NeteaseImportDialog::onFetchPlaylist()
         m_neteaseTracks = playlist.tracks;
         
         // 显示歌单信息
+        const int displayCount = playlist.trackCount > 0 ? playlist.trackCount : playlist.tracks.size();
         m_playlistInfoLabel->setText(I18n::instance().tr(QStringLiteral("neteasePlaylistInfo"))
             .arg(playlist.name)
-            .arg(playlist.tracks.size()));
+            .arg(displayCount));
         m_playlistInfoLabel->show();
         
         // 加载用户歌单
@@ -392,21 +379,20 @@ void NeteaseImportDialog::updatePlaylistCombo()
         
         m_userPlaylists.clear();
         m_targetPlaylistCombo->clear();
-        
-        // 添加"新建歌单"选项，使用 -1 作为特殊 ID
-        m_targetPlaylistCombo->addItem(I18n::instance().tr(QStringLiteral("createNewPlaylist")), -1);
-        
+
+        m_targetPlaylistCombo->addItem(I18n::instance().tr(QStringLiteral("favorites")), kImportTargetFavorites);
+
         for (const auto &pl : playlists) {
             int id = pl.value(QStringLiteral("id")).toInt();
             QString name = pl.value(QStringLiteral("name")).toString();
             m_userPlaylists.append(qMakePair(id, name));
             m_targetPlaylistCombo->addItem(name, id);
         }
-        
-        // 默认选择"新建歌单"，并用网易云歌单名称作为默认名
+
+        m_targetPlaylistCombo->addItem(I18n::instance().tr(QStringLiteral("createNewPlaylist")), kImportTargetNewPlaylist);
+
         m_targetPlaylistCombo->setCurrentIndex(0);
-        m_newPlaylistEdit->setText(m_neteasePlaylistName);
-        m_newPlaylistEdit->show();
+        m_newPlaylistEdit->hide();
         
         m_targetPlaylistCombo->show();
         m_importBtn->setEnabled(true);
@@ -421,9 +407,8 @@ void NeteaseImportDialog::onStartImport()
     }
     
     int targetPlaylistId = m_targetPlaylistCombo->currentData().toInt();
-    
-    // 如果选择新建歌单，检查名称
-    if (targetPlaylistId == -1) {
+
+    if (targetPlaylistId == kImportTargetNewPlaylist) {
         const QString newName = m_newPlaylistEdit->text().trimmed();
         if (newName.isEmpty()) {
             setError(I18n::instance().tr(QStringLiteral("inputNewPlaylistName")));
@@ -444,10 +429,10 @@ void NeteaseImportDialog::onStartImport()
     setError(QString());
     
     // 如果需要新建歌单
-    if (targetPlaylistId == -1) {
+    if (targetPlaylistId == kImportTargetNewPlaylist) {
         m_statusLabel->setText(I18n::instance().tr(QStringLiteral("creatingPlaylist")));
         const QString newName = m_newPlaylistEdit->text().trimmed();
-        
+
         m_apiClient->createPlaylist(newName, QString(), [this](bool success, const QString &msg, const QVariantMap &data) {
             if (!success) {
                 setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
@@ -486,8 +471,7 @@ void NeteaseImportDialog::doImport(int targetPlaylistId)
 {
     m_statusLabel->setText(I18n::instance().tr(QStringLiteral("searchingTracks")));
     m_progressBar->setValue(15);
-    
-    // 转换为搜索项
+
     QList<ApiClient::BatchSearchItem> searchItems;
     for (const auto &track : m_neteaseTracks) {
         ApiClient::BatchSearchItem item;
@@ -495,63 +479,79 @@ void NeteaseImportDialog::doImport(int targetPlaylistId)
         item.artist = track.artist;
         searchItems.append(item);
     }
-    
-    // 批量搜索
-    m_apiClient->batchSearchMusic(searchItems, [this, targetPlaylistId](bool success, const ApiClient::BatchSearchResult &result) {
+
+    const bool importToFavorites = (targetPlaylistId == kImportTargetFavorites);
+
+    m_apiClient->batchSearchMusic(searchItems, [this, targetPlaylistId, importToFavorites](bool success, const ApiClient::BatchSearchResult &result) {
         if (!success) {
-            setError(I18n::instance().tr(QStringLiteral("searchFailed")));
+            setError(I18n::instance().tr(QStringLiteral("searchServiceBusy")));
             m_fetchBtn->setEnabled(true);
             m_importBtn->setEnabled(true);
             m_targetPlaylistCombo->setEnabled(true);
+            m_newPlaylistEdit->setEnabled(true);
             m_progressBar->hide();
             m_statusLabel->hide();
             return;
         }
-        
+
         m_progressBar->setValue(50);
-        
+
         if (result.matchedMusicIds.isEmpty()) {
             setError(I18n::instance().tr(QStringLiteral("noMatchedTracks")));
             m_fetchBtn->setEnabled(true);
             m_importBtn->setEnabled(true);
             m_targetPlaylistCombo->setEnabled(true);
+            m_newPlaylistEdit->setEnabled(true);
             m_progressBar->hide();
             m_statusLabel->hide();
             return;
         }
-        
+
         m_statusLabel->setText(I18n::instance().tr(QStringLiteral("addingToPlaylist"))
             .arg(result.matchedMusicIds.size()));
-        
-        // 批量添加
-        m_apiClient->batchAddMusicToPlaylist(targetPlaylistId, result.matchedMusicIds,
-            [this, searchResult = result](bool addSuccess, const ApiClient::BatchAddResult &addResult) {
-                m_progressBar->setValue(100);
-                
-                if (!addSuccess) {
-                    setError(I18n::instance().tr(QStringLiteral("addToPlaylistFailed")));
-                    m_fetchBtn->setEnabled(true);
-                    m_importBtn->setEnabled(true);
-                    m_targetPlaylistCombo->setEnabled(true);
-                    m_progressBar->hide();
-                    m_statusLabel->hide();
-                    return;
-                }
-                
-                // 成功
-                m_statusLabel->setText(I18n::instance().tr(QStringLiteral("importSuccess"))
-                    .arg(addResult.addedCount)
-                    .arg(m_neteaseTracks.size())
-                    .arg(searchResult.failCount));
-                m_statusLabel->setStyleSheet(QStringLiteral("color: %1; font-size: 13px; background: transparent;").arg(QString::fromUtf8(Theme::kMint)));
-                
-                m_closeBtn->setText(I18n::instance().tr(QStringLiteral("close")));
-                m_importBtn->hide();
-                m_fetchBtn->hide();
-                
-                emit importCompleted();
-            });
+
+        auto finishCb = [this, searchResult = result, importToFavorites](bool addSuccess, const ApiClient::BatchAddResult &addResult) {
+            finishImport(searchResult, addSuccess, addResult, importToFavorites);
+        };
+
+        if (importToFavorites) {
+            m_apiClient->batchAddFavorites(result.matchedMusicIds, finishCb);
+        } else {
+            m_apiClient->batchAddMusicToPlaylist(targetPlaylistId, result.matchedMusicIds, finishCb);
+        }
     });
+}
+
+void NeteaseImportDialog::finishImport(const ApiClient::BatchSearchResult &searchResult,
+                                       bool addSuccess,
+                                       const ApiClient::BatchAddResult &addResult,
+                                       bool importedToFavorites)
+{
+    m_progressBar->setValue(100);
+
+    if (!addSuccess) {
+        setError(I18n::instance().tr(QStringLiteral("addToPlaylistFailed")));
+        m_fetchBtn->setEnabled(true);
+        m_importBtn->setEnabled(true);
+        m_targetPlaylistCombo->setEnabled(true);
+        m_newPlaylistEdit->setEnabled(true);
+        m_progressBar->hide();
+        m_statusLabel->hide();
+        return;
+    }
+
+    m_statusLabel->setText(I18n::instance().tr(QStringLiteral("importSuccess"))
+        .arg(addResult.addedCount)
+        .arg(m_neteaseTracks.size())
+        .arg(searchResult.failCount));
+    m_statusLabel->setStyleSheet(QStringLiteral("color: %1; font-size: 13px; background: transparent;")
+        .arg(QString::fromUtf8(Theme::kMint)));
+
+    m_closeBtn->setText(I18n::instance().tr(QStringLiteral("close")));
+    m_importBtn->hide();
+    m_fetchBtn->hide();
+
+    emit importCompleted(addResult.addedCount, m_neteaseTracks.size(), searchResult.failCount, importedToFavorites);
 }
 
 void NeteaseImportDialog::setError(const QString &error)
