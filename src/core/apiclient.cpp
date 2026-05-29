@@ -1138,14 +1138,14 @@ void ApiClient::batchAddMusicToPlaylist(int playlistId, const QList<int> &musicI
     req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     
-    // 构建请求体 { "playlistId": xxx, "items": [...] }
+    // 构建请求体 { "playlistId": xxx, "musicIds": [...] }
     QJsonArray idsArray;
     for (int id : uniqueIds) {
         idsArray.append(id);
     }
     QJsonObject body;
     body[QStringLiteral("playlistId")] = playlistId;
-    body[QStringLiteral("items")] = idsArray;
+    body[QStringLiteral("musicIds")] = idsArray;
     
     auto *reply = m_nam.post(req, QJsonDocument(body).toJson());
     connect(reply, &QNetworkReply::finished, this, [reply, cb, totalCount = uniqueIds.size()]() {
