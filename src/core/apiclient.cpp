@@ -18,6 +18,7 @@
 #include <QSaveFile>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QSet>
 
 ApiClient::ApiClient(QObject *parent) : QObject(parent) {}
 
@@ -1119,41 +1120,58 @@ void ApiClient::batchAddMusicToPlaylist(int playlistId, const QList<int> &musicI
         return;
     }
     
-    // 创建共享状态
-    struct AddState {
-        int addedCount = 0;
-        int failCount = 0;
-        int pendingCount = 0;
-        QMutex mutex;
-    };
-    auto *state = new AddState();
-    state->pendingCount = musicIds.size();
-    
-    // 逐个添加
-    for (int musicId : musicIds) {
-        addMusicToPlaylist(playlistId, musicId, [state, cb, totalCount = musicIds.size()]
-                          (bool ok, const QString &message) {
-            QMutexLocker locker(&state->mutex);
-            
-            state->pendingCount--;
-            
-            if (ok) {
-                state->addedCount++;
-            } else {
-                state->failCount++;
-            }
-            
-            // 检查是否全部完成
-            if (state->pendingCount <= 0) {
-                BatchAddResult result;
-                result.success = true;
-                result.addedCount = state->addedCount;
-                result.message = QString::fromUtf8("添加完成: 成功 %1, 失败 %2")
-                    .arg(state->addedCount).arg(state->failCount);
-                
-                if (cb) cb(true, result);
-                delete state;
-            }
-        });
+    // 去重
+    QList<int> uniqueIds;
+    QSet<int> seen;
+    for (int id : musicIds) {
+        if (!seen.contains(id)) {
+            seen.insert(id);
+            uniqueIds.append(id);
+        }
     }
+    
+    qDebug() << "[批量添加] 歌单ID:" << playlistId << ", 共" << uniqueIds.size() << "首歌曲";
+    
+    // 使用 musicIds 批量添加 API
+    QUrl url(QString::fromUtf8("%1/api/user/playlist/music/add").arg(Theme::kApiBase));
+    QNetworkRequest req(url);
+    req.setRawHeader("Authorization", UserManager::instance().token().toUtf8());
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    
+    // 构建请求体 { "playlistId": xxx, "musicIds": [...] }
+    QJsonArray idsArray;
+    for (int id : uniqueIds) {
+        idsArray.append(id);
+    }
+    QJsonObject body;
+    body[QStringLiteral("playlistId")] = playlistId;
+    body[QStringLiteral("musicIds")] = idsArray;
+    
+    auto *reply = m_nam.post(req, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [reply, cb, totalCount = uniqueIds.size()]() {
+        reply->deleteLater();
+        BatchAddResult result;
+        
+        if (reply->error() != QNetworkReply::NoError) {
+            qDebug() << "[批量添加] 请求失败:" << reply->errorString();
+            result.success = false;
+            result.message = reply->errorString();
+            if (cb) cb(false, result);
+            return;
+        }
+        
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto root = doc.object();
+        bool ok = root.value(QStringLiteral("success")).toBool();
+        QString message = root.value(QStringLiteral("message")).toString();
+        int addedCount = root.value(QStringLiteral("addedCount")).toInt();
+        
+        result.success = ok;
+        result.message = message;
+        result.addedCount = addedCount > 0 ? addedCount : (ok ? totalCount : 0);
+        
+        qDebug() << "[批量添加] 完成, success:" << ok << ", addedCount:" << result.addedCount << ", message:" << message;
+        
+        if (cb) cb(ok, result);
+    });
 }
