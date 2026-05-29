@@ -41,6 +41,7 @@ signals:
     void navigationRequested(const QString &key);
     void playlistClicked(int playlistId);
     void playlistCreateRequested();
+    void neteaseImportRequested();
 
 protected:
     void paintEvent(QPaintEvent *) override;
@@ -64,6 +65,7 @@ private:
     QVBoxLayout *m_playlistLayout = nullptr;
     QList<PlaylistListItem *> m_playlistItems;
     QPushButton *m_createPlaylistBtn = nullptr;
+    QPushButton *m_importNeteaseBtn = nullptr;
 
     // 收藏的歌单区域
     QWidget *m_favPlaylistContainer = nullptr;

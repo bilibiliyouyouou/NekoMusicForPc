@@ -492,6 +492,27 @@ static QMap<QString, QString> zhCN()
     m["basicInfo"] = QStringLiteral("基本信息");
     m["uploadNote"] = QStringLiteral("上传的音乐会进入待审核状态，审核通过后发布");
 
+    // --- 网易云歌单导入 ---
+    m["importNeteasePlaylist"] = QStringLiteral("导入网易云歌单");
+    m["importNeteaseDesc"] = QStringLiteral("输入网易云歌单链接或ID，将歌曲导入到本地歌单");
+    m["inputNeteaseLink"] = QStringLiteral("输入网易云歌单链接或ID...");
+    m["fetchPlaylist"] = QStringLiteral("获取歌单");
+    m["selectTargetPlaylist"] = QStringLiteral("选择目标歌单：");
+    m["startImport"] = QStringLiteral("开始导入");
+    m["invalidNeteaseLink"] = QStringLiteral("无效的歌单链接或ID");
+    m["fetchPlaylistFailed"] = QStringLiteral("获取歌单失败");
+    m["emptyNeteasePlaylist"] = QStringLiteral("歌单为空");
+    m["neteasePlaylistInfo"] = QStringLiteral("歌单：%1（共 %2 首歌曲）");
+    m["loadPlaylistsFailed"] = QStringLiteral("加载歌单列表失败");
+    m["noPlaylistsToImport"] = QStringLiteral("没有可用的歌单，请先创建歌单");
+    m["noTracksToImport"] = QStringLiteral("没有歌曲可导入");
+    m["searchingTracks"] = QStringLiteral("正在搜索匹配歌曲...");
+    m["searchFailed"] = QStringLiteral("搜索失败");
+    m["noMatchedTracks"] = QStringLiteral("未找到匹配的歌曲");
+    m["addingToPlaylist"] = QStringLiteral("正在添加 %1 首歌曲到歌单...");
+    m["addToPlaylistFailed"] = QStringLiteral("添加到歌单失败");
+    m["importSuccess"] = QStringLiteral("导入成功！成功添加 %1 首，共 %2 首，%3 首未匹配");
+
     // --- 异常与调试 ---
     m["emptyMusic"] = QStringLiteral("音乐数据为空");
     m["musicInPlaylist"] = QStringLiteral("音乐已在播放列表中");
@@ -1239,6 +1260,27 @@ static QMap<QString, QString> enUS()
     m["vipQrImageLoadFailed"] = "Failed to load QR image";
     m["basicInfo"] = "Basic Info";
     m["uploadNote"] = "Uploaded music will be pending review, published after approval";
+
+    // --- Netease Playlist Import ---
+    m["importNeteasePlaylist"] = "Import Netease Playlist";
+    m["importNeteaseDesc"] = "Enter Netease playlist link or ID to import songs to local playlist";
+    m["inputNeteaseLink"] = "Enter Netease playlist link or ID...";
+    m["fetchPlaylist"] = "Fetch Playlist";
+    m["selectTargetPlaylist"] = "Select target playlist:";
+    m["startImport"] = "Start Import";
+    m["invalidNeteaseLink"] = "Invalid playlist link or ID";
+    m["fetchPlaylistFailed"] = "Failed to fetch playlist";
+    m["emptyNeteasePlaylist"] = "Playlist is empty";
+    m["neteasePlaylistInfo"] = "Playlist: %1 (%2 songs)";
+    m["loadPlaylistsFailed"] = "Failed to load playlists";
+    m["noPlaylistsToImport"] = "No playlists available, please create one first";
+    m["noTracksToImport"] = "No tracks to import";
+    m["searchingTracks"] = "Searching for matching tracks...";
+    m["searchFailed"] = "Search failed";
+    m["noMatchedTracks"] = "No matching tracks found";
+    m["addingToPlaylist"] = "Adding %1 tracks to playlist...";
+    m["addToPlaylistFailed"] = "Failed to add to playlist";
+    m["importSuccess"] = "Import successful! Added %1 of %2 tracks, %3 not matched";
 
     return m;
 }

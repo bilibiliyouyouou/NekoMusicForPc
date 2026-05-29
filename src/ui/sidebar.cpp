@@ -149,6 +149,17 @@ void Sidebar::setupUi()
         emit playlistCreateRequested();
     });
     lay->addWidget(m_createPlaylistBtn);
+    
+    // 导入网易云歌单按钮
+    m_importNeteaseBtn = new QPushButton(I18n::instance().tr("importNeteasePlaylist"), container);
+    m_importNeteaseBtn->setObjectName("sbCreatePlaylist");
+    m_importNeteaseBtn->setFixedHeight(36);
+    m_importNeteaseBtn->setCursor(Qt::PointingHandCursor);
+    m_importNeteaseBtn->setToolTip(I18n::instance().tr("importNeteaseDesc"));
+    connect(m_importNeteaseBtn, &QPushButton::clicked, this, [this]() {
+        emit neteaseImportRequested();
+    });
+    lay->addWidget(m_importNeteaseBtn);
 
     // 收藏歌单分隔线
     auto *favDiv = new QWidget(container);
@@ -478,4 +489,3 @@ void Sidebar::paintEvent(QPaintEvent *)
     GlassPaint::paintBarGlass(p, rect(), GlassPaint::BarKind::Sidebar,
                               Theme::ThemeManager::instance().isDarkMode());
 }
-

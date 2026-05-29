@@ -21,6 +21,7 @@
 #include "ui/artistdetailpage.h"
 #include "ui/vippage.h"
 #include "ui/addtoplaylistdialog.h"
+#include "ui/neteaseimportdialog.h"
 #include "ui/playlistpanel.h"
 #include "ui/toast.h"
 #include "ui/updatedialog.h"
@@ -512,6 +513,19 @@ void MainWindow::setupUi()
     connect(m_recentPage, &RecentPage::playPauseRequested, this, &MainWindow::togglePlaybackForSystemUi);
     connect(m_sidebar, &Sidebar::playlistClicked, this, &MainWindow::showPlaylistDetailPage);
     connect(m_sidebar, &Sidebar::playlistCreateRequested, this, &MainWindow::createPlaylist);
+    connect(m_sidebar, &Sidebar::neteaseImportRequested, this, [this]() {
+        if (!UserManager::instance().isLoggedIn()) {
+            Toast::show(this, I18n::instance().tr("loginRequired"), Toast::Error);
+            return;
+        }
+        auto *dlg = new NeteaseImportDialog(m_apiClient, this);
+        connect(dlg, &NeteaseImportDialog::importCompleted, this, [this]() {
+            m_sidebar->refreshPlaylists();
+            Toast::show(this, I18n::instance().tr("importSuccess"), Toast::Success);
+        });
+        dlg->exec();
+        dlg->deleteLater();
+    });
     connect(m_titleBar, &TitleBar::settingsClicked, this, [this]() {
         switchPage(m_settingsPage);
     });

@@ -16,6 +16,8 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QSaveFile>
+#include <QMutex>
+#include <QMutexLocker>
 
 ApiClient::ApiClient(QObject *parent) : QObject(parent) {}
 
@@ -917,4 +919,195 @@ void ApiClient::downloadVideoRenderFile(const QString &jobId, const QString &sav
         if (cb)
             cb(true, QString());
     });
+}
+
+// ─── 网易云歌单导入 ────────────────────────────────────
+
+void ApiClient::fetchNeteasePlaylist(qint64 playlistId, NeteasePlaylistCb cb)
+{
+    // 使用网易云音乐公开 API 获取歌单详情
+    // 此 API 由第三方维护，可能需要替换为其他可用的服务
+    QUrl url(QString::fromUtf8("https://music.163.com/api/v6/playlist/detail?id=%1").arg(playlistId));
+    QNetworkRequest req(url);
+    req.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+    req.setRawHeader("Referer", "https://music.163.com/");
+    
+    auto *reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [reply, cb, playlistId]() {
+        reply->deleteLater();
+        NeteasePlaylistInfo info;
+        info.id = playlistId;
+        
+        if (reply->error() != QNetworkReply::NoError) {
+            qDebug() << "[网易云歌单] 请求失败:" << reply->errorString();
+            if (cb) cb(false, reply->errorString(), info);
+            return;
+        }
+        
+        const QByteArray data = reply->readAll();
+        const auto doc = QJsonDocument::fromJson(data);
+        const auto root = doc.object();
+        
+        // 检查 API 响应
+        int code = root.value(QStringLiteral("code")).toInt();
+        if (code != 200) {
+            QString msg = root.value(QStringLiteral("message")).toString();
+            if (msg.isEmpty()) msg = QStringLiteral("获取歌单失败");
+            qDebug() << "[网易云歌单] API 返回错误:" << code << msg;
+            if (cb) cb(false, msg, info);
+            return;
+        }
+        
+        // 解析歌单信息
+        const auto playlist = root.value(QStringLiteral("playlist")).toObject();
+        info.name = playlist.value(QStringLiteral("name")).toString();
+        info.trackCount = playlist.value(QStringLiteral("trackCount")).toInt();
+        
+        // 解析歌曲列表
+        const auto tracks = playlist.value(QStringLiteral("tracks")).toArray();
+        for (const auto &trackVal : tracks) {
+            const auto track = trackVal.toObject();
+            NeteaseTrack t;
+            t.name = track.value(QStringLiteral("name")).toString();
+            
+            // 获取艺术家名称
+            const auto artists = track.value(QStringLiteral("ar")).toArray();
+            QStringList artistNames;
+            for (const auto &artistVal : artists) {
+                artistNames.append(artistVal.toObject().value(QStringLiteral("name")).toString());
+            }
+            t.artist = artistNames.join(QStringLiteral(", "));
+            
+            if (!t.name.isEmpty()) {
+                info.tracks.append(t);
+            }
+        }
+        
+        qDebug() << "[网易云歌单] 获取成功, 歌单:" << info.name << ", 歌曲数:" << info.tracks.size();
+        if (cb) cb(true, QString(), info);
+    });
+}
+
+void ApiClient::batchSearchMusic(const QList<BatchSearchItem> &items, BatchSearchCb cb)
+{
+    if (items.isEmpty()) {
+        BatchSearchResult result;
+        result.success = true;
+        result.message = QStringLiteral("没有要搜索的歌曲");
+        if (cb) cb(true, result);
+        return;
+    }
+    
+    // 创建共享状态
+    struct SearchState {
+        QList<int> matchedIds;
+        int successCount = 0;
+        int failCount = 0;
+        int pendingCount = 0;
+        QMutex mutex;
+    };
+    auto *state = new SearchState();
+    state->pendingCount = items.size();
+    
+    // 逐个搜索
+    for (int i = 0; i < items.size(); ++i) {
+        const auto &item = items[i];
+        QString query = item.title;
+        if (!item.artist.isEmpty()) {
+            query = item.title + QStringLiteral(" ") + item.artist;
+        }
+        
+        // 使用现有的搜索 API
+        searchMusic(query, 1, 5, [state, cb, item, totalCount = items.size()]
+                    (bool ok, int total, int page, int pageSize, const QList<QVariantMap> &results) {
+            QMutexLocker locker(&state->mutex);
+            
+            state->pendingCount--;
+            
+            if (ok && !results.isEmpty()) {
+                // 简单匹配：取第一个结果
+                int musicId = results.first().value(QStringLiteral("id")).toInt();
+                if (musicId > 0) {
+                    state->matchedIds.append(musicId);
+                    state->successCount++;
+                } else {
+                    state->failCount++;
+                }
+            } else {
+                state->failCount++;
+            }
+            
+            // 检查是否全部完成
+            if (state->pendingCount <= 0) {
+                BatchSearchResult result;
+                result.success = true;
+                result.matchedMusicIds = state->matchedIds;
+                result.successCount = state->successCount;
+                result.failCount = state->failCount;
+                result.message = QString::fromUtf8("搜索完成: 成功 %1, 失败 %2")
+                    .arg(state->successCount).arg(state->failCount);
+                
+                if (cb) cb(true, result);
+                delete state;
+            }
+        });
+    }
+}
+
+void ApiClient::batchAddMusicToPlaylist(int playlistId, const QList<int> &musicIds, BatchAddMusicCb cb)
+{
+    if (musicIds.isEmpty()) {
+        BatchAddResult result;
+        result.success = true;
+        result.message = QStringLiteral("没有要添加的歌曲");
+        result.addedCount = 0;
+        if (cb) cb(true, result);
+        return;
+    }
+    
+    if (!UserManager::instance().isLoggedIn()) {
+        BatchAddResult result;
+        result.success = false;
+        result.message = QStringLiteral("请先登录");
+        if (cb) cb(false, result);
+        return;
+    }
+    
+    // 创建共享状态
+    struct AddState {
+        int addedCount = 0;
+        int failCount = 0;
+        int pendingCount = 0;
+        QMutex mutex;
+    };
+    auto *state = new AddState();
+    state->pendingCount = musicIds.size();
+    
+    // 逐个添加
+    for (int musicId : musicIds) {
+        addMusicToPlaylist(playlistId, musicId, [state, cb, totalCount = musicIds.size()]
+                          (bool ok, const QString &message) {
+            QMutexLocker locker(&state->mutex);
+            
+            state->pendingCount--;
+            
+            if (ok) {
+                state->addedCount++;
+            } else {
+                state->failCount++;
+            }
+            
+            // 检查是否全部完成
+            if (state->pendingCount <= 0) {
+                BatchAddResult result;
+                result.success = true;
+                result.addedCount = state->addedCount;
+                result.message = QString::fromUtf8("添加完成: 成功 %1, 失败 %2")
+                    .arg(state->addedCount).arg(state->failCount);
+                
+                if (cb) cb(true, result);
+                delete state;
+            }
+        });
+    }
 }

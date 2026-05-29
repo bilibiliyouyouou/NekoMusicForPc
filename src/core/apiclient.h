@@ -123,6 +123,42 @@ public:
     using VideoRenderDownloadCb = std::function<void(bool, const QString &)>;
     void downloadVideoRenderFile(const QString &jobId, const QString &saveFilePath, VideoRenderDownloadCb cb);
 
+    // ─── 网易云歌单导入 ────────────────────────────────────
+    struct NeteaseTrack {
+        QString name;
+        QString artist;
+    };
+    struct NeteasePlaylistInfo {
+        qint64 id = 0;
+        QString name;
+        int trackCount = 0;
+        QList<NeteaseTrack> tracks;
+    };
+    using NeteasePlaylistCb = std::function<void(bool ok, const QString &message, const NeteasePlaylistInfo &playlist)>;
+    void fetchNeteasePlaylist(qint64 playlistId, NeteasePlaylistCb cb);
+
+    struct BatchSearchItem {
+        QString title;
+        QString artist;
+    };
+    struct BatchSearchResult {
+        bool success = false;
+        QString message;
+        QList<int> matchedMusicIds;
+        int successCount = 0;
+        int failCount = 0;
+    };
+    using BatchSearchCb = std::function<void(bool ok, const BatchSearchResult &result)>;
+    void batchSearchMusic(const QList<BatchSearchItem> &items, BatchSearchCb cb);
+
+    struct BatchAddResult {
+        bool success = false;
+        QString message;
+        int addedCount = 0;
+    };
+    using BatchAddMusicCb = std::function<void(bool ok, const BatchAddResult &result)>;
+    void batchAddMusicToPlaylist(int playlistId, const QList<int> &musicIds, BatchAddMusicCb cb);
+
 private:
     QNetworkAccessManager m_nam;
     QString getAuthToken() const;
