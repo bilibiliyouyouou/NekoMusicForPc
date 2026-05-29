@@ -496,6 +496,8 @@ static QMap<QString, QString> zhCN()
     m["importNeteasePlaylist"] = QStringLiteral("导入网易云歌单");
     m["importNeteaseDesc"] = QStringLiteral("输入网易云歌单链接或ID，将歌曲导入到本地歌单");
     m["inputNeteaseLink"] = QStringLiteral("输入网易云歌单链接或ID...");
+    m["createNewPlaylist"] = QStringLiteral("➕ 新建歌单");
+    m["creatingPlaylist"] = QStringLiteral("正在创建歌单...");
     m["fetchPlaylist"] = QStringLiteral("获取歌单");
     m["selectTargetPlaylist"] = QStringLiteral("选择目标歌单：");
     m["startImport"] = QStringLiteral("开始导入");
@@ -1265,6 +1267,8 @@ static QMap<QString, QString> enUS()
     m["importNeteasePlaylist"] = "Import Netease Playlist";
     m["importNeteaseDesc"] = "Enter Netease playlist link or ID to import songs to local playlist";
     m["inputNeteaseLink"] = "Enter Netease playlist link or ID...";
+    m["createNewPlaylist"] = "➕ Create New Playlist";
+    m["creatingPlaylist"] = "Creating playlist...";
     m["fetchPlaylist"] = "Fetch Playlist";
     m["selectTargetPlaylist"] = "Select target playlist:";
     m["startImport"] = "Start Import";

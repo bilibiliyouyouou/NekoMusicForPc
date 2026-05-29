@@ -37,6 +37,7 @@ private slots:
 private:
     void setupUi();
     void updatePlaylistCombo();
+    void doImport(int targetPlaylistId);
     void setStep(int step);
     void setError(const QString &error);
     void setProgress(const QString &status);
@@ -50,6 +51,7 @@ private:
     QPushButton *m_fetchBtn = nullptr;
     QLabel *m_playlistInfoLabel = nullptr;
     QComboBox *m_targetPlaylistCombo = nullptr;
+    QLineEdit *m_newPlaylistEdit = nullptr;
     QPushButton *m_importBtn = nullptr;
     QProgressBar *m_progressBar = nullptr;
     QLabel *m_statusLabel = nullptr;
