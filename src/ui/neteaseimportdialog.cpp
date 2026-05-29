@@ -427,44 +427,18 @@ void NeteaseImportDialog::onStartImport()
     m_progressBar->setValue(5);
     m_statusLabel->show();
     setError(QString());
-    
-    // 如果需要新建歌单
-    if (targetPlaylistId == kImportTargetNewPlaylist) {
-        m_statusLabel->setText(I18n::instance().tr(QStringLiteral("creatingPlaylist")));
-        const QString newName = m_newPlaylistEdit->text().trimmed();
 
-        m_apiClient->createPlaylist(newName, QString(), [this](bool success, const QString &msg, const QVariantMap &data) {
-            if (!success) {
-                setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
-                m_fetchBtn->setEnabled(true);
-                m_importBtn->setEnabled(true);
-                m_targetPlaylistCombo->setEnabled(true);
-                m_newPlaylistEdit->setEnabled(true);
-                m_progressBar->hide();
-                m_statusLabel->hide();
-                return;
-            }
-            
-            int newPlaylistId = data.value(QStringLiteral("id")).toInt();
-            if (newPlaylistId <= 0) {
-                setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
-                m_fetchBtn->setEnabled(true);
-                m_importBtn->setEnabled(true);
-                m_targetPlaylistCombo->setEnabled(true);
-                m_newPlaylistEdit->setEnabled(true);
-                m_progressBar->hide();
-                m_statusLabel->hide();
-                return;
-            }
-            
-            m_progressBar->setValue(10);
-            // 继续导入流程
-            doImport(newPlaylistId);
-        });
-    } else {
-        // 直接导入到现有歌单
-        doImport(targetPlaylistId);
-    }
+    doImport(targetPlaylistId);
+}
+
+void NeteaseImportDialog::restoreImportControls()
+{
+    m_fetchBtn->setEnabled(true);
+    m_importBtn->setEnabled(true);
+    m_targetPlaylistCombo->setEnabled(true);
+    m_newPlaylistEdit->setEnabled(true);
+    m_progressBar->hide();
+    m_statusLabel->hide();
 }
 
 void NeteaseImportDialog::doImport(int targetPlaylistId)
@@ -480,17 +454,10 @@ void NeteaseImportDialog::doImport(int targetPlaylistId)
         searchItems.append(item);
     }
 
-    const bool importToFavorites = (targetPlaylistId == kImportTargetFavorites);
-
-    m_apiClient->batchSearchMusic(searchItems, [this, targetPlaylistId, importToFavorites](bool success, const ApiClient::BatchSearchResult &result) {
+    m_apiClient->batchSearchMusic(searchItems, [this, targetPlaylistId](bool success, const ApiClient::BatchSearchResult &result) {
         if (!success) {
             setError(I18n::instance().tr(QStringLiteral("searchServiceBusy")));
-            m_fetchBtn->setEnabled(true);
-            m_importBtn->setEnabled(true);
-            m_targetPlaylistCombo->setEnabled(true);
-            m_newPlaylistEdit->setEnabled(true);
-            m_progressBar->hide();
-            m_statusLabel->hide();
+            restoreImportControls();
             return;
         }
 
@@ -498,28 +465,62 @@ void NeteaseImportDialog::doImport(int targetPlaylistId)
 
         if (result.matchedMusicIds.isEmpty()) {
             setError(I18n::instance().tr(QStringLiteral("noMatchedTracks")));
-            m_fetchBtn->setEnabled(true);
-            m_importBtn->setEnabled(true);
-            m_targetPlaylistCombo->setEnabled(true);
-            m_newPlaylistEdit->setEnabled(true);
-            m_progressBar->hide();
-            m_statusLabel->hide();
+            restoreImportControls();
             return;
         }
 
-        m_statusLabel->setText(I18n::instance().tr(QStringLiteral("addingToPlaylist"))
-            .arg(result.matchedMusicIds.size()));
-
-        auto finishCb = [this, searchResult = result, importToFavorites](bool addSuccess, const ApiClient::BatchAddResult &addResult) {
-            finishImport(searchResult, addSuccess, addResult, importToFavorites);
-        };
-
-        if (importToFavorites) {
-            m_apiClient->batchAddFavorites(result.matchedMusicIds, finishCb);
-        } else {
-            m_apiClient->batchAddMusicToPlaylist(targetPlaylistId, result.matchedMusicIds, finishCb);
-        }
+        addMatchedTracks(targetPlaylistId, result);
     });
+}
+
+void NeteaseImportDialog::addMatchedTracks(int targetPlaylistId, const ApiClient::BatchSearchResult &searchResult)
+{
+    const bool importToFavorites = (targetPlaylistId == kImportTargetFavorites);
+
+    auto finishCb = [this, searchResult, importToFavorites](bool addSuccess, const ApiClient::BatchAddResult &addResult) {
+        finishImport(searchResult, addSuccess, addResult, importToFavorites);
+    };
+
+    auto beginAdd = [this, searchResult, finishCb](int resolvedPlaylistId) {
+        m_statusLabel->setText(I18n::instance().tr(QStringLiteral("addingToPlaylist"))
+            .arg(searchResult.matchedMusicIds.size()));
+        m_progressBar->setValue(70);
+        m_apiClient->batchAddMusicToPlaylist(resolvedPlaylistId, searchResult.matchedMusicIds, finishCb);
+    };
+
+    if (importToFavorites) {
+        m_statusLabel->setText(I18n::instance().tr(QStringLiteral("addingToPlaylist"))
+            .arg(searchResult.matchedMusicIds.size()));
+        m_progressBar->setValue(70);
+        m_apiClient->batchAddFavorites(searchResult.matchedMusicIds, finishCb);
+        return;
+    }
+
+    if (targetPlaylistId == kImportTargetNewPlaylist) {
+        const QString newName = m_newPlaylistEdit->text().trimmed();
+        m_statusLabel->setText(I18n::instance().tr(QStringLiteral("creatingPlaylist")));
+        m_progressBar->setValue(60);
+
+        m_apiClient->createPlaylist(newName, QString(), [this, searchResult, beginAdd](bool success, const QString &msg, const QVariantMap &data) {
+            if (!success) {
+                setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
+                restoreImportControls();
+                return;
+            }
+
+            const int newPlaylistId = data.value(QStringLiteral("id")).toInt();
+            if (newPlaylistId <= 0) {
+                setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
+                restoreImportControls();
+                return;
+            }
+
+            beginAdd(newPlaylistId);
+        });
+        return;
+    }
+
+    beginAdd(targetPlaylistId);
 }
 
 void NeteaseImportDialog::finishImport(const ApiClient::BatchSearchResult &searchResult,
@@ -531,12 +532,7 @@ void NeteaseImportDialog::finishImport(const ApiClient::BatchSearchResult &searc
 
     if (!addSuccess) {
         setError(I18n::instance().tr(QStringLiteral("addToPlaylistFailed")));
-        m_fetchBtn->setEnabled(true);
-        m_importBtn->setEnabled(true);
-        m_targetPlaylistCombo->setEnabled(true);
-        m_newPlaylistEdit->setEnabled(true);
-        m_progressBar->hide();
-        m_statusLabel->hide();
+        restoreImportControls();
         return;
     }
 

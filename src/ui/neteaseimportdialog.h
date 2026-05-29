@@ -38,6 +38,8 @@ private:
     void setupUi();
     void updatePlaylistCombo();
     void doImport(int targetPlaylistId);
+    void addMatchedTracks(int targetPlaylistId, const ApiClient::BatchSearchResult &searchResult);
+    void restoreImportControls();
     void finishImport(const ApiClient::BatchSearchResult &searchResult,
                       bool addSuccess,
                       const ApiClient::BatchAddResult &addResult,
