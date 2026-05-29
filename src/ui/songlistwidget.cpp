@@ -263,6 +263,11 @@ void SongListWidget::applyTheme()
                                     .arg(dark ? 108 : 125));
     }
 
+    if (m_container) {
+        m_container->setStyleSheet(QStringLiteral(
+            "QWidget#songListContainer { background: transparent; }"));
+    }
+
     for (SongCardWidget *card : m_rowCards)
         card->applyTheme();
     for (SongCardWidget *card : m_cardPool)
