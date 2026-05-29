@@ -287,25 +287,39 @@ QString NeteaseImportDialog::parsePlaylistId(const QString &input)
     if (trimmed.isEmpty())
         return QString();
     
-    // 纯数字
+    // 纯数字（直接是歌单 ID）
     static QRegularExpression digitsOnly(QStringLiteral("^\\d+$"));
     if (digitsOnly.match(trimmed).hasMatch())
         return trimmed;
     
-    // URL 格式
+    // URL 格式：playlist?id=xxx
     static QRegularExpression playlistQueryId(QStringLiteral("playlist\\?id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
-    static QRegularExpression urlIdParam(QStringLiteral("[?&]id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
-    static QRegularExpression playlistPathId(QStringLiteral("playlist/(\\d+)"), QRegularExpression::CaseInsensitiveOption);
-    
     auto match = playlistQueryId.match(trimmed);
     if (match.hasMatch())
         return match.captured(1);
     
+    // URL 格式：?id=xxx 或 &id=xxx
+    static QRegularExpression urlIdParam(QStringLiteral("[?&]id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
     match = urlIdParam.match(trimmed);
     if (match.hasMatch())
         return match.captured(1);
     
+    // URL 格式：playlist/xxx
+    static QRegularExpression playlistPathId(QStringLiteral("playlist/(\\d+)"), QRegularExpression::CaseInsensitiveOption);
     match = playlistPathId.match(trimmed);
+    if (match.hasMatch())
+        return match.captured(1);
+    
+    // 从复制的分享内容中提取（包含 http 链接的任意文本）
+    // 例如：分享xxx的歌单《xxx》 https://music.163.com/playlist?id=12345678&userid=xxx
+    static QRegularExpression anyPlaylistId(QStringLiteral("music\\.163\\.com.*?[?&]id=(\\d+)"), QRegularExpression::CaseInsensitiveOption);
+    match = anyPlaylistId.match(trimmed);
+    if (match.hasMatch())
+        return match.captured(1);
+    
+    // 最后尝试：在整段文本中找任意长数字（>= 7 位，歌单 ID 通常很长）
+    static QRegularExpression longDigits(QStringLiteral("(\\d{7,})"));
+    match = longDigits.match(trimmed);
     if (match.hasMatch())
         return match.captured(1);
     
