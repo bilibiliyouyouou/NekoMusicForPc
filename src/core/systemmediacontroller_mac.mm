@@ -132,8 +132,8 @@ static NSString *qToNs(const QString &s)
     NSMutableDictionary *info = [center.nowPlayingInfo mutableCopy];
     if (!info)
         info = [NSMutableDictionary dictionary];
-    info[MPNowPlayingPropertyElapsedPlaybackTime] = @(posMs / 1000.0);
-    info[MPNowPlayingPropertyPlaybackRate] = @(rate);
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(posMs / 1000.0);
+    info[MPNowPlayingInfoPropertyPlaybackRate] = @(rate);
     center.nowPlayingInfo = info;
     center.playbackState = ps;
 }
