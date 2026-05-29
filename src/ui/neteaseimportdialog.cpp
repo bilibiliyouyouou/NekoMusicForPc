@@ -170,9 +170,31 @@ void NeteaseImportDialog::setupUi()
           dark ? QString::fromUtf8(Theme::kBgSurface) : QStringLiteral("#ffffff"),
           dark ? QStringLiteral("rgba(230, 57, 80, 0.38)") : QStringLiteral("rgba(230, 57, 80, 0.22)")));
     m_targetPlaylistCombo->hide();
+    connect(m_targetPlaylistCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        // 当选择"新建歌单"时显示输入框
+        bool isCreateNew = (m_targetPlaylistCombo->currentData().toInt() == -1);
+        m_newPlaylistEdit->setVisible(isCreateNew);
+    });
     targetLayout->addWidget(m_targetPlaylistCombo, 1);
     
     mainLayout->addLayout(targetLayout);
+    
+    // 新建歌单输入框
+    m_newPlaylistEdit = new QLineEdit(mainBox);
+    m_newPlaylistEdit->setPlaceholderText(I18n::instance().tr(QStringLiteral("inputNewPlaylistName")));
+    m_newPlaylistEdit->setStyleSheet(QStringLiteral(
+        "QLineEdit { "
+        "  background: %1; "
+        "  border: 1px solid %2; "
+        "  border-radius: 8px; "
+        "  padding: 10px 14px; "
+        "  color: %3; "
+        "  font-size: 14px; "
+        "}"
+        "QLineEdit:focus { border-color: %4; background: %5; }"
+    ).arg(inputBgColor, borderColor, textMainColor, QString::fromUtf8(Theme::kLavender), inputFocusBg));
+    m_newPlaylistEdit->hide();
+    mainLayout->addWidget(m_newPlaylistEdit);
 
     // 进度条
     m_progressBar = new QProgressBar(mainBox);
@@ -357,6 +379,9 @@ void NeteaseImportDialog::updatePlaylistCombo()
         m_userPlaylists.clear();
         m_targetPlaylistCombo->clear();
         
+        // 添加"新建歌单"选项，使用 -1 作为特殊 ID
+        m_targetPlaylistCombo->addItem(I18n::instance().tr(QStringLiteral("createNewPlaylist")), -1);
+        
         for (const auto &pl : playlists) {
             int id = pl.value(QStringLiteral("id")).toInt();
             QString name = pl.value(QStringLiteral("name")).toString();
@@ -364,10 +389,10 @@ void NeteaseImportDialog::updatePlaylistCombo()
             m_targetPlaylistCombo->addItem(name, id);
         }
         
-        if (m_userPlaylists.isEmpty()) {
-            setError(I18n::instance().tr(QStringLiteral("noPlaylistsToImport")));
-            return;
-        }
+        // 默认选择"新建歌单"，并用网易云歌单名称作为默认名
+        m_targetPlaylistCombo->setCurrentIndex(0);
+        m_newPlaylistEdit->setText(m_neteasePlaylistName);
+        m_newPlaylistEdit->show();
         
         m_targetPlaylistCombo->show();
         m_importBtn->setEnabled(true);
@@ -382,22 +407,71 @@ void NeteaseImportDialog::onStartImport()
     }
     
     int targetPlaylistId = m_targetPlaylistCombo->currentData().toInt();
-    if (targetPlaylistId <= 0) {
-        setError(I18n::instance().tr(QStringLiteral("selectTargetPlaylist")));
-        return;
+    
+    // 如果选择新建歌单，检查名称
+    if (targetPlaylistId == -1) {
+        const QString newName = m_newPlaylistEdit->text().trimmed();
+        if (newName.isEmpty()) {
+            setError(I18n::instance().tr(QStringLiteral("inputNewPlaylistName")));
+            return;
+        }
     }
     
     // 禁用按钮
     m_fetchBtn->setEnabled(false);
     m_importBtn->setEnabled(false);
     m_targetPlaylistCombo->setEnabled(false);
+    m_newPlaylistEdit->setEnabled(false);
     
     // 显示进度
     m_progressBar->show();
-    m_progressBar->setValue(10);
+    m_progressBar->setValue(5);
     m_statusLabel->show();
-    m_statusLabel->setText(I18n::instance().tr(QStringLiteral("searchingTracks")));
     setError(QString());
+    
+    // 如果需要新建歌单
+    if (targetPlaylistId == -1) {
+        m_statusLabel->setText(I18n::instance().tr(QStringLiteral("creatingPlaylist")));
+        const QString newName = m_newPlaylistEdit->text().trimmed();
+        
+        m_apiClient->createPlaylist(newName, QString(), [this](bool success, const QString &msg, const QVariantMap &data) {
+            if (!success) {
+                setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
+                m_fetchBtn->setEnabled(true);
+                m_importBtn->setEnabled(true);
+                m_targetPlaylistCombo->setEnabled(true);
+                m_newPlaylistEdit->setEnabled(true);
+                m_progressBar->hide();
+                m_statusLabel->hide();
+                return;
+            }
+            
+            int newPlaylistId = data.value(QStringLiteral("id")).toInt();
+            if (newPlaylistId <= 0) {
+                setError(I18n::instance().tr(QStringLiteral("createPlaylistFailed")));
+                m_fetchBtn->setEnabled(true);
+                m_importBtn->setEnabled(true);
+                m_targetPlaylistCombo->setEnabled(true);
+                m_newPlaylistEdit->setEnabled(true);
+                m_progressBar->hide();
+                m_statusLabel->hide();
+                return;
+            }
+            
+            m_progressBar->setValue(10);
+            // 继续导入流程
+            doImport(newPlaylistId);
+        });
+    } else {
+        // 直接导入到现有歌单
+        doImport(targetPlaylistId);
+    }
+}
+
+void NeteaseImportDialog::doImport(int targetPlaylistId)
+{
+    m_statusLabel->setText(I18n::instance().tr(QStringLiteral("searchingTracks")));
+    m_progressBar->setValue(15);
     
     // 转换为搜索项
     QList<ApiClient::BatchSearchItem> searchItems;
