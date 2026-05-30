@@ -4,6 +4,8 @@
 > [!TIP]
 > 🐾 **移动端入口**：[点击这里查看 Neko云音乐 安卓版仓库](https://github.com/MinecraftNekoServer/NekoMusicForAndroid)
 
+# 官网 https://music.cnmsb.xin
+
 > [!NOTE]
 > 本仓库 **默认分支 `main`** 为 **Qt 6 + C++** 客户端。  
 > 旧版 **Electron + Vue** 工程已单独放在 Git 分支 **`old`**（仅存档 / 按需构建），见该分支根目录的 [README](https://github.com/FantasyNetworkCN/NekoMusicForPc/blob/old/README.md)。
