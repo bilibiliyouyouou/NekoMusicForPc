@@ -2,6 +2,7 @@
 #include "roundcoverlabel.h"
 
 #include "core/covercache.h"
+#include "core/i18n.h"
 #include "core/listmetaformat.h"
 #include "ui/localmusicbadgelabel.h"
 #include "theme/theme.h"
@@ -129,6 +130,11 @@ void SongCardWidget::rebuildLayout()
     titleRowLay->addWidget(m_localBadge, 0, Qt::AlignVCenter);
     m_titleLbl = new QLabel(titleRow);
     titleRowLay->addWidget(m_titleLbl, 1, Qt::AlignVCenter);
+    m_lrcBadge = new QLabel(titleRow);
+    m_lrcBadge->setFixedSize(14, 14);
+    m_lrcBadge->setScaledContents(true);
+    m_lrcBadge->setVisible(false);
+    titleRowLay->addWidget(m_lrcBadge, 0, Qt::AlignVCenter);
 
     m_artistLbl = new QLabel(infoCol);
     infoLay->addWidget(titleRow);
@@ -158,7 +164,7 @@ void SongCardWidget::rebuildLayout()
 
     outer->addWidget(m_content, 1);
 
-    for (QLabel *lbl : {m_indexLbl, m_coverLbl, m_titleLbl, m_artistLbl, m_albumLbl, m_timeLbl})
+    for (QLabel *lbl : {m_indexLbl, m_coverLbl, m_titleLbl, m_lrcBadge, m_artistLbl, m_albumLbl, m_timeLbl})
         lbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
     installContentEventFilters();
@@ -265,6 +271,7 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
     m_titleLbl->setText(info.title);
     m_artistLbl->setText(info.artist);
     updateLocalBadge();
+    updateLrcBadge();
     updateSecondaryColumn();
     m_timeLbl->setText(formatDuration(info.duration));
 
@@ -384,6 +391,7 @@ void SongCardWidget::applyTheme()
     updateHeartIcon();
     updateOverlayIcons();
     updateLocalBadge();
+    updateLrcBadge();
     update();
 }
 
@@ -393,6 +401,19 @@ void SongCardWidget::updateLocalBadge()
         return;
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
     updateLocalMusicBadge(m_localBadge, m_info.isLocalFile(), dark);
+}
+
+void SongCardWidget::updateLrcBadge()
+{
+    if (!m_lrcBadge)
+        return;
+    const bool show = m_info.lrc;
+    m_lrcBadge->setVisible(show);
+    if (!show)
+        return;
+    static const QColor kLrcColor(0x93, 0x70, 0xdb);
+    m_lrcBadge->setPixmap(Icons::renderNamed("DesktopLyric2", 14, kLrcColor));
+    m_lrcBadge->setToolTip(I18n::instance().tr(QStringLiteral("hasLyrics")));
 }
 
 void SongCardWidget::paintEvent(QPaintEvent *)

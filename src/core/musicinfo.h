@@ -17,6 +17,8 @@ struct MusicInfo {
     int playCount = -1;
     /** 最新音乐上传时间（Unix 毫秒）；0 表示未设置 */
     qint64 uploadedAtMs = 0;
+    /** 搜索 API：该曲是否有有效歌词（仅 query 搜索会设置） */
+    bool lrc = false;
 
     bool isLocalFile() const { return !localPath.isEmpty(); }
 };

@@ -130,6 +130,7 @@ static QMap<QString, QString> zhCN()
     m["clearRecentConfirm"] = QStringLiteral("确认清空最近播放列表？该操作不可撤销！");
     m["clearRecentSuccess"] = QStringLiteral("最近播放列表已清空");
     m["localMusicBadge"] = QStringLiteral("本地");
+    m["hasLyrics"] = QStringLiteral("有歌词");
     m["ranking"] = QStringLiteral("排行榜");
     m["latest"] = QStringLiteral("最新音乐");
     m["library"] = QStringLiteral("音乐库");
@@ -590,6 +591,7 @@ static QMap<QString, QString> nyaCN()
     m["clearRecentConfirm"] = QStringLiteral("真的要清空最近播放吗？清空可就找不回来啦喵！");
     m["clearRecentSuccess"] = QStringLiteral("最近播放列表已清空喵~");
     m["localMusicBadge"] = QStringLiteral("家里的音乐喵~");
+    m["hasLyrics"] = QStringLiteral("有歌词喵~");
     m["ranking"] = QStringLiteral("最厉害的排行喵~");
     m["latest"] = QStringLiteral("新降临的旋律喵~");
     m["library"] = QStringLiteral("大大的宝库喵~");
@@ -894,6 +896,7 @@ static QMap<QString, QString> enUS()
     m["clearRecentConfirm"] = "Clear all recently played songs? This cannot be undone.";
     m["clearRecentSuccess"] = "Recently played list cleared";
     m["localMusicBadge"] = "Local";
+    m["hasLyrics"] = "Has lyrics";
     m["ranking"] = "Ranking";
     m["latest"] = "Latest";
     m["library"] = "Library";

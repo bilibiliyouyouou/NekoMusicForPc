@@ -65,6 +65,7 @@ private:
     void loadCover();
     void updateSecondaryColumn();
     void updateLocalBadge();
+    void updateLrcBadge();
     QString secondaryColumnText() const;
     QString formatDuration(int seconds) const;
 
@@ -86,6 +87,7 @@ private:
     QLabel *m_coverLbl = nullptr;
     QLabel *m_localBadge = nullptr;
     QLabel *m_titleLbl = nullptr;
+    QLabel *m_lrcBadge = nullptr;
     QLabel *m_artistLbl = nullptr;
     QLabel *m_albumLbl = nullptr;
     QLabel *m_timeLbl = nullptr;
