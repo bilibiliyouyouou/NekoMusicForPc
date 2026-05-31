@@ -76,6 +76,10 @@ protected:
 private:
     void setupUi();
     void layoutPlayerBarChrome(); // relayoutChrome()
+    /** 播放控件绝对居中（不占 flex 槽位，避免左右列挤压偏移） */
+    void layoutCenterControls();
+    /** 底栏单侧（左/右）可用宽度上限，由窗口几何推算，不读 m_pbLeft 当前宽 */
+    int playerBarSideBudget() const;
     void applyPlayerBarGlassStyle();
     void updateState();
     void setCoverPixmap(const QPixmap &pm);
@@ -98,6 +102,7 @@ private:
 
     QWidget *m_pbLeft = nullptr;
     QWidget *m_pbCenter = nullptr;
+    QWidget *m_pbCenterSpacer = nullptr;
     QWidget *m_pbRight = nullptr;
     QWidget *m_titleRow = nullptr;
 

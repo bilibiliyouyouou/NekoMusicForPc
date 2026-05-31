@@ -233,7 +233,7 @@ public:
     {
         setObjectName(QStringLiteral("pbLyricSlot"));
         setFixedHeight(kPbArtistLineH);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
         setAttribute(Qt::WA_TranslucentBackground);
         setAutoFillBackground(false);
 
@@ -473,24 +473,14 @@ int titleRowWidthBesidesSong(QWidget *titleRow, QWidget *songWidget)
     return w;
 }
 
-/** 第二行限宽：与标题行右缘（收藏按钮）对齐；用 maximumWidth，不用收缩后的实际 width */
-int titleRowLineMaxWidth(QWidget *titleRow, QWidget *songWidget)
+/** 第二行限宽：与标题行布局后的实际右缘（末个按钮）对齐 */
+int titleRowActualWidth(QWidget *titleRow)
 {
     if (!titleRow)
         return 0;
-
-    const int cap = titleRow->maximumWidth();
-    if (cap > 0 && cap < 10000)
-        return cap;
-
-    int w = titleRowWidthBesidesSong(titleRow, songWidget);
-    if (songWidget) {
-        if (auto *marquee = pbSongMarquee(qobject_cast<QLabel *>(songWidget)))
-            w += marquee->maxDisplayWidth();
-        else
-            w += widgetEffectiveWidth(songWidget);
-    }
-    return w;
+    if (titleRow->width() > 0)
+        return titleRow->width();
+    return titleRow->sizeHint().width();
 }
 
 QPixmap makeUnknownCover(int size, bool dark)
@@ -761,6 +751,47 @@ void PlayerBar::setFloatingProgressSuppressed(bool suppressed)
     layoutPlayerBarChrome();
 }
 
+void PlayerBar::layoutCenterControls()
+{
+    if (!m_pbCenter)
+        return;
+
+    QWidget *row = m_pbCenter->parentWidget();
+    if (!row)
+        return;
+
+    const int rowW = row->width();
+    const int rowH = row->height();
+    if (rowW < 1 || rowH < 1)
+        return;
+
+    const QSize hint = m_pbCenter->sizeHint();
+    const int cw = qMax(m_pbCenter->width(), hint.width());
+    const int ch = qMax(m_pbCenter->height(), hint.height());
+    if (m_pbCenterSpacer)
+        m_pbCenterSpacer->setFixedWidth(cw);
+    m_pbCenter->setGeometry((rowW - cw) / 2, (rowH - ch) / 2, cw, ch);
+    m_pbCenter->raise();
+}
+
+int PlayerBar::playerBarSideBudget() const
+{
+    int marginH = 0;
+    if (m_glass) {
+        if (QWidget *body = m_glass->contentWidget()) {
+            if (QLayout *bodyLay = body->layout())
+                marginH = bodyLay->contentsMargins().left() + bodyLay->contentsMargins().right();
+        }
+    }
+
+    const int barInner = qMax(0, width() - marginH);
+    const int centerW = m_pbCenter
+        ? qMax(m_pbCenter->minimumSizeHint().width(), m_pbCenter->sizeHint().width())
+        : 0;
+    const int side = (barInner - centerW) / 2;
+    return qBound(kPbCoverSize + 40, side, 640);
+}
+
 void PlayerBar::layoutPlayerBarChrome()
 {
     const int w = width();
@@ -769,6 +800,8 @@ void PlayerBar::layoutPlayerBarChrome()
 
     if (m_glass)
         m_glass->setGeometry(0, 0, w, Theme::kPlayerBarBodyH);
+
+    layoutCenterControls();
 
     if (!m_progress)
         return;
@@ -1008,7 +1041,13 @@ void PlayerBar::setupUi()
     });
     ctrlL->addWidget(nextBtn);
 
-    lay->addWidget(center, 0, Qt::AlignVCenter);
+    // 布局占位保留原三列 flex；实际控件浮层绝对居中
+    m_pbCenterSpacer = new QWidget(mainRow);
+    m_pbCenterSpacer->setObjectName(QStringLiteral("pbCenterSpacer"));
+    m_pbCenterSpacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    m_pbCenterSpacer->setFixedWidth(center->sizeHint().width());
+    lay->addWidget(m_pbCenterSpacer, 0, Qt::AlignVCenter);
+    center->raise();
 
     // ─── 右侧：时间 + 工具（SPlayer play-menu）────────────────
     auto *right = new QWidget(mainRow);
@@ -1394,6 +1433,7 @@ void PlayerBar::updateVideoShareUi(bool available, bool busy, const QString &job
     if (!m_videoShareBtn)
         return;
     m_videoShareBtn->setVisible(available);
+    scheduleTitleMarqueeWidthUpdate();
     const bool processing = jobStatus == QStringLiteral("pending")
                             || jobStatus == QStringLiteral("processing");
     m_videoShareBtn->setEnabled(available && !busy && !processing);
@@ -1597,33 +1637,13 @@ void PlayerBar::updateTitleMarqueeWidth()
     if (!marquee)
         return;
 
-    // 优先用布局完成后的实际宽度；首帧尚未 layout 时再按当前底栏宽度估算
-    int leftW = m_pbLeft ? widgetEffectiveWidth(m_pbLeft) : 0;
+    // 由底栏几何推算歌名区可用宽，不读 m_pbLeft 当前宽（长歌名后该值会偏大且无法收回）
+    const int sideBudget = playerBarSideBudget();
 
-    int marginH = 0;
-    if (m_glass) {
-        if (QWidget *body = m_glass->contentWidget()) {
-            if (QLayout *bodyLay = body->layout())
-                marginH = bodyLay->contentsMargins().left() + bodyLay->contentsMargins().right();
-        }
-    }
-
-    const int barInner = qMax(0, width() - marginH);
-    if (leftW < kPbCoverSize + 40) {
-        const int centerW = m_pbCenter
-            ? qMax(widgetEffectiveWidth(m_pbCenter), m_pbCenter->minimumSizeHint().width())
-            : 0;
-        const int rightW = m_pbRight
-            ? qMax(widgetEffectiveWidth(m_pbRight), m_pbRight->minimumSizeHint().width())
-            : 0;
-        int estimated = barInner - centerW - rightW;
-        if (estimated < kPbCoverSize + 40 && m_pbCenter)
-            estimated = qMax(0, (barInner - centerW) / 2);
-        leftW = qMax(leftW, estimated);
-    }
+    layoutCenterControls();
 
     const int besideSong = titleRowWidthBesidesSong(m_titleRow, m_songName);
-    const int infoW = qMax(0, leftW - kPbCoverSize - 12);
+    const int infoW = qMax(0, sideBudget - kPbCoverSize - 12);
     const int titleMax = qMax(24, infoW - besideSong);
 
     marquee->setMaxDisplayWidth(titleMax);
@@ -1633,7 +1653,8 @@ void PlayerBar::updateTitleMarqueeWidth()
         m_titleRow->adjustSize();
     }
 
-    const int secondLineMax = qMax(titleRowW, titleRowLineMaxWidth(m_titleRow, m_songName));
+    // 第二行不得超过第一行末个按钮的右缘（用布局后实际宽，不用 titleRowW 理论上限）
+    const int secondLineMax = qMax(24, titleRowActualWidth(m_titleRow));
 
     if (m_lyricSlot)
         static_cast<PbLyricArtistSlot *>(m_lyricSlot)->setLineMaxWidth(secondLineMax);
