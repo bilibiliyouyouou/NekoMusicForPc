@@ -1,5 +1,8 @@
 #pragma once
 
+#include <QRegion>
+
+class QWindow;
 class QWidget;
 
 bool desktopLrcIsKdePlasmaSession();
@@ -10,3 +13,6 @@ void desktopLrcConfigureWindow(QWidget *window, bool useLayerShell);
 
 /** 非 layer-shell 路径：显示期间提升到最前 */
 void desktopLrcKeepOnTop(QWidget *window);
+
+/** KDE Wayland layer-shell：限制可点击区域，其余穿透到下层窗口 */
+void desktopLrcApplyWaylandInputRegion(QWindow *window, const QRegion &region);

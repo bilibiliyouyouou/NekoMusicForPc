@@ -1,8 +1,24 @@
 #include "desktoplrcplatform.h"
 
 #include <QByteArray>
-#include <QWidget>
+#include <QGuiApplication>
+#include <QRegion>
 #include <QWindow>
+#include <QtWidgets/QWidget>
+
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+#include <QtGui/qguiapplication_platform.h>
+#endif
+
+#if defined(NEKO_DESKTOP_LRC_WAYLAND_INPUT)
+#include <wayland-client.h>
+#if defined(NEKO_HAS_QT_GUI_PRIVATE)
+#include <qpa/qplatformwindow_p.h>
+#endif
+#if __has_include(<qpa/qplatformnativeinterface.h>)
+#include <qpa/qplatformnativeinterface.h>
+#endif
+#endif
 
 #if defined(Q_OS_WIN)
 #include <windows.h>
@@ -73,6 +89,67 @@ void sendNetWmStateAbove(WId windowId)
 }
 
 } // namespace
+#endif
+
+#if defined(NEKO_DESKTOP_LRC_WAYLAND_INPUT)
+namespace {
+
+wl_surface *waylandSurfaceForWindow(QWindow *window)
+{
+    if (!window)
+        return nullptr;
+
+#if defined(NEKO_HAS_QT_GUI_PRIVATE)
+    if (auto *waylandWindow = window->nativeInterface<QNativeInterface::Private::QWaylandWindow>())
+        return waylandWindow->surface();
+#endif
+
+#if __has_include(<qpa/qplatformnativeinterface.h>)
+    if (QPlatformNativeInterface *native = QGuiApplication::platformNativeInterface()) {
+        return static_cast<wl_surface *>(
+            native->nativeResourceForWindow(QByteArrayLiteral("surface"), window));
+    }
+#endif
+
+    return nullptr;
+}
+
+} // namespace
+
+void desktopLrcApplyWaylandInputRegion(QWindow *window, const QRegion &region)
+{
+    if (!window || !desktopLrcIsWaylandSession())
+        return;
+
+    wl_surface *surface = waylandSurfaceForWindow(window);
+    if (!surface)
+        return;
+
+    auto *waylandApp = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+    if (!waylandApp)
+        return;
+
+    wl_compositor *compositor = waylandApp->compositor();
+    if (!compositor)
+        return;
+
+    wl_region *wlRegion = wl_compositor_create_region(compositor);
+    if (!wlRegion)
+        return;
+
+    for (const QRect &rect : region)
+        wl_region_add(wlRegion, rect.x(), rect.y(), rect.width(), rect.height());
+
+    wl_surface_set_input_region(surface, wlRegion);
+    wl_surface_commit(surface);
+    wl_region_destroy(wlRegion);
+}
+#else
+void desktopLrcApplyWaylandInputRegion(QWindow *window, const QRegion &region)
+{
+    Q_UNUSED(window);
+    Q_UNUSED(region);
+}
 #endif
 
 bool desktopLrcIsKdePlasmaSession()
