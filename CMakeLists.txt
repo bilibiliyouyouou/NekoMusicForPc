@@ -9,9 +9,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# 交叉编译时勿用 UNIX/WIN32 混判；以目标系统名为准（Linux→Windows 时 UNIX 仍可能为真）
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(NEKO_TARGET_WINDOWS TRUE)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(NEKO_TARGET_APPLE TRUE)
+else()
+    set(NEKO_TARGET_UNIX TRUE)
+endif()
+
 # Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia Network SvgWidgets Sql Concurrent)
-if(UNIX AND NOT APPLE AND NOT WIN32)
+if(NEKO_TARGET_UNIX)
     find_package(Qt6 REQUIRED COMPONENTS DBus)
 endif()
 if(APPLE)
@@ -244,13 +253,13 @@ set(HEADERS
         src/core/defaultmusicappchecker.h
 )
 
-if(WIN32)
+if(NEKO_TARGET_WINDOWS)
     list(APPEND SOURCES src/core/systemmediacontroller_win.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_win.cpp)
-elseif(APPLE)
+elseif(NEKO_TARGET_APPLE)
     list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
     list(APPEND SOURCES src/core/defaultmusicappchecker_mac.mm)
-elseif(UNIX)
+elseif(NEKO_TARGET_UNIX)
     list(APPEND SOURCES src/core/systemmediacontroller_linux.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_linux.cpp)
     list(APPEND SOURCES src/core/globalshortcutportal_linux.cpp)
@@ -276,6 +285,15 @@ else()
     add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES} ${GENERATED_SOURCES})
 endif()
 
+# 交叉编译 Windows 时 moc 在 Linux 主机上运行，须用目标平台宏而非主机 Q_OS_LINUX
+if(CMAKE_CROSSCOMPILING)
+    set_target_properties(${PROJECT_NAME} PROPERTIES AUTOMOC_COMPILER_PREDEFINES OFF)
+    if(NEKO_TARGET_WINDOWS)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            AUTOMOC_MOC_OPTIONS "-DWIN32;-DWIN64;-D_WIN32")
+    endif()
+endif()
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Core
         Qt6::Gui
@@ -286,7 +304,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Sql
         Qt6::Concurrent
 )
-if(UNIX AND NOT APPLE AND NOT WIN32)
+if(NEKO_TARGET_UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::DBus)
     find_package(X11)
     if(X11_FOUND)

@@ -9,7 +9,7 @@
 #include <QWindow>
 #include <functional>
 
-#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID) && !defined(Q_OS_WIN)
 #include "globalshortcutportal_linux.h"
 #endif
 
