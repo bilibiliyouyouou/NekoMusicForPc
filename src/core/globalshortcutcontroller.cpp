@@ -15,6 +15,14 @@
 
 namespace {
 
+bool isWaylandSession()
+{
+    const QByteArray platform = qgetenv("QT_QPA_PLATFORM");
+    if (platform.contains("wayland"))
+        return true;
+    return !qgetenv("WAYLAND_DISPLAY").isEmpty();
+}
+
 class InAppFallbackBackend final : public QObject
 {
 public:
@@ -81,9 +89,16 @@ GlobalShortcutController::GlobalShortcutController(QObject *parent)
             &GlobalShortcutController::dispatchAction);
     connect(m_impl->portal, &GlobalShortcutPortalLinux::bindSucceeded, this, [this]() {
         activateBackend(Backend::Portal, true);
+        if (m_requestPortalConfigureAfterBind) {
+            m_requestPortalConfigureAfterBind = false;
+            openSystemConfigureUi();
+        }
     });
     connect(m_impl->portal, &GlobalShortcutPortalLinux::bindFailed, this,
-            &GlobalShortcutController::tryFallbackAfterPortalFailure);
+            [this](const QString &reason) {
+                m_requestPortalConfigureAfterBind = false;
+                tryFallbackAfterPortalFailure(reason);
+            });
 #endif
 }
 
@@ -155,9 +170,16 @@ void GlobalShortcutController::start()
     tryFallbackAfterPortalFailure(I18n::instance().tr(QStringLiteral("shortcutGlobalUnavailable")));
 }
 
-void GlobalShortcutController::rebind()
+void GlobalShortcutController::rebind(bool requestSystemPermission)
 {
+    bool requestConfigure = false;
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+    requestConfigure = requestSystemPermission && isWaylandSession();
+#else
+    Q_UNUSED(requestSystemPermission);
+#endif
     stop();
+    m_requestPortalConfigureAfterBind = requestConfigure;
     QTimer::singleShot(0, this, &GlobalShortcutController::start);
 }
 

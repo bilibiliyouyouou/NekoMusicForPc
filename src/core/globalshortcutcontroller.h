@@ -25,7 +25,7 @@ public:
     void setHostWindow(QWindow *window);
     void installFallback(QWidget *parentWidget);
     void start();
-    void rebind();
+    void rebind(bool requestSystemPermission = false);
     void stop();
     void openSystemConfigureUi();
 
@@ -49,6 +49,7 @@ private:
     QWindow *m_hostWindow = nullptr;
     Backend m_backend = Backend::None;
     bool m_active = false;
+    bool m_requestPortalConfigureAfterBind = false;
 
     struct BackendImpl;
     BackendImpl *m_impl = nullptr;

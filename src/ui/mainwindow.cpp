@@ -2108,8 +2108,9 @@ void MainWindow::setupKeyboardShortcuts()
     connect(&global, &GlobalShortcutController::nextTrackTriggered, this, &MainWindow::playNext);
     connect(&global, &GlobalShortcutController::previousTrackTriggered, this,
             &MainWindow::playPrevious);
-    connect(&AppShortcuts::instance(), &AppShortcuts::shortcutsChanged, &global,
-            &GlobalShortcutController::rebind);
+    connect(&AppShortcuts::instance(), &AppShortcuts::shortcutsChanged, &global, []() {
+        GlobalShortcutController::instance().rebind(true);
+    });
     connect(&global, &GlobalShortcutController::bindingFailed, this,
             [this](const QString &reason) {
                 Toast::show(this, reason, Toast::Info, 4500);
