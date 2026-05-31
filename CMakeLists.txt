@@ -11,7 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia Network SvgWidgets Sql Concurrent)
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT WIN32)
     find_package(Qt6 REQUIRED COMPONENTS DBus)
 endif()
 if(APPLE)
@@ -244,17 +244,17 @@ set(HEADERS
         src/core/defaultmusicappchecker.h
 )
 
-if(UNIX AND NOT APPLE)
+if(WIN32)
+    list(APPEND SOURCES src/core/systemmediacontroller_win.cpp)
+    list(APPEND SOURCES src/core/defaultmusicappchecker_win.cpp)
+elseif(APPLE)
+    list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
+    list(APPEND SOURCES src/core/defaultmusicappchecker_mac.mm)
+elseif(UNIX)
     list(APPEND SOURCES src/core/systemmediacontroller_linux.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_linux.cpp)
     list(APPEND SOURCES src/core/globalshortcutportal_linux.cpp)
     list(APPEND HEADERS src/core/globalshortcutportal_linux.h)
-elseif(APPLE)
-    list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
-    list(APPEND SOURCES src/core/defaultmusicappchecker_mac.mm)
-elseif(WIN32)
-    list(APPEND SOURCES src/core/systemmediacontroller_win.cpp)
-    list(APPEND SOURCES src/core/defaultmusicappchecker_win.cpp)
 else()
     list(APPEND SOURCES src/core/systemmediacontroller_stub.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_stub.cpp)
@@ -286,7 +286,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt6::Sql
         Qt6::Concurrent
 )
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::DBus)
     find_package(X11)
     if(X11_FOUND)
