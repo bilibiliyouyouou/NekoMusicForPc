@@ -33,6 +33,7 @@
 #include <QWindow>
 #include <QPointer>
 #include <QTimer>
+#include <QtConcurrent>
 
 namespace {
 
@@ -672,6 +673,19 @@ PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *pare
             });
     if (m_engine)
         connect(m_engine, &PlayerEngine::audioMetaReady, this, &PlayerPage::refineAudioQualityFromEngine);
+
+    m_underlayResizeTimer = new QTimer(this);
+    m_underlayResizeTimer->setSingleShot(true);
+    m_underlayResizeTimer->setInterval(200);
+    connect(m_underlayResizeTimer, &QTimer::timeout, this, [this]() {
+        if (m_underlaySnapshot.isNull())
+            return;
+        const QSize target = size().isEmpty() ? m_underlayBlurTarget : size();
+        if (target.isEmpty())
+            return;
+        m_underlayBlurTarget = target;
+        scheduleUnderlayBlur(target);
+    });
 }
 
 PlayerPage::~PlayerPage()
@@ -697,8 +711,49 @@ void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSiz
         target = size();
     if (target.width() < 1)
         target = shot.size();
-    m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, target);
+    m_underlayBlurTarget = target;
+    m_underlayBlurPixmap = QPixmap();
     update();
+    scheduleUnderlayBlur(target);
+}
+
+void PlayerPage::scheduleUnderlayBlur(const QSize &target)
+{
+    if (m_underlaySnapshot.isNull() || target.isEmpty())
+        return;
+
+    ++m_underlayBlurGen;
+    const int gen = m_underlayBlurGen;
+    const QPixmap shot = m_underlaySnapshot;
+    const QSize blurTarget = target;
+
+    QtConcurrent::run([shot, blurTarget]() {
+        return makeBlurredBackdrop(shot, blurTarget);
+    }).then(this, [this, gen](QPixmap blurred) {
+        if (gen != m_underlayBlurGen || blurred.isNull())
+            return;
+        m_underlayBlurPixmap = std::move(blurred);
+        update();
+    });
+}
+
+void PlayerPage::scheduleCoverBlur(const QPixmap &source, const QSize &target)
+{
+    if (source.isNull() || target.isEmpty())
+        return;
+
+    ++m_coverBlurGen;
+    const int gen = m_coverBlurGen;
+    const QPixmap srcCopy = source;
+
+    QtConcurrent::run([srcCopy, target]() {
+        return makeBlurredBackdrop(srcCopy, target);
+    }).then(this, [this, gen](QPixmap blurred) {
+        if (gen != m_coverBlurGen || blurred.isNull())
+            return;
+        m_bgBlurPixmap = std::move(blurred);
+        update();
+    });
 }
 
 void PlayerPage::paintEvent(QPaintEvent *event)
@@ -717,8 +772,13 @@ void PlayerPage::paintEvent(QPaintEvent *event)
     p.fillRect(rect(), opaqueBase);
 
     // SPlayer .full-player：backdrop-filter 模糊背后主界面
-    if (!m_underlayBlurPixmap.isNull())
-        p.drawPixmap(rect(), m_underlayBlurPixmap);
+    if (!m_underlayBlurPixmap.isNull()) {
+        if (m_underlayBlurPixmap.size() == rect().size())
+            p.drawPixmap(rect(), m_underlayBlurPixmap);
+        else
+            p.drawPixmap(rect(), m_underlayBlurPixmap.scaled(rect().size(), Qt::IgnoreAspectRatio,
+                                                             Qt::SmoothTransformation));
+    }
 
     // SPlayer PlayerBackground.blur：封面模糊居中 scale(1.5)，避免整页拉伸成中心色块
     if (!m_bgBlurPixmap.isNull())
@@ -763,10 +823,15 @@ void PlayerPage::refreshCoverLayout()
 {
     layoutPlayerPageChrome();
     applyMetaTextElide();
-    if (!m_coverBackdropSource.isNull())
-        applyCoverPixmap(m_coverBackdropSource);
-    else
+    if (!m_coverBackdropSource.isNull()) {
+        const int base = coverSideLength();
+        if (m_coverFrame)
+            m_coverFrame->setFixedSize(base, base);
+        m_coverRoundedBase = makeRoundedCoverPixmap(m_coverBackdropSource, base);
         applyCoverVisualScale(m_coverVisualScale);
+    } else {
+        applyCoverVisualScale(m_coverVisualScale);
+    }
 }
 
 QColor PlayerPage::idleIconColor() const
@@ -1768,6 +1833,7 @@ void PlayerPage::layoutPlayerPageChrome()
 void PlayerPage::updateCoverBackdrop(const QPixmap &source)
 {
     if (source.isNull()) {
+        ++m_coverBlurGen;
         m_bgBlurPixmap = QPixmap();
         update();
         return;
@@ -1775,12 +1841,12 @@ void PlayerPage::updateCoverBackdrop(const QPixmap &source)
     m_coverMainColor = pixmapAverageColor(source);
     m_coverSecondColor = QColor(m_coverMainColor.red(), m_coverMainColor.green(), m_coverMainColor.blue(), 32);
     const QSize pageSize = size().isEmpty() ? QSize(1280, 720) : size();
-    m_bgBlurPixmap = makeBlurredBackdrop(source, pageSize);
     refreshTintedPalette();
     applyPlayerPageStyle();
     applyMetaTextElide();
     updatePlayModeBtn(PlaylistManager::instance().playMode());
     update();
+    scheduleCoverBlur(source, pageSize);
 }
 
 void PlayerPage::setControlSidesVisible(bool visible)
@@ -2520,9 +2586,7 @@ void PlayerPage::resizeEvent(QResizeEvent *event)
     QWidget::resizeEvent(event);
     layoutPlayerPageChrome();
     if (!m_underlaySnapshot.isNull())
-        m_underlayBlurPixmap = makeBlurredBackdrop(m_underlaySnapshot, size());
-    if (!m_coverBackdropSource.isNull())
-        updateCoverBackdrop(m_coverBackdropSource);
+        m_underlayResizeTimer->start();
     refreshCoverLayout();
 
     if (m_lyricsScroll && m_lyricsContainer) {
@@ -2540,7 +2604,6 @@ void PlayerPage::showEvent(QShowEvent *event)
     layoutPlayerPageChrome();
     bumpControlShowTimer();
     QTimer::singleShot(0, this, &PlayerPage::refreshCoverLayout);
-    QTimer::singleShot(380, this, &PlayerPage::refreshCoverLayout);
 
     // 仅内容区淡入，背景保持不透明，避免透出主界面
     if (!m_contentHost)

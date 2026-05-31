@@ -92,6 +92,8 @@ private:
     void applyCoverVisualScale(qreal scale);
     void refreshCoverLayout();
     void updateCoverBackdrop(const QPixmap &source);
+    void scheduleUnderlayBlur(const QSize &target);
+    void scheduleCoverBlur(const QPixmap &source, const QSize &target);
     void setControlSidesVisible(bool visible);
     void bumpControlShowTimer();
     void hidePlayerChrome();
@@ -238,8 +240,12 @@ private:
     bool m_lyricUserScrolling = false;
     QTimer *m_lyricScrollResumeTimer = nullptr;
     QTimer *m_lyricBlurTimer = nullptr;
+    QTimer *m_underlayResizeTimer = nullptr;
     /** 每次发起/清空歌词请求自增，用于丢弃过期的异步回调（本地曲歌词 id 可与 m_musicId 不一致） */
     int m_lyricsFetchGeneration = 0;
+    int m_underlayBlurGen = 0;
+    int m_coverBlurGen = 0;
+    QSize m_underlayBlurTarget;
 
     QNetworkAccessManager *m_qualityNam = nullptr;
     QNetworkReply *m_qualityReply = nullptr;
