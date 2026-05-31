@@ -89,17 +89,21 @@ GlobalShortcutController::GlobalShortcutController(QObject *parent)
             &GlobalShortcutController::dispatchAction);
     connect(m_impl->portal, &GlobalShortcutPortalLinux::bindSucceeded, this, [this]() {
         activateBackend(Backend::Portal, true);
-        if (m_requestPortalConfigureAfterBind) {
-            m_requestPortalConfigureAfterBind = false;
-            openSystemConfigureUi();
-        }
     });
     connect(m_impl->portal, &GlobalShortcutPortalLinux::bindFailed, this,
+            &GlobalShortcutController::tryFallbackAfterPortalFailure);
+    connect(m_impl->portal, &GlobalShortcutPortalLinux::configureUiFailed, this,
             [this](const QString &reason) {
-                m_requestPortalConfigureAfterBind = false;
-                tryFallbackAfterPortalFailure(reason);
+                emit bindingFailed(
+                    I18n::instance().tr(QStringLiteral("shortcutGlobalConfigureFailed")).arg(reason));
             });
 #endif
+
+    m_settingsRebindTimer = new QTimer(this);
+    m_settingsRebindTimer->setSingleShot(true);
+    m_settingsRebindTimer->setInterval(400);
+    connect(m_settingsRebindTimer, &QTimer::timeout, this,
+            &GlobalShortcutController::performSettingsRebind);
 }
 
 void GlobalShortcutController::installFallback(QWidget *parentWidget)
@@ -116,6 +120,16 @@ void GlobalShortcutController::setHostWindow(QWindow *window)
     if (m_impl->portal)
         m_impl->portal->setHostWindow(window);
 #endif
+}
+
+void GlobalShortcutController::prepareHostWindowForPortal()
+{
+    if (!m_hostWindow)
+        return;
+
+    m_hostWindow->winId();
+    m_hostWindow->raise();
+    m_hostWindow->requestActivate();
 }
 
 void GlobalShortcutController::activateBackend(Backend backend, bool active)
@@ -156,13 +170,12 @@ void GlobalShortcutController::tryFallbackAfterPortalFailure(const QString &reas
     emit bindingFailed(reason);
 }
 
-void GlobalShortcutController::start()
+void GlobalShortcutController::start(bool requestConfigureUi)
 {
-    stop();
-
 #if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
     if (m_impl->portal && GlobalShortcutPortalLinux::isAvailable()) {
-        m_impl->portal->bind();
+        prepareHostWindowForPortal();
+        m_impl->portal->bind(requestConfigureUi);
         return;
     }
 #endif
@@ -172,15 +185,30 @@ void GlobalShortcutController::start()
 
 void GlobalShortcutController::rebind(bool requestSystemPermission)
 {
-    bool requestConfigure = false;
-#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
-    requestConfigure = requestSystemPermission && isWaylandSession();
-#else
-    Q_UNUSED(requestSystemPermission);
-#endif
     stop();
-    m_requestPortalConfigureAfterBind = requestConfigure;
-    QTimer::singleShot(0, this, &GlobalShortcutController::start);
+    QTimer::singleShot(0, this, [this, requestSystemPermission]() {
+        start(requestSystemPermission && isWaylandSession());
+    });
+}
+
+void GlobalShortcutController::scheduleRebindAfterSettingsChange()
+{
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+    if (!isWaylandSession()) {
+        rebind(false);
+        return;
+    }
+    m_settingsRebindTimer->start();
+#else
+    rebind(false);
+#endif
+}
+
+void GlobalShortcutController::performSettingsRebind()
+{
+    stop();
+    prepareHostWindowForPortal();
+    start(true);
 }
 
 void GlobalShortcutController::stop()
@@ -199,6 +227,7 @@ void GlobalShortcutController::stop()
 void GlobalShortcutController::openSystemConfigureUi()
 {
 #if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+    prepareHostWindowForPortal();
     if (m_impl->portal)
         m_impl->portal->openConfigureUi();
 #endif
