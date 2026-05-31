@@ -152,6 +152,7 @@ set(SOURCES
         src/core/globalshortcutcontroller.cpp
         src/core/listmetaformat.cpp
         src/core/covercache.cpp
+        src/core/linuxtmpfscache.cpp
         src/core/usermanager.cpp
         src/core/qrcodegen.cpp
         src/core/vipqrcode.cpp
@@ -216,6 +217,7 @@ set(HEADERS
         src/core/appshortcuts.h
         src/core/globalshortcutcontroller.h
         src/core/covercache.h
+        src/core/linuxtmpfscache.h
         src/core/usermanager.h
         src/core/vipqrcode.h
         src/theme/theme.h

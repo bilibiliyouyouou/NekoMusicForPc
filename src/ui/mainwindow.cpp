@@ -35,6 +35,7 @@
 #include "core/apiclient.h"
 #include "core/httpprotocollabel.h"
 #include "core/musicdownloader.h"
+#include "core/linuxtmpfscache.h"
 #include "core/usermanager.h"
 #include "core/playlistdb.h"
 #include "core/playlistmanager.h"
@@ -428,6 +429,9 @@ void MainWindow::setupUi()
     // 加载播放队列
     PlaylistManager::instance().load();
 
+#ifdef Q_OS_LINUX
+    LinuxTmpfsCache::runStartupMaintenance();
+#endif
     MusicDownloader::purgeLegacyMd5CacheFiles();
 
     // 恢复上次播放的音乐
@@ -1255,6 +1259,9 @@ void MainWindow::startRemotePlaybackWithBackgroundCache(int musicId, quint64 pla
 {
     const QString cachedPath = MusicDownloader::cachedAudioFilePath(musicId);
     if (QFile::exists(cachedPath)) {
+#ifdef Q_OS_LINUX
+        LinuxTmpfsCache::touchAudioCacheFile(cachedPath);
+#endif
         // 已有整文件：本地播，避免单曲循环/切回已缓存曲时反复开 HTTP 流导致卡顿
         cancelStreamWatch();
         m_streamRetryActive = false;
