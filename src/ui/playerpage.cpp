@@ -341,6 +341,31 @@ static QSize backdropWorkSize(const QSize &target)
     return w;
 }
 
+/** 按模糊工作分辨率渲染主界面，避免全尺寸 grab 阻塞 UI */
+static QPixmap grabBackdropSource(QWidget *source, const QSize &hintTarget)
+{
+    if (!source)
+        return {};
+
+    const QSize sourceSize = source->size();
+    if (sourceSize.width() < 1 || sourceSize.height() < 1)
+        return {};
+
+    QSize target = hintTarget;
+    if (target.width() < 1 || target.height() < 1)
+        target = sourceSize;
+    const QSize work = backdropWorkSize(target);
+
+    QPixmap shot(work);
+    shot.fill(Qt::transparent);
+    QPainter painter(&shot);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    painter.scale(qreal(work.width()) / sourceSize.width(),
+                  qreal(work.height()) / sourceSize.height());
+    source->render(&painter);
+    return shot;
+}
+
 /** 高斯模糊（QGraphicsBlurEffect），避免缩小-放大带来的马赛克 */
 static QPixmap makeBlurredBackdrop(const QPixmap &src, const QSize &target,
                                   qreal blurRadius = kBackdropBlurRadius)
@@ -701,7 +726,7 @@ void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSiz
     if (!source)
         return;
 
-    const QPixmap shot = source->grab(source->rect());
+    const QPixmap shot = grabBackdropSource(source, targetSize);
     if (shot.isNull())
         return;
 
@@ -712,8 +737,7 @@ void PlayerPage::refreshUnderlayBackdrop(QWidget *source, const QSize &targetSiz
     if (target.width() < 1)
         target = shot.size();
     m_underlayBlurTarget = target;
-    m_underlayBlurPixmap = QPixmap();
-    update();
+    // 保留上一帧模糊图直至新图就绪，避免打开瞬间闪纯色底
     scheduleUnderlayBlur(target);
 }
 
@@ -2587,7 +2611,8 @@ void PlayerPage::resizeEvent(QResizeEvent *event)
     layoutPlayerPageChrome();
     if (!m_underlaySnapshot.isNull())
         m_underlayResizeTimer->start();
-    refreshCoverLayout();
+    if (isVisible())
+        refreshCoverLayout();
 
     if (m_lyricsScroll && m_lyricsContainer) {
         if (auto *top = m_lyricsContainer->findChild<QWidget *>(QStringLiteral("lyricPadTop")))

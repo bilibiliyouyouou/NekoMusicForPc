@@ -1624,11 +1624,11 @@ void MainWindow::openPlayerPage()
     if (!host)
         host = this;
     const QRect area = playerPageOverlayGeometry();
-    // 先抓取主界面再挂播放页，避免 grab 进播放页自身
-    m_playerPage->refreshUnderlayBackdrop(host, area.size());
+    // 先挂到 host 但保持隐藏，低分辨率 render 主界面后再 show，避免全屏 grab 卡顿
     m_playerPage->setParent(host);
     m_playerPage->setGeometry(area);
     m_playerPage->move(0, area.height());
+    m_playerPage->refreshUnderlayBackdrop(host, area.size());
     m_playerPage->show();
     m_playerPage->raise();
     syncPlayModeUi();
