@@ -3057,11 +3057,14 @@ QString PlayerPage::serializeLyricsForDesktop() const
         const int min = static_cast<int>(t / 60000);
         const int sec = static_cast<int>((t / 1000) % 60);
         const int cs = static_cast<int>((t % 1000) / 10);
-        out += QStringLiteral("[%1:%2.%3]%4\n")
-                   .arg(min)
-                   .arg(sec, 2, 10, QChar('0'))
-                   .arg(cs, 2, 10, QChar('0'))
-                   .arg(line.text);
+        const QString timeTag = QStringLiteral("[%1:%2.%3]")
+                                    .arg(min)
+                                    .arg(sec, 2, 10, QChar('0'))
+                                    .arg(cs, 2, 10, QChar('0'));
+        out += timeTag + line.text + QLatin1Char('\n');
+        const QString trans = line.translation.trimmed();
+        if (!trans.isEmpty())
+            out += timeTag + QLatin1Char('=') + trans + QLatin1Char('\n');
     }
     return out;
 }
