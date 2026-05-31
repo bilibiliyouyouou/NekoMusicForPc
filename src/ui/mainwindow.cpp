@@ -283,6 +283,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         if (ms < 0)
             ms = 0;
         m_engine->setPosition(ms);
+        if (m_systemMedia)
+            m_systemMedia->notifySeeked(ms * 1000);
     });
     connect(m_systemMedia, &SystemMediaController::seekAbsoluteUs, this, [this](qint64 us) {
         if (!m_engine)
@@ -291,6 +293,29 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         if (ms < 0)
             ms = 0;
         m_engine->setPosition(ms);
+        if (m_systemMedia)
+            m_systemMedia->notifySeeked(ms * 1000);
+    });
+    connect(m_systemMedia, &SystemMediaController::loopStatusSetRequested, this, [this](const QString &status) {
+        auto &mgr = PlaylistManager::instance();
+        if (status == QStringLiteral("Track"))
+            mgr.setPlayMode(QStringLiteral("single"));
+        else if (status == QStringLiteral("Playlist"))
+            mgr.setPlayMode(QStringLiteral("list"));
+        else
+            mgr.setPlayMode(mgr.playMode() == QStringLiteral("random") ? QStringLiteral("list")
+                                                                       : mgr.playMode());
+        syncPlayModeUi();
+        refreshSystemMediaIntegration();
+    });
+    connect(m_systemMedia, &SystemMediaController::shuffleSetRequested, this, [this](bool shuffle) {
+        auto &mgr = PlaylistManager::instance();
+        if (shuffle)
+            mgr.setPlayMode(QStringLiteral("random"));
+        else if (mgr.playMode() == QStringLiteral("random"))
+            mgr.setPlayMode(QStringLiteral("list"));
+        syncPlayModeUi();
+        refreshSystemMediaIntegration();
     });
     connect(m_systemMedia, &SystemMediaController::volumeSetByOs, this, [this](double v) {
         if (m_engine)
@@ -2098,9 +2123,7 @@ void MainWindow::togglePlaybackForSystemUi()
 {
     if (!m_engine)
         return;
-    // 使用playbackState()而不是transportStateForOs()来判断
-    // 因为transportStateForOs()在fadeOut期间返回Paused，即使QMediaPlayer还在播放
-    if (m_engine->playbackState() == PlayerEngine::Playing)
+    if (m_engine->isActuallyPlaying() && !m_engine->isFadingOut())
         m_engine->fadeOut();
     else
         m_engine->fadeIn();
@@ -2137,20 +2160,14 @@ void MainWindow::resumePlaybackForSystemUi()
 {
     if (!m_engine)
         return;
-    // 使用playbackState()而不是transportStateForOs()来判断
-    if (m_engine->playbackState() != PlayerEngine::Playing) {
+    if (!m_engine->isActuallyPlaying())
         m_engine->fadeIn();
-    }
 }
 
 void MainWindow::pausePlaybackForSystemUi()
 {
     if (!m_engine)
         return;
-    // 当系统媒体控制器请求暂停时，总是尝试暂停
-    // 检查是否正在播放或淡出过程中
-    if (m_engine->playbackState() == PlayerEngine::Playing
-        || m_engine->transportStateForOs() == PlayerEngine::Playing) {
+    if (m_engine->isActuallyPlaying())
         m_engine->fadeOut();
-    }
 }
