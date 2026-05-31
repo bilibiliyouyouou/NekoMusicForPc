@@ -10,13 +10,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 交叉编译时勿用 UNIX/WIN32 混判；以目标系统名为准（Linux→Windows 时 UNIX 仍可能为真）
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows"
+   OR (CMAKE_CROSSCOMPILING AND CMAKE_CXX_COMPILER MATCHES "mingw"))
     set(NEKO_TARGET_WINDOWS TRUE)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(NEKO_TARGET_APPLE TRUE)
 else()
     set(NEKO_TARGET_UNIX TRUE)
 endif()
+message(STATUS "NEKO target: WINDOWS=${NEKO_TARGET_WINDOWS} APPLE=${NEKO_TARGET_APPLE} UNIX=${NEKO_TARGET_UNIX} SYSTEM=${CMAKE_SYSTEM_NAME}")
 
 # Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia Network SvgWidgets Sql Concurrent)
@@ -61,6 +63,10 @@ if(CMAKE_CROSSCOMPILING)
     # Find all headers with Q_OBJECT macro
     file(GLOB_RECURSE ALL_HEADERS "${CMAKE_SOURCE_DIR}/src/*.h")
     foreach(header ${ALL_HEADERS})
+        # Linux-only Qt headers (DBus/portal) must not be moc'd for Windows targets
+        if(NEKO_TARGET_WINDOWS AND header MATCHES "globalshortcutportal_linux|globalshortcutcontroller_linux")
+            continue()
+        endif()
         file(READ "${header}" header_content)
         if(header_content MATCHES "Q_OBJECT")
             file(RELATIVE_PATH rel_header "${CMAKE_SOURCE_DIR}" "${header}")
@@ -256,6 +262,12 @@ set(HEADERS
 if(NEKO_TARGET_WINDOWS)
     list(APPEND SOURCES src/core/systemmediacontroller_win.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_win.cpp)
+    set_source_files_properties(
+        src/core/globalshortcutportal_linux.h
+        src/core/globalshortcutportal_linux.cpp
+        src/core/globalshortcutcontroller_linux.h
+        src/core/globalshortcutcontroller_linux.cpp
+        PROPERTIES SKIP_AUTOMOC ON)
 elseif(NEKO_TARGET_APPLE)
     list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
     list(APPEND SOURCES src/core/defaultmusicappchecker_mac.mm)
@@ -263,7 +275,7 @@ elseif(NEKO_TARGET_UNIX)
     list(APPEND SOURCES src/core/systemmediacontroller_linux.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_linux.cpp)
     list(APPEND SOURCES src/core/globalshortcutportal_linux.cpp)
-    list(APPEND HEADERS src/core/globalshortcutportal_linux.h)
+    list(APPEND SOURCES src/core/globalshortcutcontroller_linux.cpp)
 else()
     list(APPEND SOURCES src/core/systemmediacontroller_stub.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_stub.cpp)

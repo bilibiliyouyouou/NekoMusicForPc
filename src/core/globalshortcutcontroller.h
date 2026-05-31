@@ -32,6 +32,13 @@ public:
     void stop();
     void openSystemConfigureUi();
 
+    /** 供 Linux portal 胶水层调用 */
+    void prepareHostWindowForPortal();
+    void activateBackend(Backend backend, bool active);
+    void tryFallbackAfterPortalFailure(const QString &reason);
+    void dispatchAction(const QString &portalId);
+    void reportPortalConfigureFailed(const QString &reason);
+
     Backend activeBackend() const { return m_backend; }
     bool isActive() const { return m_active; }
     QString statusText() const;
@@ -45,10 +52,6 @@ signals:
 
 private:
     explicit GlobalShortcutController(QObject *parent = nullptr);
-    void dispatchAction(const QString &portalId);
-    void activateBackend(Backend backend, bool active);
-    void tryFallbackAfterPortalFailure(const QString &reason);
-    void prepareHostWindowForPortal();
     void performSettingsRebind();
 
     QWindow *m_hostWindow = nullptr;
