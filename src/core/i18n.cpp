@@ -88,6 +88,24 @@ static QMap<QString, QString> zhCN()
     m["themeSystem"] = QStringLiteral("跟随系统");
     m["themeDark"] = QStringLiteral("暗色模式");
     m["themeLight"] = QStringLiteral("亮色模式");
+    m["shortcuts"] = QStringLiteral("快捷键");
+    m["shortcutPlayPause"] = QStringLiteral("播放/暂停");
+    m["shortcutPreviousTrack"] = QStringLiteral("上一曲");
+    m["shortcutNextTrack"] = QStringLiteral("下一曲");
+    m["shortcutPressKeys"] = QStringLiteral("按下快捷键…");
+    m["shortcutNotSet"] = QStringLiteral("未设置");
+    m["shortcutResetDefault"] = QStringLiteral("恢复默认");
+    m["shortcutResetAll"] = QStringLiteral("恢复全部默认");
+    m["shortcutConflict"] = QStringLiteral("快捷键冲突：%1");
+    m["shortcutWaylandHint"] = QStringLiteral(
+        "全局快捷键通过 xdg-desktop-portal 向系统申请权限。首次启动或修改后可能弹出系统授权对话框；"
+        "也可点击下方按钮在系统设置中调整。");
+    m["shortcutOpenSystemSettings"] = QStringLiteral("在系统设置中配置全局快捷键");
+    m["shortcutGlobalPortalActive"] = QStringLiteral("全局快捷键已启用（系统 portal）");
+    m["shortcutGlobalFallbackActive"] = QStringLiteral("portal 不可用，已回退为窗口内快捷键");
+    m["shortcutGlobalInactive"] = QStringLiteral("全局快捷键未启用");
+    m["shortcutGlobalUnavailable"] = QStringLiteral("当前环境不支持全局快捷键（需要 xdg-desktop-portal GlobalShortcuts）");
+    m["shortcutGlobalPortalFailed"] = QStringLiteral("全局快捷键注册失败：%1（已尝试窗口内回退）");
     m["playModeList"] = QStringLiteral("列表循环");
     m["playModeSingle"] = QStringLiteral("单曲循环");
     m["playModeRandom"] = QStringLiteral("随机播放");
@@ -664,6 +682,24 @@ static QMap<QString, QString> nyaCN()
     m["playModeSingle"] = QStringLiteral("就喜欢这一首，死不放手喵！");
     m["playModeRandom"] = QStringLiteral("随心所欲乱点兵喵~");
     m["playModeOff"] = QStringLiteral("播完就下班喵~");
+    m["shortcuts"] = QStringLiteral("快捷键喵~");
+    m["shortcutPlayPause"] = QStringLiteral("播放/暂停喵~");
+    m["shortcutPreviousTrack"] = QStringLiteral("上一曲喵~");
+    m["shortcutNextTrack"] = QStringLiteral("下一曲喵~");
+    m["shortcutPressKeys"] = QStringLiteral("按下快捷键喵…");
+    m["shortcutNotSet"] = QStringLiteral("还没设置喵");
+    m["shortcutResetDefault"] = QStringLiteral("恢复默认喵");
+    m["shortcutResetAll"] = QStringLiteral("全部恢复默认喵");
+    m["shortcutConflict"] = QStringLiteral("快捷键撞车啦：%1 喵");
+    m["shortcutWaylandHint"] = QStringLiteral(
+        "全局快捷键要走 xdg-desktop-portal 向系统申请权限喵~ 第一次或改键后可能会弹授权框；"
+        "也可以点下面按钮去系统设置里调喵~");
+    m["shortcutOpenSystemSettings"] = QStringLiteral("去系统设置里配全局快捷键喵");
+    m["shortcutGlobalPortalActive"] = QStringLiteral("全局快捷键已启用（系统 portal）喵~");
+    m["shortcutGlobalFallbackActive"] = QStringLiteral("portal 不可用，暂时只能窗口内用喵");
+    m["shortcutGlobalInactive"] = QStringLiteral("全局快捷键还没启用喵");
+    m["shortcutGlobalUnavailable"] = QStringLiteral("这环境不支持全局快捷键喵（要 xdg-desktop-portal GlobalShortcuts）");
+    m["shortcutGlobalPortalFailed"] = QStringLiteral("全局快捷键注册失败：%1（已尝试窗口内回退）喵");
     m["showWindow"] = QStringLiteral("快现身喵~");
     m["exitApp"] = QStringLiteral("残忍离去喵...");
 
@@ -854,6 +890,26 @@ static QMap<QString, QString> enUS()
     m["themeSystem"] = "Follow System";
     m["themeDark"] = "Dark Mode";
     m["themeLight"] = "Light Mode";
+    m["shortcuts"] = "Keyboard Shortcuts";
+    m["shortcutPlayPause"] = "Play / Pause";
+    m["shortcutPreviousTrack"] = "Previous Track";
+    m["shortcutNextTrack"] = "Next Track";
+    m["shortcutPressKeys"] = "Press shortcut…";
+    m["shortcutNotSet"] = "Not set";
+    m["shortcutResetDefault"] = "Reset";
+    m["shortcutResetAll"] = "Reset All to Defaults";
+    m["shortcutConflict"] = "Shortcut conflict: %1";
+    m["shortcutWaylandHint"] =
+        "Global shortcuts use xdg-desktop-portal to request system permission. "
+        "You may see an authorization dialog on first launch or after changes; "
+        "use the button below to configure in system settings.";
+    m["shortcutOpenSystemSettings"] = "Configure in System Settings";
+    m["shortcutGlobalPortalActive"] = "Global shortcuts active (system portal)";
+    m["shortcutGlobalFallbackActive"] = "Portal unavailable; using in-window shortcuts";
+    m["shortcutGlobalInactive"] = "Global shortcuts inactive";
+    m["shortcutGlobalUnavailable"] =
+        "Global shortcuts unavailable (xdg-desktop-portal GlobalShortcuts required)";
+    m["shortcutGlobalPortalFailed"] = "Global shortcut registration failed: %1 (in-window fallback tried)";
     m["playModeList"] = "List Loop";
     m["playModeSingle"] = "Single Loop";
     m["playModeRandom"] = "Random";

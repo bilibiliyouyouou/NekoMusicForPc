@@ -11,6 +11,7 @@
 #include <QMainWindow>
 #include <QEvent>
 #include <QUrl>
+#include <QList>
 #include <QStackedWidget>
 #include <QSystemTrayIcon>
 #include "core/musicinfo.h"
@@ -102,6 +103,8 @@ private:
     void togglePlaybackForSystemUi();
     void resumePlaybackForSystemUi();
     void pausePlaybackForSystemUi();
+    void setupKeyboardShortcuts();
+    void reloadKeyboardShortcuts();
 
     /** 打开/关闭全屏播放页（SPlayer：隐藏底栏 MainPlayer，播放页铺满窗口） */
     void openPlayerPage();

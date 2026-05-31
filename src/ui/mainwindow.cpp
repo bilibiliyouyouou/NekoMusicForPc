@@ -46,6 +46,8 @@
 #include "core/systemmediacontroller.h"
 #include "core/localmusicmeta.h"
 #include "core/defaultmusicappchecker.h"
+#include "core/appshortcuts.h"
+#include "core/globalshortcutcontroller.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -254,6 +256,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_downloader = &MusicDownloader::instance();
     setupUi();
     loadStyleSheet();
+    AppShortcuts::instance().load();
+    GlobalShortcutController::instance().installFallback(this);
+    setupKeyboardShortcuts();
     createTrayIcon();
 
     m_systemMedia = new SystemMediaController(this);
@@ -2092,6 +2097,33 @@ void MainWindow::togglePlaybackForSystemUi()
         m_engine->fadeOut();
     else
         m_engine->fadeIn();
+}
+
+void MainWindow::setupKeyboardShortcuts()
+{
+    auto &global = GlobalShortcutController::instance();
+    global.setHostWindow(windowHandle());
+    connect(&global, &GlobalShortcutController::playPauseTriggered, this,
+            &MainWindow::togglePlaybackForSystemUi);
+    connect(&global, &GlobalShortcutController::nextTrackTriggered, this, &MainWindow::playNext);
+    connect(&global, &GlobalShortcutController::previousTrackTriggered, this,
+            &MainWindow::playPrevious);
+    connect(&AppShortcuts::instance(), &AppShortcuts::shortcutsChanged, &global,
+            &GlobalShortcutController::rebind);
+    connect(&global, &GlobalShortcutController::bindingFailed, this,
+            [this](const QString &reason) {
+                Toast::show(this, reason, Toast::Info, 4500);
+            });
+
+    QTimer::singleShot(0, this, [this]() {
+        GlobalShortcutController::instance().setHostWindow(windowHandle());
+        GlobalShortcutController::instance().start();
+    });
+}
+
+void MainWindow::reloadKeyboardShortcuts()
+{
+    GlobalShortcutController::instance().rebind();
 }
 
 void MainWindow::resumePlaybackForSystemUi()

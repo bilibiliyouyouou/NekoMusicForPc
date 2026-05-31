@@ -123,6 +123,7 @@ set(SOURCES
         src/ui/playerprogressslider.cpp
         src/ui/svgicon.cpp
         src/ui/settingspage.cpp
+        src/ui/shortcutcapturebutton.cpp
         src/ui/toast.cpp
         src/ui/recentpage.cpp
         src/ui/logindialog.cpp
@@ -147,6 +148,8 @@ set(SOURCES
         src/core/playerengine.cpp
         src/core/apiclient.cpp
         src/core/i18n.cpp
+        src/core/appshortcuts.cpp
+        src/core/globalshortcutcontroller.cpp
         src/core/listmetaformat.cpp
         src/core/covercache.cpp
         src/core/usermanager.cpp
@@ -186,6 +189,7 @@ set(HEADERS
         src/ui/playerprogressslider.h
         src/ui/svgicon.h
         src/ui/settingspage.h
+        src/ui/shortcutcapturebutton.h
         src/ui/recentpage.h
         src/ui/logindialog.h
         src/ui/slidercaptchadialog.h
@@ -209,6 +213,8 @@ set(HEADERS
         src/core/apiclient.h
         src/core/httpprotocollabel.h
         src/core/i18n.h
+        src/core/appshortcuts.h
+        src/core/globalshortcutcontroller.h
         src/core/covercache.h
         src/core/usermanager.h
         src/core/vipqrcode.h
@@ -239,6 +245,8 @@ set(HEADERS
 if(UNIX AND NOT APPLE)
     list(APPEND SOURCES src/core/systemmediacontroller_linux.cpp)
     list(APPEND SOURCES src/core/defaultmusicappchecker_linux.cpp)
+    list(APPEND SOURCES src/core/globalshortcutportal_linux.cpp)
+    list(APPEND HEADERS src/core/globalshortcutportal_linux.h)
 elseif(APPLE)
     list(APPEND SOURCES src/core/systemmediacontroller_mac.mm)
     list(APPEND SOURCES src/core/defaultmusicappchecker_mac.mm)

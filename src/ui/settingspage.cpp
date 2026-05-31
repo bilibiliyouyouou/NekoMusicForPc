@@ -5,6 +5,10 @@
 
 #include "settingspage.h"
 #include "core/i18n.h"
+#include "core/appshortcuts.h"
+#include "core/globalshortcutcontroller.h"
+#include "ui/shortcutcapturebutton.h"
+#include "ui/toast.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/glasswidget.h"
@@ -131,6 +135,57 @@ void SettingsPage::setupUi()
     themeRow->addWidget(m_themeCombo);
     cardLay->addLayout(themeRow);
 
+    auto *lineShortcuts = new QFrame(cardBody);
+    lineShortcuts->setFrameShape(QFrame::HLine);
+    lineShortcuts->setObjectName("settingsDivider");
+    cardLay->addWidget(lineShortcuts);
+
+    m_shortcutsSectionLabel = new QLabel(I18n::instance().tr("shortcuts"), cardBody);
+    m_shortcutsSectionLabel->setObjectName("settingsLabel");
+    cardLay->addWidget(m_shortcutsSectionLabel);
+
+    setupShortcutRow(cardLay, cardBody, AppShortcuts::PlayPause, &m_shortcutPlayPauseLabel,
+                     &m_shortcutPlayPauseBtn, &m_shortcutResetPlayPauseBtn);
+    setupShortcutRow(cardLay, cardBody, AppShortcuts::PreviousTrack, &m_shortcutPrevLabel,
+                     &m_shortcutPrevBtn, &m_shortcutResetPrevBtn);
+    setupShortcutRow(cardLay, cardBody, AppShortcuts::NextTrack, &m_shortcutNextLabel,
+                     &m_shortcutNextBtn, &m_shortcutResetNextBtn);
+
+    m_shortcutResetAllBtn = new QPushButton(I18n::instance().tr("shortcutResetAll"), cardBody);
+    m_shortcutResetAllBtn->setObjectName("settingsLinkBtn");
+    m_shortcutResetAllBtn->setCursor(Qt::PointingHandCursor);
+    m_shortcutResetAllBtn->setFlat(true);
+    connect(m_shortcutResetAllBtn, &QPushButton::clicked, this, [this]() {
+        AppShortcuts::instance().resetAllAndSave();
+        refreshShortcutEditors();
+    });
+    cardLay->addWidget(m_shortcutResetAllBtn, 0, Qt::AlignLeft);
+
+    m_shortcutStatusLabel = new QLabel(GlobalShortcutController::instance().statusText(), cardBody);
+    m_shortcutStatusLabel->setObjectName("settingsInfo");
+    m_shortcutStatusLabel->setWordWrap(true);
+    cardLay->addWidget(m_shortcutStatusLabel);
+
+    m_shortcutConfigureBtn = new QPushButton(I18n::instance().tr("shortcutOpenSystemSettings"), cardBody);
+    m_shortcutConfigureBtn->setObjectName("settingsLinkBtn");
+    m_shortcutConfigureBtn->setCursor(Qt::PointingHandCursor);
+    m_shortcutConfigureBtn->setFlat(true);
+    connect(m_shortcutConfigureBtn, &QPushButton::clicked, this, []() {
+        GlobalShortcutController::instance().openSystemConfigureUi();
+    });
+    cardLay->addWidget(m_shortcutConfigureBtn, 0, Qt::AlignLeft);
+
+    connect(&GlobalShortcutController::instance(), &GlobalShortcutController::bindingStateChanged, this,
+            [this](bool, GlobalShortcutController::Backend) {
+                if (m_shortcutStatusLabel)
+                    m_shortcutStatusLabel->setText(GlobalShortcutController::instance().statusText());
+            });
+
+    m_shortcutHintLabel = new QLabel(I18n::instance().tr("shortcutWaylandHint"), cardBody);
+    m_shortcutHintLabel->setObjectName("settingsInfo");
+    m_shortcutHintLabel->setWordWrap(true);
+    cardLay->addWidget(m_shortcutHintLabel);
+
     auto *lineTheme = new QFrame(cardBody);
     lineTheme->setFrameShape(QFrame::HLine);
     lineTheme->setObjectName("settingsDivider");
@@ -206,6 +261,81 @@ void SettingsPage::setupUi()
     outer->addWidget(scroll);
 }
 
+void SettingsPage::setupShortcutRow(QVBoxLayout *parentLayout, QWidget *cardBody, AppShortcuts::Action action,
+                                    QLabel **labelOut, ShortcutCaptureButton **captureOut,
+                                    QPushButton **resetOut)
+{
+    QString labelKey;
+    switch (action) {
+    case AppShortcuts::PlayPause:
+        labelKey = QStringLiteral("shortcutPlayPause");
+        break;
+    case AppShortcuts::NextTrack:
+        labelKey = QStringLiteral("shortcutNextTrack");
+        break;
+    case AppShortcuts::PreviousTrack:
+        labelKey = QStringLiteral("shortcutPreviousTrack");
+        break;
+    default:
+        break;
+    }
+
+    auto *row = new QHBoxLayout();
+    *labelOut = new QLabel(I18n::instance().tr(labelKey), cardBody);
+    (*labelOut)->setObjectName("settingsLabel");
+    row->addWidget(*labelOut);
+    row->addStretch();
+
+    *captureOut = new ShortcutCaptureButton(cardBody);
+    (*captureOut)->setKeySequence(AppShortcuts::instance().sequence(action));
+    connect(*captureOut, &ShortcutCaptureButton::keySequenceChanged, this,
+            [this, action, captureOut](const QKeySequence &seq) {
+                applyShortcutChange(action, seq, *captureOut);
+            });
+    row->addWidget(*captureOut);
+
+    *resetOut = new QPushButton(I18n::instance().tr("shortcutResetDefault"), cardBody);
+    (*resetOut)->setObjectName("settingsLinkBtn");
+    (*resetOut)->setCursor(Qt::PointingHandCursor);
+    (*resetOut)->setFlat(true);
+    connect(*resetOut, &QPushButton::clicked, this, [this, action, captureOut]() {
+        const QKeySequence seq = AppShortcuts::defaultSequence(action);
+        (*captureOut)->setKeySequence(seq);
+        applyShortcutChange(action, seq, *captureOut);
+    });
+    row->addWidget(*resetOut);
+    parentLayout->addLayout(row);
+}
+
+void SettingsPage::applyShortcutChange(AppShortcuts::Action action, const QKeySequence &seq,
+                                       ShortcutCaptureButton *editor)
+{
+    if (!seq.isEmpty()) {
+        for (int i = 0; i < AppShortcuts::ActionCount; ++i) {
+            const auto other = static_cast<AppShortcuts::Action>(i);
+            if (other == action)
+                continue;
+            if (AppShortcuts::instance().sequence(other) == seq) {
+                editor->setKeySequence(AppShortcuts::instance().sequence(action));
+                Toast::show(window(), I18n::instance().tr("shortcutConflict").arg(seq.toString(QKeySequence::NativeText)),
+                            Toast::Error);
+                return;
+            }
+        }
+    }
+    AppShortcuts::instance().setSequence(action, seq);
+}
+
+void SettingsPage::refreshShortcutEditors()
+{
+    if (m_shortcutPlayPauseBtn)
+        m_shortcutPlayPauseBtn->setKeySequence(AppShortcuts::instance().sequence(AppShortcuts::PlayPause));
+    if (m_shortcutPrevBtn)
+        m_shortcutPrevBtn->setKeySequence(AppShortcuts::instance().sequence(AppShortcuts::PreviousTrack));
+    if (m_shortcutNextBtn)
+        m_shortcutNextBtn->setKeySequence(AppShortcuts::instance().sequence(AppShortcuts::NextTrack));
+}
+
 void SettingsPage::retranslate()
 {
     m_langLabel->setText(I18n::instance().languageLabel());
@@ -227,6 +357,29 @@ void SettingsPage::retranslate()
         m_apiDocsBtn->setText(I18n::instance().tr("apiDocs"));
     if (m_checkUpdateBtn)
         m_checkUpdateBtn->setText(I18n::instance().tr("checkForUpdates"));
+    if (m_shortcutsSectionLabel)
+        m_shortcutsSectionLabel->setText(I18n::instance().tr("shortcuts"));
+    if (m_shortcutPlayPauseLabel)
+        m_shortcutPlayPauseLabel->setText(I18n::instance().tr("shortcutPlayPause"));
+    if (m_shortcutPrevLabel)
+        m_shortcutPrevLabel->setText(I18n::instance().tr("shortcutPreviousTrack"));
+    if (m_shortcutNextLabel)
+        m_shortcutNextLabel->setText(I18n::instance().tr("shortcutNextTrack"));
+    if (m_shortcutHintLabel)
+        m_shortcutHintLabel->setText(I18n::instance().tr("shortcutWaylandHint"));
+    if (m_shortcutStatusLabel)
+        m_shortcutStatusLabel->setText(GlobalShortcutController::instance().statusText());
+    if (m_shortcutConfigureBtn)
+        m_shortcutConfigureBtn->setText(I18n::instance().tr("shortcutOpenSystemSettings"));
+    if (m_shortcutResetAllBtn)
+        m_shortcutResetAllBtn->setText(I18n::instance().tr("shortcutResetAll"));
+    if (m_shortcutResetPlayPauseBtn)
+        m_shortcutResetPlayPauseBtn->setText(I18n::instance().tr("shortcutResetDefault"));
+    if (m_shortcutResetPrevBtn)
+        m_shortcutResetPrevBtn->setText(I18n::instance().tr("shortcutResetDefault"));
+    if (m_shortcutResetNextBtn)
+        m_shortcutResetNextBtn->setText(I18n::instance().tr("shortcutResetDefault"));
+    refreshShortcutEditors();
 }
 
 void SettingsPage::paintEvent(QPaintEvent *) {}
