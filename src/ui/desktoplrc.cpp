@@ -131,7 +131,8 @@ void DesktopLrc::ensureLayerShellConfigured()
         layer->setActivateOnShow(false);
         layer->setCloseOnDismissed(false);
         layer->setScope(QStringLiteral("nekomusic-desktop-lrc"));
-        layer->setAnchors(LSWindow::Anchors(LSWindow::AnchorBottom | LSWindow::AnchorLeft));
+        layer->setWantsToBeOnActiveScreen(false);
+        layer->setAnchors(LSWindow::Anchors(LSWindow::AnchorTop | LSWindow::AnchorLeft));
         layer->setDesiredSize(size());
     }
 
@@ -148,6 +149,19 @@ void DesktopLrc::applyLayerShellGeometry()
     migrateDesktopLyricsGeometry(settings);
 
     QScreen *screen = QGuiApplication::primaryScreen();
+    if (settings.contains(QStringLiteral("desktopLyricsX"))
+        && settings.contains(QStringLiteral("desktopLyricsY"))) {
+        const int probeW = settings.value(QStringLiteral("desktopLyricsW"), kDefaultDesktopLyricsW).toInt();
+        const int probeH = settings.value(QStringLiteral("desktopLyricsH"), kDefaultDesktopLyricsH).toInt();
+        const QPoint saved(settings.value(QStringLiteral("desktopLyricsX")).toInt(),
+                           settings.value(QStringLiteral("desktopLyricsY")).toInt());
+        if (QScreen *savedScreen =
+                QGuiApplication::screenAt(saved + QPoint(probeW / 2, probeH / 2)))
+            screen = savedScreen;
+    }
+    if (!screen)
+        screen = screenForWidget();
+
     const QSize sz = normalizedDesktopLyricsSize(
         settings.value(QStringLiteral("desktopLyricsW"), kDefaultDesktopLyricsW).toInt(),
         settings.value(QStringLiteral("desktopLyricsH"), kDefaultDesktopLyricsH).toInt(),
@@ -157,45 +171,36 @@ void DesktopLrc::applyLayerShellGeometry()
     if (!screen)
         return;
 
+    syncCachedScreenPosFromSettings(screen);
+    setWindowScreenTopLeft(m_cachedScreenPos, screen);
+}
+
+void DesktopLrc::syncCachedScreenPosFromSettings(QScreen *screen)
+{
+    if (!screen)
+        screen = screenForWidget();
+    if (!screen)
+        return;
+
+    QSettings settings;
+    migrateDesktopLyricsGeometry(settings);
     const QRect area = screen->availableGeometry();
-    int left = (area.width() - width()) / 2 + area.left();
-    int top = area.bottom() - height() - 48;
 
     if (settings.contains(QStringLiteral("desktopLyricsX"))
         && settings.contains(QStringLiteral("desktopLyricsY"))) {
-        left = settings.value(QStringLiteral("desktopLyricsX")).toInt();
-        top = settings.value(QStringLiteral("desktopLyricsY")).toInt();
+        m_cachedScreenPos = QPoint(settings.value(QStringLiteral("desktopLyricsX")).toInt(),
+                                   settings.value(QStringLiteral("desktopLyricsY")).toInt());
+    } else {
+        m_cachedScreenPos = QPoint((area.width() - width()) / 2 + area.left(),
+                                   area.bottom() - height() - 48);
     }
-
-    left = qBound(area.left(), left, area.right() - width() + 1);
-    top = qBound(area.top(), top, area.bottom() - height() + 1);
-
-    const int bottom = area.bottom() - top - height() + 1;
-    layer->setAnchors(
-        LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom | LayerShellQt::Window::AnchorLeft));
-    layer->setMargins(QMargins(left - area.left(), 0, 0, qMax(0, bottom)));
 }
 
 void DesktopLrc::saveLayerShellGeometry()
 {
-    LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this));
-    if (!layer)
-        return;
-
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
-    if (!screen || !isReasonableDesktopLyricsSize(width(), height(), screen))
-        return;
-
-    const QRect area = screen->availableGeometry();
-    const QMargins m = layer->margins();
-    const int left = area.left() + m.left();
-    const int top = area.bottom() - m.bottom() - height() + 1;
-
     QSettings settings;
-    settings.setValue(QStringLiteral("desktopLyricsX"), left);
-    settings.setValue(QStringLiteral("desktopLyricsY"), top);
+    settings.setValue(QStringLiteral("desktopLyricsX"), m_cachedScreenPos.x());
+    settings.setValue(QStringLiteral("desktopLyricsY"), m_cachedScreenPos.y());
     settings.setValue(QStringLiteral("desktopLyricsW"), width());
     settings.setValue(QStringLiteral("desktopLyricsH"), height());
     settings.setValue(QStringLiteral("desktopLyricsGeomVersion"), kDesktopLyricsGeomVersion);
@@ -239,9 +244,57 @@ void DesktopLrc::mouseDoubleClickEvent(QMouseEvent *event)
 
 void DesktopLrc::refreshStayOnTop()
 {
-    if (!m_isVisible || m_layerShellActive)
+    if (!m_isVisible || m_layerShellActive || m_dragging)
         return;
     desktopLrcKeepOnTop(this);
+}
+
+QScreen *DesktopLrc::screenForWidget() const
+{
+    auto *self = const_cast<DesktopLrc *>(this);
+    if (QWindow *handle = desktopLrcWindowHandle(self)) {
+        if (QScreen *screen = handle->screen())
+            return screen;
+    }
+    if (QScreen *screen = QGuiApplication::screenAt(m_cachedScreenPos + QPoint(width() / 2, height() / 2)))
+        return screen;
+    return QGuiApplication::primaryScreen();
+}
+
+QPoint DesktopLrc::clampToScreen(const QPoint &topLeft, QScreen *screen) const
+{
+    if (!screen)
+        return topLeft;
+    const QRect area = screen->availableGeometry();
+    return QPoint(qBound(area.left(), topLeft.x(), area.right() - width() + 1),
+                  qBound(area.top(), topLeft.y(), area.bottom() - height() + 1));
+}
+
+void DesktopLrc::setWindowScreenTopLeft(const QPoint &topLeft, QScreen *screen)
+{
+    if (!screen)
+        screen = screenForWidget();
+    if (!screen)
+        return;
+
+    m_cachedScreenPos = clampToScreen(topLeft, screen);
+    const QRect area = screen->availableGeometry();
+    const int left = m_cachedScreenPos.x();
+    const int top = m_cachedScreenPos.y();
+
+#if defined(NEKO_HAS_LAYERSHELL_QT)
+    if (m_layerShellActive) {
+        if (LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this))) {
+            layer->setWantsToBeOnActiveScreen(false);
+            layer->setScreen(screen);
+            layer->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorTop
+                                                           | LayerShellQt::Window::AnchorLeft));
+            layer->setMargins(QMargins(left - area.left(), top - area.top(), 0, 0));
+            return;
+        }
+    }
+#endif
+    move(left, top);
 }
 
 DesktopLrc::~DesktopLrc() = default;
@@ -264,7 +317,8 @@ void DesktopLrc::restoreGeometry()
     auto placeDefault = [this]() {
         if (QScreen *screen = QGuiApplication::primaryScreen()) {
             const QRect g = screen->availableGeometry();
-            move((g.width() - width()) / 2 + g.x(), g.bottom() - height() - 48);
+            setWindowScreenTopLeft(
+                QPoint((g.width() - width()) / 2 + g.x(), g.bottom() - height() - 48), screen);
         }
     };
 
@@ -275,9 +329,9 @@ void DesktopLrc::restoreGeometry()
 
     const int x = settings.value(QStringLiteral("desktopLyricsX")).toInt();
     const int y = settings.value(QStringLiteral("desktopLyricsY")).toInt();
-    move(x, y);
+    setWindowScreenTopLeft(QPoint(x, y), primary);
 
-    const QRect frame = geometry();
+    const QRect frame = QRect(m_cachedScreenPos, size());
     for (QScreen *screen : QGuiApplication::screens()) {
         if (screen && screen->availableGeometry().intersects(frame))
             return;
@@ -287,15 +341,13 @@ void DesktopLrc::restoreGeometry()
 
 void DesktopLrc::saveGeometry()
 {
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
+    QScreen *screen = m_dragScreen ? m_dragScreen : screenForWidget();
     if (!screen || !isReasonableDesktopLyricsSize(width(), height(), screen))
         return;
 
     QSettings settings;
-    settings.setValue(QStringLiteral("desktopLyricsX"), x());
-    settings.setValue(QStringLiteral("desktopLyricsY"), y());
+    settings.setValue(QStringLiteral("desktopLyricsX"), m_cachedScreenPos.x());
+    settings.setValue(QStringLiteral("desktopLyricsY"), m_cachedScreenPos.y());
     settings.setValue(QStringLiteral("desktopLyricsW"), width());
     settings.setValue(QStringLiteral("desktopLyricsH"), height());
     settings.setValue(QStringLiteral("desktopLyricsGeomVersion"), kDesktopLyricsGeomVersion);
@@ -455,6 +507,8 @@ void DesktopLrc::paintEvent(QPaintEvent *event)
     Q_UNUSED(event);
 
     QPainter painter(this);
+    if (m_layerShellActive && m_dragging && !m_dragVisualOffset.isNull())
+        painter.translate(m_dragVisualOffset);
     painter.setRenderHint(QPainter::Antialiasing);
     
     // Draw beautiful rounded capsule background (e.g. radius 16px)
@@ -537,7 +591,22 @@ void DesktopLrc::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         m_dragging = true;
-        m_dragPosition = event->position().toPoint();
+        m_dragPressGlobal = event->globalPosition().toPoint();
+        m_lastDragGlobal = m_dragPressGlobal;
+        m_dragAnchorPos = m_cachedScreenPos;
+        m_dragVisualOffset = QPoint();
+        m_dragScreen = QGuiApplication::screenAt(m_dragPressGlobal);
+        if (!m_dragScreen)
+            m_dragScreen = screenForWidget();
+
+        if (m_updateTimer)
+            m_updateTimer->stop();
+
+        if (!m_layerShellActive && desktopLrcIsWaylandSession()) {
+            if (QWindow *handle = window() ? window()->windowHandle() : nullptr)
+                handle->startSystemMove();
+        }
+
         event->accept();
     }
 }
@@ -547,42 +616,47 @@ void DesktopLrc::mouseMoveEvent(QMouseEvent *event)
     if (!m_dragging || !(event->buttons() & Qt::LeftButton))
         return;
 
+    const QPoint global = event->globalPosition().toPoint();
+
 #if defined(NEKO_HAS_LAYERSHELL_QT)
     if (m_layerShellActive) {
-        LayerShellQt::Window *layer = LayerShellQt::Window::get(desktopLrcWindowHandle(this));
-        QScreen *screen = QGuiApplication::screenAt(event->globalPosition().toPoint());
-        if (layer && screen) {
-            const QRect area = screen->availableGeometry();
-            const QPoint topLeft = (event->globalPosition() - QPointF(m_dragPosition)).toPoint();
-            const int left = qBound(area.left(), topLeft.x(), area.right() - width() + 1);
-            const int top = qBound(area.top(), topLeft.y(), area.bottom() - height() + 1);
-            const int bottom = area.bottom() - top - height() + 1;
-            layer->setAnchors(
-                LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom
-                                              | LayerShellQt::Window::AnchorLeft));
-            layer->setMargins(QMargins(left - area.left(), 0, 0, qMax(0, bottom)));
-        }
+        // compositor 拖动时延迟应用 margins，用绘制偏移提供实时反馈
+        m_dragVisualOffset = global - m_dragPressGlobal;
+        update();
         event->accept();
         return;
     }
 #endif
 
-    if (window() && window()->windowHandle()) {
-        window()->windowHandle()->startSystemMove();
-    } else {
-        move((event->globalPosition() - QPointF(m_dragPosition)).toPoint());
-    }
+    const QPoint delta = global - m_lastDragGlobal;
+    if (delta.isNull())
+        return;
+    m_lastDragGlobal = global;
+
+    if (!desktopLrcIsWaylandSession())
+        setWindowScreenTopLeft(m_cachedScreenPos + delta, m_dragScreen);
     event->accept();
 }
 
 void DesktopLrc::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
+#if defined(NEKO_HAS_LAYERSHELL_QT)
+        if (m_layerShellActive) {
+            const QPoint finalPos = clampToScreen(m_dragAnchorPos + m_dragVisualOffset, m_dragScreen);
+            setWindowScreenTopLeft(finalPos, m_dragScreen);
+        }
+#endif
         m_dragging = false;
+        m_dragVisualOffset = QPoint();
+        m_dragScreen = nullptr;
         if (m_layerShellActive)
             saveLayerShellGeometry();
         else
             saveGeometry();
+        if (m_updateTimer && m_isVisible)
+            m_updateTimer->start(100);
+        update();
         event->accept();
     }
 }

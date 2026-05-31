@@ -4,11 +4,13 @@
 #include <QColor>
 #include <QFont>
 #include <QMap>
+#include <QPoint>
 #include <QTimer>
 
 class QPaintEvent;
 class QMouseEvent;
 class QShowEvent;
+class QScreen;
 
 class DesktopLrc : public QWidget
 {
@@ -48,10 +50,19 @@ private:
     void saveGeometry();
     void applyFallbackText();
     void refreshStayOnTop();
+    QScreen *screenForWidget() const;
+    void setWindowScreenTopLeft(const QPoint &topLeft, QScreen *screen = nullptr);
+    void syncCachedScreenPosFromSettings(QScreen *screen);
+    QPoint clampToScreen(const QPoint &topLeft, QScreen *screen) const;
 
     QString m_currentLyrics;
     bool m_dragging = false;
-    QPoint m_dragPosition;
+    QPoint m_lastDragGlobal;
+    QPoint m_cachedScreenPos;
+    QPoint m_dragPressGlobal;
+    QPoint m_dragAnchorPos;
+    QPoint m_dragVisualOffset;
+    QScreen *m_dragScreen = nullptr;
 
     QMap<qint64, QString> m_lyricsMap;
     qint64 m_currentPosition = 0;
