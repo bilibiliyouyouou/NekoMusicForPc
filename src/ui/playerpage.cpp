@@ -1362,6 +1362,12 @@ void PlayerPage::scheduleAudioQualityProbe()
                              && int(r2.tier) < int(result.tier))
                         r2.tier = result.tier;
                     rangePtr->deleteLater();
+                    // Range 已读出容器头（采样率/位深）时，以解析结果为准，勿让 QMediaPlayer 的
+                    // AudioBitRate（常低于 2Mbps 或仅为解码比特率）在 durationChanged 里把 Hi-Res 盖成 SQ。
+                    if (r2.sampleRateHz > 0 || r2.bitsPerSample > 0) {
+                        m_fileProbedQuality = r2;
+                        m_hasFileProbedQuality = true;
+                    }
                     finishProbe(r2);
                 });
     });
