@@ -517,6 +517,14 @@ static QMap<QString, QString> zhCN()
     m["addToPlaylistFailed"] = QStringLiteral("添加到歌单失败");
     m["importSuccess"] = QStringLiteral("导入成功！成功添加 %1 首，共 %2 首，%3 首未匹配");
 
+    // --- QQ 音乐歌单导入 ---
+    m["importQqPlaylist"] = QStringLiteral("导入QQ音乐歌单");
+    m["importQqDesc"] = QStringLiteral("输入 QQ 音乐歌单分享链接或 ID，将歌曲导入到本地歌单");
+    m["inputQqLink"] = QStringLiteral("输入 QQ 音乐歌单链接或 ID...");
+    m["invalidQqLink"] = QStringLiteral("无效的歌单链接或 ID");
+    m["emptyQqPlaylist"] = QStringLiteral("歌单为空");
+    m["qqPlaylistInfo"] = QStringLiteral("歌单：%1（共 %2 首歌曲）");
+
     // --- 异常与调试 ---
     m["emptyMusic"] = QStringLiteral("音乐数据为空");
     m["musicInPlaylist"] = QStringLiteral("音乐已在播放列表中");
@@ -817,6 +825,14 @@ static QMap<QString, QString> nyaCN()
     m["addingToPlaylist"] = QStringLiteral("正在添加 %1 首歌曲到歌单喵...");
     m["addToPlaylistFailed"] = QStringLiteral("添加到歌单失败了喵...");
     m["importSuccess"] = QStringLiteral("导入成功喵！添加了 %1 首，共 %2 首，%3 首没找到喵~");
+
+    // --- QQ 音乐歌单导入喵~ ---
+    m["importQqPlaylist"] = QStringLiteral("导入QQ音乐歌单喵~");
+    m["importQqDesc"] = QStringLiteral("把 QQ 音乐歌单链接或 ID 告诉人家，人家帮你搬过来喵~");
+    m["inputQqLink"] = QStringLiteral("输入 QQ 音乐歌单链接或 ID 喵...");
+    m["invalidQqLink"] = QStringLiteral("这个链接看不懂喵...给个正确的嘛~");
+    m["emptyQqPlaylist"] = QStringLiteral("歌单空空的没有歌喵...");
+    m["qqPlaylistInfo"] = QStringLiteral("歌单：%1（共 %2 首歌曲喵）");
     
     return m;
 }
@@ -1337,6 +1353,14 @@ static QMap<QString, QString> enUS()
     m["addingToPlaylist"] = "Adding %1 tracks to playlist...";
     m["addToPlaylistFailed"] = "Failed to add to playlist";
     m["importSuccess"] = "Import successful! Added %1 of %2 tracks, %3 not matched";
+
+    // --- QQ Music Playlist Import ---
+    m["importQqPlaylist"] = "Import QQ Music Playlist";
+    m["importQqDesc"] = "Enter QQ Music playlist link or ID to import songs to local playlist";
+    m["inputQqLink"] = "Enter QQ Music playlist link or ID...";
+    m["invalidQqLink"] = "Invalid playlist link or ID";
+    m["emptyQqPlaylist"] = "Playlist is empty";
+    m["qqPlaylistInfo"] = "Playlist: %1 (%2 songs)";
 
     return m;
 }

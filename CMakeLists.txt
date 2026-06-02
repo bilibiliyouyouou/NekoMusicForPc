@@ -188,6 +188,7 @@ set(SOURCES
         src/ui/defaultmusicplayerdialog.cpp
         src/ui/searchpage.cpp
         src/ui/neteaseimportdialog.cpp
+        src/ui/qqimportdialog.cpp
         src/theme/thememanager.cpp
 )
 
@@ -255,6 +256,7 @@ set(HEADERS
         src/ui/searchpage.h
         src/ui/artistdetailpage.h
         src/ui/neteaseimportdialog.h
+        src/ui/qqimportdialog.h
         src/core/systemmediacontroller.h
         src/core/defaultmusicappchecker.h
 )

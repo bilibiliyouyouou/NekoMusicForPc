@@ -163,6 +163,16 @@ void Sidebar::setupUi()
     });
     lay->addWidget(m_importNeteaseBtn);
 
+    m_importQqBtn = new QPushButton(I18n::instance().tr("importQqPlaylist"), container);
+    m_importQqBtn->setObjectName("sbCreatePlaylist");
+    m_importQqBtn->setFixedHeight(36);
+    m_importQqBtn->setCursor(Qt::PointingHandCursor);
+    m_importQqBtn->setToolTip(I18n::instance().tr("importQqDesc"));
+    connect(m_importQqBtn, &QPushButton::clicked, this, [this]() {
+        emit qqImportRequested();
+    });
+    lay->addWidget(m_importQqBtn);
+
     // 收藏歌单分隔线
     auto *favDiv = new QWidget(container);
     favDiv->setObjectName("sbDivider");
@@ -485,6 +495,14 @@ void Sidebar::retranslate()
     if (headers.size() >= 2) headers[1]->setText(I18n::instance().tr("favoritePlaylistsTitle"));
 
     if (m_createPlaylistBtn) m_createPlaylistBtn->setText(I18n::instance().tr("createPlaylist"));
+    if (m_importNeteaseBtn) {
+        m_importNeteaseBtn->setText(I18n::instance().tr("importNeteasePlaylist"));
+        m_importNeteaseBtn->setToolTip(I18n::instance().tr("importNeteaseDesc"));
+    }
+    if (m_importQqBtn) {
+        m_importQqBtn->setText(I18n::instance().tr("importQqPlaylist"));
+        m_importQqBtn->setToolTip(I18n::instance().tr("importQqDesc"));
+    }
 }
 
 void Sidebar::paintEvent(QPaintEvent *)
