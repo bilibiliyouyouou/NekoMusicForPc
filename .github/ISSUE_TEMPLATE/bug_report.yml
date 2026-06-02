@@ -45,8 +45,8 @@ body:
     attributes:
       label: 操作系统
       options:
-        - Windows
         - Linux
+        - Windows
         - macOS
         - 其他（请在「其他说明」里写明）
     validations:
@@ -61,20 +61,12 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: qt_version
-    attributes:
-      label: Qt 版本（若知晓）
-      placeholder: 例：6.8.1
-    validations:
-      required: false
-
   - type: dropdown
     id: build_method
     attributes:
       label: 构建 / 获取方式
       options:
-        - 官方 Release 安装包
+        - 官网下载
         - 本地 CMake / 脚本自编译（如 build_linux.sh）
         - CI 产物 / 其他（请说明）
     validations:
