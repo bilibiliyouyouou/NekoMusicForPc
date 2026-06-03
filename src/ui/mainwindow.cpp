@@ -419,17 +419,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     // 连接主题变化信号
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged,
             this, &MainWindow::applyTheme);
+    m_shellBackdropRebuildTimer = new QTimer(this);
+    m_shellBackdropRebuildTimer->setSingleShot(true);
+    connect(m_shellBackdropRebuildTimer, &QTimer::timeout, this, &MainWindow::rebuildShellBackdropCache);
     connect(&ShellBackdropSettings::instance(), &ShellBackdropSettings::changed, this, [this]() {
         m_shellBackdropCache = QPixmap();
         m_shellBackdropCacheSize = QSize();
-        if (m_shellBackdrop)
-            m_shellBackdrop->update();
+        scheduleShellBackdropRebuild(0);
         updateChromeForShellBackdrop();
     });
 
     setWindowTitle(QStringLiteral("NekoMusic"));
     resize(1200, 800);
     setMinimumSize(960, 640);
+    scheduleShellBackdropRebuild(0);
 
     qApp->installEventFilter(this);
 
@@ -1056,48 +1059,78 @@ void MainWindow::applyTheme()
         qApp->setStyleSheet(QString());
     else
         qApp->setStyleSheet(style);
-    m_shellBackdropCache = QPixmap();
-    m_shellBackdropCacheSize = QSize();
     if (m_shellBackdrop)
         m_shellBackdrop->update();
     updateChromeForShellBackdrop();
 }
 
-void MainWindow::refreshShellBackdropCache() const
+namespace {
+
+constexpr int kMaxBackdropCacheSide = 1600;
+
+QSize cappedBackdropCacheSize(const QSize &widgetSize)
 {
-    if (!m_shellBackdrop)
+    if (widgetSize.isEmpty())
+        return widgetSize;
+    QSize t = widgetSize;
+    const int side = qMax(t.width(), t.height());
+    if (side <= kMaxBackdropCacheSide)
+        return t;
+    t.scale(kMaxBackdropCacheSide, kMaxBackdropCacheSide, Qt::KeepAspectRatio);
+    return t;
+}
+
+} // namespace
+
+void MainWindow::scheduleShellBackdropRebuild(int delayMs)
+{
+    if (!m_shellBackdropRebuildTimer)
         return;
-    const QSize target = m_shellBackdrop->size();
-    const QPixmap source = ShellBackdropSettings::instance().sourcePixmap();
-    if (target.isEmpty() || source.isNull())
+    m_shellBackdropRebuildTimer->start(qMax(0, delayMs));
+}
+
+void MainWindow::rebuildShellBackdropCache()
+{
+    if (!m_shellBackdrop || !ShellBackdropSettings::instance().usesImageBackdrop())
+        return;
+
+    const QSize target = cappedBackdropCacheSize(m_shellBackdrop->size());
+    if (target.isEmpty())
         return;
     if (m_shellBackdropCacheSize == target && !m_shellBackdropCache.isNull())
         return;
 
-    QPixmap cover = source.scaled(target, Qt::KeepAspectRatioByExpanding,
-                                                 Qt::SmoothTransformation);
+    const QPixmap source = ShellBackdropSettings::instance().cachedSourcePixmap();
+    if (source.isNull())
+        return;
+
+    QPixmap cover = source.scaled(target, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
     if (cover.width() > target.width() || cover.height() > target.height()) {
         const int x = (cover.width() - target.width()) / 2;
         const int y = (cover.height() - target.height()) / 2;
         cover = cover.copy(x, y, target.width(), target.height());
     } else if (cover.size() != target) {
-        cover = cover.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        cover = cover.scaled(target, Qt::IgnoreAspectRatio, Qt::FastTransformation);
     }
 
     m_shellBackdropCache = cover;
     m_shellBackdropCacheSize = target;
+    m_shellBackdrop->update();
 }
 
 void MainWindow::paintShellBackdrop(QPainter &p, const QRect &r) const
 {
     auto &backdrop = ShellBackdropSettings::instance();
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
     if (backdrop.kind() == ShellBackdropSettings::Kind::SolidColor) {
         GlassPaint::paintMainWindowSolidBackdrop(p, r, backdrop.solidColor());
         return;
     }
-    refreshShellBackdropCache();
-    GlassPaint::paintMainWindowPagesImageBackdrop(
-        p, r, m_shellBackdropCache, Theme::ThemeManager::instance().isDarkMode());
+    if (m_shellBackdropCache.isNull()) {
+        GlassPaint::paintMainWindowDeepBackdrop(p, r, dark);
+        return;
+    }
+    GlassPaint::paintMainWindowPagesImageBackdrop(p, r, m_shellBackdropCache, dark);
 }
 
 void MainWindow::updateChromeForShellBackdrop()
@@ -1904,9 +1937,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
     QMainWindow::resizeEvent(event);
     if (m_shellBackdrop && centralWidget()) {
         m_shellBackdrop->setGeometry(centralWidget()->rect());
-        m_shellBackdropCache = QPixmap();
-        m_shellBackdropCacheSize = QSize();
-        m_shellBackdrop->update();
+        scheduleShellBackdropRebuild(150);
     }
     if (m_playerPage) {
         if (m_playerPageVisible)

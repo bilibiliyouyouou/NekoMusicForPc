@@ -25,7 +25,8 @@ public:
     QColor solidColor() const { return m_solidColor; }
 
     bool usesImageBackdrop() const;
-    QPixmap sourcePixmap() const;
+    /** 解码后的源图（带内存缓存，避免每帧从磁盘加载）。 */
+    QPixmap cachedSourcePixmap();
 
     void setKind(Kind kind);
     void setCustomImagePath(const QString &path);
@@ -34,14 +35,19 @@ public:
 
     void load();
     void save() const;
+    void invalidateSourceCache();
 
 signals:
     void changed();
 
 private:
     explicit ShellBackdropSettings(QObject *parent = nullptr);
+    QString sourceCacheKey() const;
+    QPixmap loadSourcePixmapUncached() const;
 
     Kind m_kind = Kind::DefaultImage;
     QString m_customPath;
     QColor m_solidColor{26, 26, 34};
+    QString m_sourceCacheKey;
+    QPixmap m_sourceCache;
 };

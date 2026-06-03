@@ -152,9 +152,11 @@ void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode)
 
 void paintMainWindowPagesImageBackdrop(QPainter &p, const QRect &r, const QPixmap &image, bool darkMode)
 {
-    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     if (!image.isNull()) {
-        p.drawPixmap(r, image);
+        if (image.size() == r.size())
+            p.drawPixmap(r.topLeft(), image);
+        else
+            p.drawPixmap(r, image);
     } else {
         paintMainWindowDeepBackdrop(p, r, darkMode);
         return;

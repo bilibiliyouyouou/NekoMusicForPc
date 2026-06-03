@@ -79,7 +79,8 @@ private:
     void setupUi();
     void loadStyleSheet();
     void applyTheme();
-    void refreshShellBackdropCache() const;
+    void scheduleShellBackdropRebuild(int delayMs = 120);
+    void rebuildShellBackdropCache();
     void updateChromeForShellBackdrop();
     void switchPage(QWidget *target);
     void showMusicListPage(bool isHot);
@@ -194,6 +195,7 @@ private:
     bool m_midPlaybackRecoveryInFlight = false;
 
     QWidget *m_shellBackdrop = nullptr;
-    mutable QPixmap m_shellBackdropCache;
-    mutable QSize m_shellBackdropCacheSize;
+    QTimer *m_shellBackdropRebuildTimer = nullptr;
+    QPixmap m_shellBackdropCache;
+    QSize m_shellBackdropCacheSize;
 };
