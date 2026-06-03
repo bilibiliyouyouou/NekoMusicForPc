@@ -1826,13 +1826,18 @@ void PlayerBar::updatePlayModeBtn(const QString &mode)
     m_playModeBtn->update();
 }
 
+void PlayerBar::applyShellBackdropChrome()
+{
+    applyPlayerBarGlassStyle();
+}
+
 void PlayerBar::applyPlayerBarGlassStyle()
 {
     if (!m_glass)
         return;
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
     m_glass->setBackdropCaptureEnabled(false);
-    m_glass->setBaseColor(dark ? QColor(30, 30, 30) : QColor(255, 255, 255));
+    m_glass->setBaseColor(dark ? QColor(30, 30, 30, 175) : QColor(255, 255, 255, 210));
     m_glass->setBorderColor(dark ? QColor(255, 255, 255, 18) : QColor(0, 0, 0, 22));
     m_glass->setOpacity(1.0);
     m_glass->setBorderRadius(0);

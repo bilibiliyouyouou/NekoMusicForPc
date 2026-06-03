@@ -509,5 +509,5 @@ void Sidebar::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     GlassPaint::paintBarGlass(p, rect(), GlassPaint::BarKind::Sidebar,
-                              Theme::ThemeManager::instance().isDarkMode());
+                              Theme::ThemeManager::instance().isDarkMode(), true);
 }

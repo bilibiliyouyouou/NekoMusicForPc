@@ -22,7 +22,11 @@ enum class BarKind {
 
 void paintMainWindowDeepBackdrop(QPainter &p, const QRect &r, bool darkMode);
 
-void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode);
+/** 非首页：铺满窗口的图片背景 + 轻遮罩（保证列表/文字可读） */
+void paintMainWindowPagesImageBackdrop(QPainter &p, const QRect &r, const QPixmap &image, bool darkMode);
+
+void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode,
+                   bool photoShellBackdrop = false);
 
 /** SPlayer 式扁平卡片/面板：禁用 backdrop 抓取，实心 surface */
 void applyFlatSurface(GlassWidget *glass, bool darkMode);

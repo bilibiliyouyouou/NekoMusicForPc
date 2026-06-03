@@ -173,6 +173,31 @@ private:
     QPropertyAnimation *m_fadeAnim = nullptr;
 };
 
+/** 铺满 centralWidget 的整窗底图（含首页） */
+class AppShellBackdrop final : public QWidget {
+public:
+    explicit AppShellBackdrop(MainWindow *main, QWidget *parent)
+        : QWidget(parent)
+        , m_main(main)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        setAutoFillBackground(false);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        if (!m_main)
+            return;
+        QPainter p(this);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        m_main->paintShellPhotoBackdrop(p, rect());
+    }
+
+private:
+    MainWindow *m_main = nullptr;
+};
+
 constexpr int kFramelessResizeMargin = 8;
 
 Qt::Edges framelessResizeEdgesAt(const QWidget *win, const QPoint &globalPos)
@@ -299,6 +324,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground, false);
+    setAutoFillBackground(false);
 
     setWindowIcon(QIcon(QStringLiteral(":/icons/app.png")));
     m_engine = new PlayerEngine(this);
@@ -393,6 +419,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged,
             this, &MainWindow::applyTheme);
 
+    m_shellBackdropSource.load(QStringLiteral(":/background-pages.jpg"));
+
     setWindowTitle(QStringLiteral("NekoMusic"));
     resize(1200, 800);
     setMinimumSize(960, 640);
@@ -430,7 +458,12 @@ void MainWindow::setupUi()
 {
     auto *central = new QWidget(this);
     central->setObjectName("centralWidget");
+    central->setAutoFillBackground(false);
     setCentralWidget(central);
+
+    m_shellBackdrop = new AppShellBackdrop(this, central);
+    m_shellBackdrop->setObjectName(QStringLiteral("shellBackdrop"));
+    m_shellBackdrop->lower();
 
     auto *mainV = new QVBoxLayout(central);
     mainV->setContentsMargins(0, 0, 0, 0);
@@ -1017,12 +1050,52 @@ void MainWindow::applyTheme()
         qApp->setStyleSheet(QString());
     else
         qApp->setStyleSheet(style);
+    m_shellBackdropCache = QPixmap();
+    m_shellBackdropCacheSize = QSize();
+    if (m_shellBackdrop)
+        m_shellBackdrop->update();
+    updateChromeForShellBackdrop();
 }
 
-void MainWindow::paintEvent(QPaintEvent *)
+void MainWindow::refreshShellBackdropCache() const
 {
-    QPainter p(this);
-    GlassPaint::paintMainWindowDeepBackdrop(p, rect(), Theme::ThemeManager::instance().isDarkMode());
+    if (!m_shellBackdrop)
+        return;
+    const QSize target = m_shellBackdrop->size();
+    if (target.isEmpty() || m_shellBackdropSource.isNull())
+        return;
+    if (m_shellBackdropCacheSize == target && !m_shellBackdropCache.isNull())
+        return;
+
+    QPixmap cover = m_shellBackdropSource.scaled(target, Qt::KeepAspectRatioByExpanding,
+                                                 Qt::SmoothTransformation);
+    if (cover.width() > target.width() || cover.height() > target.height()) {
+        const int x = (cover.width() - target.width()) / 2;
+        const int y = (cover.height() - target.height()) / 2;
+        cover = cover.copy(x, y, target.width(), target.height());
+    } else if (cover.size() != target) {
+        cover = cover.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
+
+    m_shellBackdropCache = cover;
+    m_shellBackdropCacheSize = target;
+}
+
+void MainWindow::paintShellPhotoBackdrop(QPainter &p, const QRect &r) const
+{
+    refreshShellBackdropCache();
+    GlassPaint::paintMainWindowPagesImageBackdrop(
+        p, r, m_shellBackdropCache, Theme::ThemeManager::instance().isDarkMode());
+}
+
+void MainWindow::updateChromeForShellBackdrop()
+{
+    if (m_sidebar)
+        m_sidebar->update();
+    if (m_titleBar)
+        m_titleBar->update();
+    if (m_playerBar)
+        m_playerBar->applyShellBackdropChrome();
 }
 
 void MainWindow::switchPage(QWidget *target)
@@ -1817,6 +1890,12 @@ void MainWindow::closePlayerPage()
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
+    if (m_shellBackdrop && centralWidget()) {
+        m_shellBackdrop->setGeometry(centralWidget()->rect());
+        m_shellBackdropCache = QPixmap();
+        m_shellBackdropCacheSize = QSize();
+        m_shellBackdrop->update();
+    }
     if (m_playerPage) {
         if (m_playerPageVisible)
             m_playerPage->setGeometry(playerPageOverlayGeometry());

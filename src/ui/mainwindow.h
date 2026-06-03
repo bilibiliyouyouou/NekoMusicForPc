@@ -14,6 +14,10 @@
 #include <QList>
 #include <QStackedWidget>
 #include <QSystemTrayIcon>
+#include <QPixmap>
+#include <QSize>
+#include <QPainter>
+#include <QRect>
 #include "core/musicinfo.h"
 #include "theme/thememanager.h"
 
@@ -55,8 +59,9 @@ public:
     /** 资源管理器「打开方式」或命令行传入的本地音频路径（mp3/flac/wav 等） */
     void openAudioFileFromPath(const QString &path);
 
+    void paintShellPhotoBackdrop(QPainter &p, const QRect &r) const;
+
 protected:
-    void paintEvent(QPaintEvent *) override;
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     bool event(QEvent *event) override;
@@ -74,6 +79,8 @@ private:
     void setupUi();
     void loadStyleSheet();
     void applyTheme();
+    void refreshShellBackdropCache() const;
+    void updateChromeForShellBackdrop();
     void switchPage(QWidget *target);
     void showMusicListPage(bool isHot);
     void showDailyRecommendationsPage();
@@ -185,4 +192,9 @@ private:
     bool m_streamFailHandledThisRound = false;
     /** 播放中途断流恢复进行中，避免 Demux 错误连发时叠多个 stop/重试。 */
     bool m_midPlaybackRecoveryInFlight = false;
+
+    QWidget *m_shellBackdrop = nullptr;
+    QPixmap m_shellBackdropSource;
+    mutable QPixmap m_shellBackdropCache;
+    mutable QSize m_shellBackdropCacheSize;
 };
