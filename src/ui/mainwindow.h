@@ -60,6 +60,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     bool event(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);

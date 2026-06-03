@@ -55,6 +55,7 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QMouseEvent>
+#include <QWindow>
 #include <QPainter>
 #include <QList>
 #include <QGraphicsOpacityEffect>
@@ -171,6 +172,42 @@ private:
     QGraphicsOpacityEffect *m_opacityFx = nullptr;
     QPropertyAnimation *m_fadeAnim = nullptr;
 };
+
+constexpr int kFramelessResizeMargin = 8;
+
+Qt::Edges framelessResizeEdgesAt(const QWidget *win, const QPoint &globalPos)
+{
+    if (!win || win->isMaximized())
+        return {};
+    const QRect g = win->frameGeometry();
+    Qt::Edges edges;
+    if (globalPos.x() - g.left() < kFramelessResizeMargin)
+        edges |= Qt::LeftEdge;
+    if (g.right() - globalPos.x() < kFramelessResizeMargin)
+        edges |= Qt::RightEdge;
+    if (globalPos.y() - g.top() < kFramelessResizeMargin)
+        edges |= Qt::TopEdge;
+    if (g.bottom() - globalPos.y() < kFramelessResizeMargin)
+        edges |= Qt::BottomEdge;
+    return edges;
+}
+
+Qt::CursorShape cursorForResizeEdges(Qt::Edges edges)
+{
+    const bool left = edges.testFlag(Qt::LeftEdge);
+    const bool right = edges.testFlag(Qt::RightEdge);
+    const bool top = edges.testFlag(Qt::TopEdge);
+    const bool bottom = edges.testFlag(Qt::BottomEdge);
+    if ((left && top) || (right && bottom))
+        return Qt::SizeFDiagCursor;
+    if ((right && top) || (left && bottom))
+        return Qt::SizeBDiagCursor;
+    if (left || right)
+        return Qt::SizeHorCursor;
+    if (top || bottom)
+        return Qt::SizeVerCursor;
+    return Qt::ArrowCursor;
+}
 
 } // namespace
 #include <QPointer>
@@ -350,6 +387,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     resize(1200, 800);
     setMinimumSize(960, 640);
 
+    qApp->installEventFilter(this);
+
     // 延迟检查版本更新
     QTimer::singleShot(2000, this, [this]() { checkForUpdates(false); });
     QTimer::singleShot(3500, this, [this]() { maybePromptDefaultMusicPlayer(); });
@@ -357,6 +396,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 MainWindow::~MainWindow()
 {
+    qApp->removeEventFilter(this);
+    while (QApplication::overrideCursor())
+        QApplication::restoreOverrideCursor();
+
     // 清理下载器连接
     disconnectDownloader();
 
@@ -1769,6 +1812,51 @@ bool MainWindow::event(QEvent *event)
         return true;
     }
     return QMainWindow::event(event);
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (!isMaximized() && windowHandle()) {
+        QWidget *w = qobject_cast<QWidget *>(watched);
+        if (w && w->window() == this) {
+            switch (event->type()) {
+            case QEvent::MouseButtonPress: {
+                auto *e = static_cast<QMouseEvent *>(event);
+                if (e->button() == Qt::LeftButton) {
+                    const Qt::Edges edges =
+                        framelessResizeEdgesAt(this, e->globalPosition().toPoint());
+                    if (edges) {
+                        windowHandle()->startSystemResize(edges);
+                        return true;
+                    }
+                }
+                break;
+            }
+            case QEvent::MouseMove: {
+                auto *e = static_cast<QMouseEvent *>(event);
+                const Qt::Edges edges =
+                    framelessResizeEdgesAt(this, e->globalPosition().toPoint());
+                if (edges) {
+                    const Qt::CursorShape shape = cursorForResizeEdges(edges);
+                    const QCursor *cur = QApplication::overrideCursor();
+                    if (!cur || cur->shape() != shape)
+                        QApplication::setOverrideCursor(shape);
+                } else if (QApplication::overrideCursor()) {
+                    QApplication::restoreOverrideCursor();
+                }
+                break;
+            }
+            case QEvent::Leave: {
+                if (QApplication::overrideCursor())
+                    QApplication::restoreOverrideCursor();
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::createTrayIcon()
