@@ -7,6 +7,7 @@
  */
 
 #include "sidebar.h"
+#include "core/shellbackdropsettings.h"
 #include "svgicon.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
@@ -509,5 +510,6 @@ void Sidebar::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     GlassPaint::paintBarGlass(p, rect(), GlassPaint::BarKind::Sidebar,
-                              Theme::ThemeManager::instance().isDarkMode(), true);
+                              Theme::ThemeManager::instance().isDarkMode(),
+                              ShellBackdropSettings::instance().usesImageBackdrop());
 }

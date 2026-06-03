@@ -50,6 +50,7 @@
 #include "core/defaultmusicappchecker.h"
 #include "core/appshortcuts.h"
 #include "core/globalshortcutcontroller.h"
+#include "core/shellbackdropsettings.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -191,7 +192,7 @@ protected:
             return;
         QPainter p(this);
         p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-        m_main->paintShellPhotoBackdrop(p, rect());
+        m_main->paintShellBackdrop(p, rect());
     }
 
 private:
@@ -418,8 +419,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     // 连接主题变化信号
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged,
             this, &MainWindow::applyTheme);
-
-    m_shellBackdropSource.load(QStringLiteral(":/background-pages.jpg"));
+    connect(&ShellBackdropSettings::instance(), &ShellBackdropSettings::changed, this, [this]() {
+        m_shellBackdropCache = QPixmap();
+        m_shellBackdropCacheSize = QSize();
+        if (m_shellBackdrop)
+            m_shellBackdrop->update();
+        updateChromeForShellBackdrop();
+    });
 
     setWindowTitle(QStringLiteral("NekoMusic"));
     resize(1200, 800);
@@ -1062,12 +1068,13 @@ void MainWindow::refreshShellBackdropCache() const
     if (!m_shellBackdrop)
         return;
     const QSize target = m_shellBackdrop->size();
-    if (target.isEmpty() || m_shellBackdropSource.isNull())
+    const QPixmap source = ShellBackdropSettings::instance().sourcePixmap();
+    if (target.isEmpty() || source.isNull())
         return;
     if (m_shellBackdropCacheSize == target && !m_shellBackdropCache.isNull())
         return;
 
-    QPixmap cover = m_shellBackdropSource.scaled(target, Qt::KeepAspectRatioByExpanding,
+    QPixmap cover = source.scaled(target, Qt::KeepAspectRatioByExpanding,
                                                  Qt::SmoothTransformation);
     if (cover.width() > target.width() || cover.height() > target.height()) {
         const int x = (cover.width() - target.width()) / 2;
@@ -1081,8 +1088,13 @@ void MainWindow::refreshShellBackdropCache() const
     m_shellBackdropCacheSize = target;
 }
 
-void MainWindow::paintShellPhotoBackdrop(QPainter &p, const QRect &r) const
+void MainWindow::paintShellBackdrop(QPainter &p, const QRect &r) const
 {
+    auto &backdrop = ShellBackdropSettings::instance();
+    if (backdrop.kind() == ShellBackdropSettings::Kind::SolidColor) {
+        GlassPaint::paintMainWindowSolidBackdrop(p, r, backdrop.solidColor());
+        return;
+    }
     refreshShellBackdropCache();
     GlassPaint::paintMainWindowPagesImageBackdrop(
         p, r, m_shellBackdropCache, Theme::ThemeManager::instance().isDarkMode());

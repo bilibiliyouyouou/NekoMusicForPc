@@ -165,6 +165,11 @@ void paintMainWindowPagesImageBackdrop(QPainter &p, const QRect &r, const QPixma
         p.fillRect(r, QColor(255, 255, 255, 72));
 }
 
+void paintMainWindowSolidBackdrop(QPainter &p, const QRect &r, const QColor &color)
+{
+    p.fillRect(r, color.isValid() ? color : QColor(24, 24, 24));
+}
+
 void paintBarGlass(QPainter &p, const QRect &r, BarKind kind, bool darkMode, bool photoShellBackdrop)
 {
     const QColor surface = photoShellBackdrop

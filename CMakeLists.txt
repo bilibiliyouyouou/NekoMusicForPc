@@ -164,6 +164,7 @@ set(SOURCES
         src/core/apiclient.cpp
         src/core/i18n.cpp
         src/core/appshortcuts.cpp
+        src/core/shellbackdropsettings.cpp
         src/core/globalshortcutcontroller.cpp
         src/core/listmetaformat.cpp
         src/core/covercache.cpp
@@ -231,6 +232,7 @@ set(HEADERS
         src/core/httpprotocollabel.h
         src/core/i18n.h
         src/core/appshortcuts.h
+        src/core/shellbackdropsettings.h
         src/core/globalshortcutcontroller.h
         src/core/covercache.h
         src/core/linuxtmpfscache.h

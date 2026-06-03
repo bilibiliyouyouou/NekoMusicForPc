@@ -59,7 +59,7 @@ public:
     /** 资源管理器「打开方式」或命令行传入的本地音频路径（mp3/flac/wav 等） */
     void openAudioFileFromPath(const QString &path);
 
-    void paintShellPhotoBackdrop(QPainter &p, const QRect &r) const;
+    void paintShellBackdrop(QPainter &p, const QRect &r) const;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -194,7 +194,6 @@ private:
     bool m_midPlaybackRecoveryInFlight = false;
 
     QWidget *m_shellBackdrop = nullptr;
-    QPixmap m_shellBackdropSource;
     mutable QPixmap m_shellBackdropCache;
     mutable QSize m_shellBackdropCacheSize;
 };
