@@ -60,6 +60,8 @@ public:
     void openAudioFileFromPath(const QString &path);
 
     void paintShellBackdrop(QPainter &p, const QRect &r) const;
+    /** 供播放页模糊底图复用，避免再次 render 整窗。 */
+    QPixmap shellBackdropPixmapForSize(const QSize &size);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

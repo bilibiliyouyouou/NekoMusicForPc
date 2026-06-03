@@ -1118,6 +1118,38 @@ void MainWindow::rebuildShellBackdropCache()
     m_shellBackdrop->update();
 }
 
+QPixmap MainWindow::shellBackdropPixmapForSize(const QSize &size)
+{
+    if (size.isEmpty())
+        return {};
+
+    auto &backdrop = ShellBackdropSettings::instance();
+    if (backdrop.kind() == ShellBackdropSettings::Kind::SolidColor) {
+        QPixmap pm(size);
+        pm.fill(backdrop.solidColor());
+        return pm;
+    }
+
+    if (!m_shellBackdropCache.isNull()) {
+        if (m_shellBackdropCache.size() == size)
+            return m_shellBackdropCache;
+        return m_shellBackdropCache.scaled(size, Qt::IgnoreAspectRatio, Qt::FastTransformation);
+    }
+
+    const QPixmap src = backdrop.cachedSourcePixmap();
+    if (src.isNull())
+        return {};
+    QPixmap cover = src.scaled(size, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
+    if (cover.width() > size.width() || cover.height() > size.height()) {
+        const int x = (cover.width() - size.width()) / 2;
+        const int y = (cover.height() - size.height()) / 2;
+        cover = cover.copy(x, y, size.width(), size.height());
+    } else if (cover.size() != size) {
+        cover = cover.scaled(size, Qt::IgnoreAspectRatio, Qt::FastTransformation);
+    }
+    return cover;
+}
+
 void MainWindow::paintShellBackdrop(QPainter &p, const QRect &r) const
 {
     auto &backdrop = ShellBackdropSettings::instance();
@@ -1888,7 +1920,12 @@ void MainWindow::openPlayerPage()
     m_playerPage->setParent(host);
     m_playerPage->setGeometry(area);
     m_playerPage->move(0, area.height());
-    m_playerPage->refreshUnderlayBackdrop(host, area.size());
+    m_playerPage->setOpenTransitionActive(true);
+    const QPixmap snap = shellBackdropPixmapForSize(area.size());
+    if (!snap.isNull())
+        m_playerPage->setUnderlaySnapshot(snap, area.size());
+    else
+        m_playerPage->refreshUnderlayBackdrop(host, area.size());
     m_playerPage->show();
     m_playerPage->raise();
     syncPlayModeUi();
@@ -1899,6 +1936,10 @@ void MainWindow::openPlayerPage()
     anim->setStartValue(QPoint(0, area.height()));
     anim->setEndValue(QPoint(0, 0));
     anim->setEasingCurve(QEasingCurve::OutCubic);
+    connect(anim, &QPropertyAnimation::finished, this, [this]() {
+        if (m_playerPage)
+            m_playerPage->setOpenTransitionActive(false);
+    });
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
@@ -1908,12 +1949,15 @@ void MainWindow::closePlayerPage()
         return;
 
     const QRect area = playerPageOverlayGeometry();
+    m_playerPage->setOpenTransitionActive(true);
     auto *anim = new QPropertyAnimation(m_playerPage, "pos", this);
     anim->setDuration(Theme::kAnimNormal);
     anim->setStartValue(m_playerPage->pos());
     anim->setEndValue(QPoint(0, area.height()));
     anim->setEasingCurve(QEasingCurve::InCubic);
     connect(anim, &QPropertyAnimation::finished, this, [this]() {
+        if (m_playerPage)
+            m_playerPage->setOpenTransitionActive(false);
         m_playerPageVisible = false;
         if (m_playerPage) {
             m_playerPage->hide();
