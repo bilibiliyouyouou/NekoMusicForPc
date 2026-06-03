@@ -183,4 +183,6 @@ private:
     int m_remoteStreamFailureCount = 0;
     /** 同一轮远程起播内只处理一次失败（避免 timeout 与 mediaError 双计）。 */
     bool m_streamFailHandledThisRound = false;
+    /** 播放中途断流恢复进行中，避免 Demux 错误连发时叠多个 stop/重试。 */
+    bool m_midPlaybackRecoveryInFlight = false;
 };

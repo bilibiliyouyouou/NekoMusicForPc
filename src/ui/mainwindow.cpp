@@ -246,6 +246,16 @@ constexpr int kBgCacheDelayMs = 2500;
 /** 断流后若 .part 已达此大小则改播本地部分文件 */
 constexpr qint64 kMinPartResumeBytes = 512 * 1024;
 
+bool isRecoverablePlaybackError(const QString &err)
+{
+    const QString e = err.toLower();
+    return e.contains(QStringLiteral("demux"))
+        || e.contains(QStringLiteral("failed"))
+        || e.contains(QStringLiteral("input/output"))
+        || e.contains(QStringLiteral("resource error"))
+        || e.contains(QStringLiteral("network"));
+}
+
 QString buildShareClipboardText(const MusicInfo &m)
 {
     I18n &i18n = I18n::instance();
@@ -704,12 +714,22 @@ void MainWindow::setupUi()
             m_dailyMusicPage->updatePlayingHighlight();
     });
 
-    // 播放错误处理（远程重试流程由 startRemotePlaybackWithBackgroundCache 专用连接处理，此处不抢 loading）
+    // 起播阶段由 attachStreamPlaybackGuards 处理；起播成功后断流/Demux 失败由此恢复
     connect(m_engine, &PlayerEngine::mediaError, this, [this](const QString &err) {
         qDebug() << "[播放错误]" << err;
         if (m_streamRetryActive)
             return;
-        m_playerBar->setLoading(false);
+        if (!isRecoverablePlaybackError(err)) {
+            m_playerBar->setLoading(false);
+            return;
+        }
+        const int musicId = m_playerBar->currentMusicId();
+        if (musicId <= 0 || m_engine->currentMusic().isLocalFile()) {
+            m_playerBar->setLoading(false);
+            return;
+        }
+        qDebug() << "[Music] 播放中途错误，尝试恢复 id=" << musicId << err;
+        handleRemoteStreamFailure(musicId, m_enginePlaySeq, true);
     });
 
     // 播放完成自动切歌
@@ -1452,17 +1472,42 @@ void MainWindow::handleRemoteStreamFailure(int musicId, quint64 playSeq, bool mi
 {
     if (playSeq != m_enginePlaySeq)
         return;
+    if (midPlaybackError && m_midPlaybackRecoveryInFlight)
+        return;
     if (!midPlaybackError && m_engine->playbackState() == PlayerEngine::Playing)
         return;
-    if (m_streamFailHandledThisRound)
+    if (!midPlaybackError && m_streamFailHandledThisRound)
         return;
-    m_streamFailHandledThisRound = true;
+    if (!midPlaybackError)
+        m_streamFailHandledThisRound = true;
+    if (midPlaybackError) {
+        m_midPlaybackRecoveryInFlight = true;
+        QTimer::singleShot(900, this, [this]() { m_midPlaybackRecoveryInFlight = false; });
+    }
 
     const qint64 resumePos = midPlaybackError ? m_engine->position() : 0;
     m_engine->stop();
     m_downloader->cancel();
+    if (m_bgCacheFinishedConn) {
+        disconnect(m_bgCacheFinishedConn);
+        m_bgCacheFinishedConn = QMetaObject::Connection();
+    }
+    if (m_bgCacheErrorConn) {
+        disconnect(m_bgCacheErrorConn);
+        m_bgCacheErrorConn = QMetaObject::Connection();
+    }
 
     if (midPlaybackError) {
+        const QString cachedPath = MusicDownloader::cachedAudioFilePath(musicId);
+        if (QFile::exists(cachedPath)) {
+            qDebug() << "[Music] 断流，改播完整缓存 id=" << musicId << "pos=" << resumePos;
+            m_remoteStreamFailureCount = 0;
+            m_streamRetryActive = false;
+            cancelStreamWatch();
+            m_playerBar->setLoading(false);
+            m_engine->playLocalResuming(cachedPath, resumePos);
+            return;
+        }
         const QString partPath = MusicDownloader::cachedAudioFilePath(musicId) + QStringLiteral(".part");
         if (QFileInfo(partPath).size() >= kMinPartResumeBytes) {
             qDebug() << "[Music] 断流，尝试从部分缓存续播 id=" << musicId << "pos=" << resumePos;
@@ -1559,7 +1604,7 @@ void MainWindow::playNext()
     // This ensures MPRIS clients get the correct metadata even during stop() state
     refreshSystemMediaIntegration();
 
-    QTimer::singleShot(50, this, [this, info, playSeq]() {
+    QTimer::singleShot(80, this, [this, info, playSeq]() {
         if (playSeq != m_enginePlaySeq)
             return;
 
