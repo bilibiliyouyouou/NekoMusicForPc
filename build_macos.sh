@@ -208,6 +208,64 @@ echo "Bundling Qt frameworks with macdeployqt..."
 "$MACDEPLOYQT" "$APP_DIR" -always-overwrite
 
 echo ""
+echo "Removing unused Qt SQL driver plugins..."
+SQL_DRIVER_DIR="$APP_DIR/Contents/PlugIns/sqldrivers"
+if [[ -d "$SQL_DRIVER_DIR" ]]; then
+    for plugin in libqsqlodbc.dylib libqsqlpsql.dylib libqsqlmimer.dylib; do
+        if [[ -f "$SQL_DRIVER_DIR/$plugin" ]]; then
+            rm -f "$SQL_DRIVER_DIR/$plugin"
+            rm -f "$SQL_DRIVER_DIR/._$plugin"
+            echo "  Removed $plugin"
+        fi
+    done
+fi
+
+echo ""
+echo "Preferring macOS AVFoundation multimedia backend..."
+MULTIMEDIA_PLUGIN_DIR="$APP_DIR/Contents/PlugIns/multimedia"
+FRAMEWORKS_DIR="$APP_DIR/Contents/Frameworks"
+if [[ -d "$MULTIMEDIA_PLUGIN_DIR" ]]; then
+    if [[ -f "$MULTIMEDIA_PLUGIN_DIR/libffmpegmediaplugin.dylib" ]]; then
+        rm -f "$MULTIMEDIA_PLUGIN_DIR/libffmpegmediaplugin.dylib"
+        rm -f "$MULTIMEDIA_PLUGIN_DIR/._libffmpegmediaplugin.dylib"
+        echo "  Removed libffmpegmediaplugin.dylib"
+    fi
+fi
+if [[ -d "$FRAMEWORKS_DIR" ]]; then
+    for dylib in libavformat.61.dylib libavcodec.61.dylib libswresample.5.dylib libswscale.8.dylib libavutil.59.dylib; do
+        if [[ -f "$FRAMEWORKS_DIR/$dylib" ]]; then
+            rm -f "$FRAMEWORKS_DIR/$dylib"
+            rm -f "$FRAMEWORKS_DIR/._$dylib"
+            echo "  Removed $dylib"
+        fi
+    done
+fi
+
+echo ""
+echo "Fixing bundled framework rpaths..."
+ensure_rpath() {
+    local binary="$1"
+    local rpath="$2"
+    if [[ ! -f "$binary" ]]; then
+        return 0
+    fi
+    if ! otool -l "$binary" | grep -Fq "path $rpath "; then
+        install_name_tool -add_rpath "$rpath" "$binary"
+        echo "  Added $rpath to ${binary#$APP_DIR/}"
+    fi
+}
+ensure_rpath "$APP_BIN" "@executable_path/../Frameworks"
+if [[ -d "$APP_DIR/Contents/PlugIns" ]]; then
+    while IFS= read -r plugin; do
+        ensure_rpath "$plugin" "@loader_path/../../Frameworks"
+    done < <(find "$APP_DIR/Contents/PlugIns" -type f -name "*.dylib")
+fi
+
+echo ""
+echo "Ad-hoc signing app bundle..."
+codesign --force --deep --sign - "$APP_DIR"
+
+echo ""
 echo "Verifying universal binary..."
 LIPO_INFO="$(lipo -info "$APP_BIN" 2>&1 || true)"
 echo "  $LIPO_INFO"
@@ -256,6 +314,8 @@ pkgbuild \
     --install-location "/Applications" \
     --identifier "$PKG_IDENTIFIER" \
     --version "$FULL_VERSION" \
+    --compression latest \
+    --min-os-version "$OSX_DEPLOYMENT_TARGET" \
     "$PKG_PATH"
 
 if [[ ! -f "$PKG_PATH" ]]; then
