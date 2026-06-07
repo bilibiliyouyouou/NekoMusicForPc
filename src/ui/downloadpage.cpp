@@ -16,9 +16,11 @@
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QSizePolicy>
 #include <QLabel>
 #include <QPushButton>
 #include <QButtonGroup>
+#include <QStackedWidget>
 #include <QMessageBox>
 #include <QShowEvent>
 #include <QFile>
@@ -134,9 +136,13 @@ void DownloadPage::setupUi()
 
     menuLay->addStretch();
     headerLay->addWidget(menuRow);
+    m_header->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     root->addWidget(m_header);
 
-    m_songList = new SongListWidget(this);
+    m_contentStack = new QStackedWidget(this);
+    m_contentStack->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+    m_songList = new SongListWidget(m_contentStack);
     m_songList->onSongActivate = [this](const MusicInfo &info) {
         if (m_activeTab == Tab::Completed)
             emit playRequested(info);
@@ -149,10 +155,11 @@ void DownloadPage::setupUi()
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     m_songList->setShowDownloadActions(false);
-    root->addWidget(m_songList, 1);
+    m_contentStack->addWidget(m_songList);
 
-    m_emptyWrap = new QWidget(this);
+    m_emptyWrap = new QWidget(m_contentStack);
     auto *emptyLay = new QVBoxLayout(m_emptyWrap);
+    emptyLay->setContentsMargins(0, 0, 0, 0);
     emptyLay->setAlignment(Qt::AlignCenter);
     emptyLay->setSpacing(12);
     m_emptyIcon = new QLabel(m_emptyWrap);
@@ -163,8 +170,9 @@ void DownloadPage::setupUi()
     m_statusLabel->setAlignment(Qt::AlignCenter);
     m_statusLabel->hide();
     emptyLay->addWidget(m_statusLabel);
-    m_emptyWrap->hide();
-    root->addWidget(m_emptyWrap);
+    m_contentStack->addWidget(m_emptyWrap);
+
+    root->addWidget(m_contentStack, 1);
 
     applyPageStyle();
     m_pendingDownloads = MusicDownloadManager::instance().pendingDownloads();
@@ -227,7 +235,6 @@ void DownloadPage::loadActiveTab()
         m_songList->refreshFavoriteDisplay();
         if (downloadingTab)
             m_songList->refreshDownloadProgress();
-        m_songList->show();
     }
     updatePlayingHighlight();
 }
@@ -449,8 +456,6 @@ void DownloadPage::refreshDownloadDisplay()
 
 void DownloadPage::showPageStatus(const QString &text, const char *iconName)
 {
-    if (m_songList)
-        m_songList->hide();
     if (iconName && m_emptyIcon) {
         const bool dark = Theme::ThemeManager::instance().isDarkMode();
         const QColor ic = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 120);
@@ -463,20 +468,18 @@ void DownloadPage::showPageStatus(const QString &text, const char *iconName)
         m_statusLabel->setText(text);
         m_statusLabel->show();
     }
-    if (m_emptyWrap)
-        m_emptyWrap->show();
+    if (m_contentStack && m_emptyWrap)
+        m_contentStack->setCurrentWidget(m_emptyWrap);
 }
 
 void DownloadPage::hidePageStatus()
 {
-    if (m_songList)
-        m_songList->show();
     if (m_emptyIcon)
         m_emptyIcon->hide();
     if (m_statusLabel)
         m_statusLabel->hide();
-    if (m_emptyWrap)
-        m_emptyWrap->hide();
+    if (m_contentStack && m_songList)
+        m_contentStack->setCurrentWidget(m_songList);
 }
 
 void DownloadPage::confirmClearDownloads()

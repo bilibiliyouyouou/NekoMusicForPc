@@ -62,6 +62,7 @@ private:
     QPushButton *m_playBtn = nullptr;
     QPushButton *m_clearBtn = nullptr;
 
+    QStackedWidget *m_contentStack = nullptr;
     SongListWidget *m_songList = nullptr;
     QWidget *m_emptyWrap = nullptr;
     QLabel *m_statusLabel = nullptr;
