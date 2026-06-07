@@ -1,6 +1,6 @@
 /**
  * @file downloadpage.cpp
- * @brief 下载管理 — 展示用户主动下载到 Downloads/NekoMusic 的音乐
+ * @brief 下载管理 — 正在下载 / 已完成 两个分区
  */
 
 #include "downloadpage.h"
@@ -18,6 +18,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QButtonGroup>
 #include <QMessageBox>
 #include <QShowEvent>
 #include <QFile>
@@ -40,6 +41,11 @@ DownloadPage::DownloadPage(QWidget *parent)
     auto &mgr = MusicDownloadManager::instance();
     connect(&mgr, &MusicDownloadManager::downloadsChanged, this, &DownloadPage::refresh);
     connect(&mgr, &MusicDownloadManager::downloadCompleted, this, &DownloadPage::refresh);
+    connect(&mgr, &MusicDownloadManager::downloadFailed, this, &DownloadPage::refresh);
+    connect(&mgr, &MusicDownloadManager::downloadProgress, this, [this](int, qint64, qint64) {
+        if (m_activeTab == Tab::Downloading)
+            loadActiveTab();
+    });
 }
 
 void DownloadPage::setupUi()
@@ -67,6 +73,35 @@ void DownloadPage::setupUi()
     titleLay->addStretch();
     headerLay->addWidget(titleRow);
 
+    m_tabBar = new QWidget(m_header);
+    m_tabBar->setObjectName(QStringLiteral("downloadTabBar"));
+    auto *tabLay = new QHBoxLayout(m_tabBar);
+    tabLay->setContentsMargins(0, 0, 0, 0);
+    tabLay->setSpacing(0);
+
+    auto *tabGroup = new QButtonGroup(this);
+    tabGroup->setExclusive(true);
+
+    m_tabDownloading = new QPushButton(m_tabBar);
+    m_tabDownloading->setCheckable(true);
+    m_tabDownloading->setCursor(Qt::PointingHandCursor);
+    m_tabDownloading->setFixedHeight(32);
+    tabGroup->addButton(m_tabDownloading);
+    tabLay->addWidget(m_tabDownloading);
+
+    m_tabCompleted = new QPushButton(m_tabBar);
+    m_tabCompleted->setCheckable(true);
+    m_tabCompleted->setCursor(Qt::PointingHandCursor);
+    m_tabCompleted->setFixedHeight(32);
+    tabGroup->addButton(m_tabCompleted);
+    tabLay->addWidget(m_tabCompleted);
+    tabLay->addStretch();
+
+    m_tabDownloading->setChecked(true);
+    connect(m_tabDownloading, &QPushButton::clicked, this, [this]() { setActiveTab(Tab::Downloading); });
+    connect(m_tabCompleted, &QPushButton::clicked, this, [this]() { setActiveTab(Tab::Completed); });
+    headerLay->addWidget(m_tabBar);
+
     m_statusHintLbl = new QLabel(m_header);
     m_statusHintLbl->hide();
     headerLay->addWidget(m_statusHintLbl);
@@ -81,8 +116,9 @@ void DownloadPage::setupUi()
     m_playBtn->setCursor(Qt::PointingHandCursor);
     m_playBtn->setFixedHeight(40);
     connect(m_playBtn, &QPushButton::clicked, this, [this]() {
-        if (!m_allDownloads.isEmpty())
-            emit playAllRequested(m_allDownloads);
+        const QList<MusicInfo> songs = activeSongs();
+        if (!songs.isEmpty())
+            emit playAllRequested(songs);
     });
     menuLay->addWidget(m_playBtn);
 
@@ -97,8 +133,14 @@ void DownloadPage::setupUi()
     root->addWidget(m_header);
 
     m_songList = new SongListWidget(this);
-    m_songList->onSongActivate = [this](const MusicInfo &info) { emit playRequested(info); };
-    m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playRequested(info); };
+    m_songList->onSongActivate = [this](const MusicInfo &info) {
+        if (m_activeTab == Tab::Completed)
+            emit playRequested(info);
+    };
+    m_songList->onSongPlayNext = [this](const MusicInfo &info) {
+        if (m_activeTab == Tab::Completed)
+            emit playRequested(info);
+    };
     m_songList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
@@ -121,7 +163,63 @@ void DownloadPage::setupUi()
     root->addWidget(m_emptyWrap);
 
     applyPageStyle();
-    loadDownloads();
+    m_pendingDownloads = MusicDownloadManager::instance().pendingDownloads();
+    loadCompletedDownloads();
+    setActiveTab(Tab::Downloading);
+}
+
+void DownloadPage::setActiveTab(Tab tab)
+{
+    m_activeTab = tab;
+    if (m_tabDownloading)
+        m_tabDownloading->setChecked(tab == Tab::Downloading);
+    if (m_tabCompleted)
+        m_tabCompleted->setChecked(tab == Tab::Completed);
+    loadActiveTab();
+}
+
+QList<MusicInfo> DownloadPage::activeSongs() const
+{
+    return m_activeTab == Tab::Downloading ? m_pendingDownloads : m_completedDownloads;
+}
+
+void DownloadPage::loadActiveTab()
+{
+    const QList<MusicInfo> songs = activeSongs();
+    updateHeaderMeta();
+    updateTabLabels();
+
+    if (songs.isEmpty()) {
+        if (m_songList)
+            m_songList->setSongs({});
+        const char *icon = m_activeTab == Tab::Downloading ? "Download" : "DownloadDone";
+        const QString text = m_activeTab == Tab::Downloading
+                                 ? I18n::instance().tr(QStringLiteral("emptyDownloading"))
+                                 : I18n::instance().tr(QStringLiteral("emptyDownloads"));
+        showPageStatus(text, icon);
+        return;
+    }
+
+    hidePageStatus();
+    if (m_songList) {
+        m_songList->setSongs(songs);
+        m_songList->refreshFavoriteDisplay();
+        m_songList->show();
+    }
+    updatePlayingHighlight();
+}
+
+void DownloadPage::loadCompletedDownloads()
+{
+    m_completedDownloads.clear();
+
+    const QList<MusicInfo> records = PlaylistDatabase::instance().getDownloads();
+    for (const MusicInfo &info : records) {
+        if (!info.localPath.isEmpty() && QFile::exists(info.localPath))
+            m_completedDownloads.append(info);
+        else
+            PlaylistDatabase::instance().removeDownload(info.id);
+    }
 }
 
 void DownloadPage::applyPageStyle()
@@ -130,6 +228,8 @@ void DownloadPage::applyPageStyle()
     const QString titleFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
     const QString metaFg = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.72)");
     const QString statusFg = dark ? QString::fromUtf8(Theme::kTextSub) : QStringLiteral("rgba(33,37,41,0.55)");
+    const QString tabBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString tabSelBg = dark ? QStringLiteral("#3a3a3a") : QStringLiteral("#ffffff");
 
     if (m_titleLbl) {
         m_titleLbl->setStyleSheet(QStringLiteral(
@@ -144,6 +244,32 @@ void DownloadPage::applyPageStyle()
         m_statusHintLbl->setStyleSheet(QStringLiteral(
             "QLabel { font-size: 13px; color: %1; }").arg(metaFg));
     }
+
+    const QString tabStyle = QStringLiteral(
+        "QPushButton {"
+        "  background: transparent;"
+        "  border: none;"
+        "  border-radius: 8px;"
+        "  color: %1;"
+        "  font-size: 14px;"
+        "  font-weight: 500;"
+        "  padding: 0 16px;"
+        "}"
+        "QPushButton:checked {"
+        "  background: %2;"
+        "  color: %3;"
+        "}"
+        "QPushButton:hover:!checked { color: %3; }")
+                                .arg(metaFg, tabSelBg, titleFg);
+    if (m_tabBar) {
+        m_tabBar->setStyleSheet(QStringLiteral("QWidget#downloadTabBar { background: %1; border-radius: 10px; }")
+                                    .arg(tabBg));
+    }
+    if (m_tabDownloading)
+        m_tabDownloading->setStyleSheet(tabStyle);
+    if (m_tabCompleted)
+        m_tabCompleted->setStyleSheet(tabStyle);
+
     if (m_playBtn) {
         m_playBtn->setIcon(Icons::renderNamed("Play", 18, QColor(255, 255, 255)));
         m_playBtn->setIconSize(QSize(18, 18));
@@ -201,13 +327,22 @@ void DownloadPage::retranslate()
         m_clearBtn->setText(I18n::instance().tr(QStringLiteral("clearDownloads")));
     if (m_songList)
         m_songList->retranslate();
+    updateTabLabels();
     updateHeaderMeta();
+    loadActiveTab();
     applyPageStyle();
 }
 
 void DownloadPage::refresh()
 {
-    loadDownloads();
+    m_pendingDownloads = MusicDownloadManager::instance().pendingDownloads();
+    loadCompletedDownloads();
+    updateTabLabels();
+
+    if (m_activeTab == Tab::Downloading && m_pendingDownloads.isEmpty() && !m_completedDownloads.isEmpty())
+        setActiveTab(Tab::Completed);
+    else
+        loadActiveTab();
 }
 
 void DownloadPage::setPlaybackPaused(bool paused)
@@ -230,23 +365,44 @@ void DownloadPage::showEvent(QShowEvent *event)
     updatePlayingHighlight();
 }
 
+void DownloadPage::updateTabLabels()
+{
+    if (m_tabDownloading) {
+        m_tabDownloading->setText(
+            I18n::instance().tr(QStringLiteral("downloadInProgress"))
+            + QStringLiteral(" (") + QString::number(m_pendingDownloads.size()) + QLatin1Char(')'));
+    }
+    if (m_tabCompleted) {
+        m_tabCompleted->setText(
+            I18n::instance().tr(QStringLiteral("downloadCompletedTab"))
+            + QStringLiteral(" (") + QString::number(m_completedDownloads.size()) + QLatin1Char(')'));
+    }
+}
+
 void DownloadPage::updateHeaderMeta()
 {
+    const QList<MusicInfo> songs = activeSongs();
     if (m_countLbl) {
         m_countLbl->setText(I18n::instance().tr(QStringLiteral("favoritePageSongCount"))
-                                .arg(m_allDownloads.size()));
+                                .arg(songs.size()));
     }
+
+    const bool isCompletedTab = m_activeTab == Tab::Completed;
     if (m_statusHintLbl) {
         m_statusHintLbl->setText(
             I18n::instance().tr(QStringLiteral("downloadFolderHint"))
                 .arg(MusicDownloadManager::instance().downloadDir()));
-        m_statusHintLbl->setVisible(!m_allDownloads.isEmpty());
+        m_statusHintLbl->setVisible(isCompletedTab && !m_completedDownloads.isEmpty());
     }
-    const bool hasSongs = !m_allDownloads.isEmpty();
-    if (m_playBtn)
-        m_playBtn->setEnabled(hasSongs);
-    if (m_clearBtn)
-        m_clearBtn->setEnabled(hasSongs);
+
+    if (m_playBtn) {
+        m_playBtn->setVisible(isCompletedTab);
+        m_playBtn->setEnabled(isCompletedTab && !m_completedDownloads.isEmpty());
+    }
+    if (m_clearBtn) {
+        m_clearBtn->setVisible(isCompletedTab);
+        m_clearBtn->setEnabled(isCompletedTab && !m_completedDownloads.isEmpty());
+    }
 }
 
 int DownloadPage::currentPlayingMusicId() const
@@ -302,7 +458,7 @@ void DownloadPage::hidePageStatus()
 
 void DownloadPage::confirmClearDownloads()
 {
-    if (m_allDownloads.isEmpty())
+    if (m_completedDownloads.isEmpty())
         return;
 
     const auto ret = QMessageBox::question(
@@ -312,7 +468,7 @@ void DownloadPage::confirmClearDownloads()
     if (ret != QMessageBox::Yes)
         return;
 
-    for (const MusicInfo &info : m_allDownloads) {
+    for (const MusicInfo &info : m_completedDownloads) {
         if (info.localPath.isEmpty())
             continue;
         const QFileInfo fi(info.localPath);
@@ -323,37 +479,7 @@ void DownloadPage::confirmClearDownloads()
 
     PlaylistDatabase::instance().clearDownloads();
     Toast::show(this, I18n::instance().tr(QStringLiteral("clearDownloadsSuccess")), Toast::Success);
-    loadDownloads();
-}
-
-void DownloadPage::loadDownloads()
-{
-    m_allDownloads.clear();
-
-    QList<MusicInfo> records = PlaylistDatabase::instance().getDownloads();
-    for (const MusicInfo &info : records) {
-        if (!info.localPath.isEmpty() && QFile::exists(info.localPath))
-            m_allDownloads.append(info);
-        else
-            PlaylistDatabase::instance().removeDownload(info.id);
-    }
-
-    updateHeaderMeta();
-
-    if (m_allDownloads.isEmpty()) {
-        if (m_songList)
-            m_songList->setSongs({});
-        showPageStatus(I18n::instance().tr(QStringLiteral("emptyDownloads")), "Download");
-        return;
-    }
-
-    hidePageStatus();
-    if (m_songList) {
-        m_songList->setSongs(m_allDownloads);
-        m_songList->refreshFavoriteDisplay();
-        m_songList->show();
-    }
-    updatePlayingHighlight();
+    refresh();
 }
 
 void DownloadPage::paintEvent(QPaintEvent *)

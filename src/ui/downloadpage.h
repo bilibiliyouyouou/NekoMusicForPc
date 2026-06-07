@@ -8,9 +8,10 @@
 
 class QLabel;
 class QPushButton;
+class QStackedWidget;
 class SongListWidget;
 
-/** 下载管理 — 展示用户主动下载到 Downloads/NekoMusic 的音乐 */
+/** 下载管理 — 正在下载 / 已完成 两个分区 */
 class DownloadPage : public QWidget
 {
     Q_OBJECT
@@ -36,19 +37,28 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    enum class Tab { Downloading, Completed };
+
     void setupUi();
     void applyPageStyle();
-    void loadDownloads();
+    void setActiveTab(Tab tab);
+    void loadActiveTab();
+    void loadCompletedDownloads();
     void updateHeaderMeta();
+    void updateTabLabels();
     void confirmClearDownloads();
     int currentPlayingMusicId() const;
     void showPageStatus(const QString &text, const char *iconName = nullptr);
     void hidePageStatus();
+    QList<MusicInfo> activeSongs() const;
 
     QWidget *m_header = nullptr;
     QLabel *m_titleLbl = nullptr;
     QLabel *m_countLbl = nullptr;
     QLabel *m_statusHintLbl = nullptr;
+    QWidget *m_tabBar = nullptr;
+    QPushButton *m_tabDownloading = nullptr;
+    QPushButton *m_tabCompleted = nullptr;
     QPushButton *m_playBtn = nullptr;
     QPushButton *m_clearBtn = nullptr;
 
@@ -57,6 +67,8 @@ private:
     QLabel *m_statusLabel = nullptr;
     QLabel *m_emptyIcon = nullptr;
 
-    QList<MusicInfo> m_allDownloads;
+    Tab m_activeTab = Tab::Downloading;
+    QList<MusicInfo> m_pendingDownloads;
+    QList<MusicInfo> m_completedDownloads;
     QSet<int> m_favoritedIds;
 };

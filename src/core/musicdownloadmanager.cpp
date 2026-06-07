@@ -120,6 +120,36 @@ bool MusicDownloadManager::isDownloaded(int musicId) const
     return !path.isEmpty() && QFile::exists(path);
 }
 
+bool MusicDownloadManager::isPending(int musicId) const
+{
+    if (musicId <= 0)
+        return false;
+    if (m_busy && m_current.id == musicId)
+        return true;
+    for (const MusicInfo &queued : m_queue) {
+        if (queued.id == musicId)
+            return true;
+    }
+    return false;
+}
+
+bool MusicDownloadManager::hasPendingDownloads() const
+{
+    return (m_busy && m_current.id > 0) || !m_queue.isEmpty();
+}
+
+QList<MusicInfo> MusicDownloadManager::pendingDownloads() const
+{
+    QList<MusicInfo> list;
+    if (m_busy && m_current.id > 0 && !isDownloaded(m_current.id))
+        list.append(m_current);
+    for (const MusicInfo &queued : m_queue) {
+        if (!isDownloaded(queued.id))
+            list.append(queued);
+    }
+    return list;
+}
+
 void MusicDownloadManager::downloadMusic(const MusicInfo &music)
 {
     if (music.id <= 0 || music.isLocalFile())
@@ -139,6 +169,7 @@ void MusicDownloadManager::downloadMusic(const MusicInfo &music)
         return;
 
     m_queue.append(music);
+    emit downloadsChanged();
     if (!m_busy)
         startNext();
 }
@@ -174,6 +205,7 @@ void MusicDownloadManager::startNext()
 
     m_busy = true;
     m_current = m_queue.takeFirst();
+    emit downloadsChanged();
 
     if (isDownloaded(m_current.id)) {
         finishCurrent(true);
@@ -200,6 +232,7 @@ void MusicDownloadManager::finishCurrent(bool success, const QString &error)
     else if (musicId > 0)
         emit downloadFailed(musicId, error);
 
+    emit downloadsChanged();
     startNext();
 }
 

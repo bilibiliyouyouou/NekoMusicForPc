@@ -161,7 +161,10 @@ static QMap<QString, QString> zhCN()
     m["clearRecentConfirm"] = QStringLiteral("确认清空最近播放列表？该操作不可撤销！");
     m["clearRecentSuccess"] = QStringLiteral("最近播放列表已清空");
     m["downloadManage"] = QStringLiteral("下载管理");
-    m["emptyDownloads"] = QStringLiteral("暂无下载记录，可在歌曲菜单中下载音乐");
+    m["downloadInProgress"] = QStringLiteral("正在下载");
+    m["downloadCompletedTab"] = QStringLiteral("已完成");
+    m["emptyDownloading"] = QStringLiteral("暂无正在下载的歌曲");
+    m["emptyDownloads"] = QStringLiteral("暂无已完成的下载，可在歌曲列表中下载音乐");
     m["clearDownloads"] = QStringLiteral("清空下载");
     m["clearDownloadsConfirm"] = QStringLiteral("确认清空所有下载记录并删除本地文件？该操作不可撤销！");
     m["clearDownloadsSuccess"] = QStringLiteral("下载记录已清空");
@@ -642,7 +645,10 @@ static QMap<QString, QString> nyaCN()
     m["clearRecentConfirm"] = QStringLiteral("真的要清空最近播放吗？清空可就找不回来啦喵！");
     m["clearRecentSuccess"] = QStringLiteral("最近播放列表已清空喵~");
     m["downloadManage"] = QStringLiteral("下载小仓库喵~");
-    m["emptyDownloads"] = QStringLiteral("这里还没有下载记录喵~ 去歌曲菜单里点下载吧喵~");
+    m["downloadInProgress"] = QStringLiteral("正在搬歌喵~");
+    m["downloadCompletedTab"] = QStringLiteral("搬完了喵~");
+    m["emptyDownloading"] = QStringLiteral("现在没有在搬的歌喵~");
+    m["emptyDownloads"] = QStringLiteral("还没有搬完的歌喵~ 去歌曲列表里点下载吧喵~");
     m["clearDownloads"] = QStringLiteral("清空下载喵");
     m["clearDownloadsConfirm"] = QStringLiteral("真的要清空所有下载并删掉本地文件吗？找不回来啦喵！");
     m["clearDownloadsSuccess"] = QStringLiteral("下载记录已清空喵~");
@@ -1019,7 +1025,10 @@ static QMap<QString, QString> enUS()
     m["clearRecentConfirm"] = "Clear all recently played songs? This cannot be undone.";
     m["clearRecentSuccess"] = "Recently played list cleared";
     m["downloadManage"] = "Downloads";
-    m["emptyDownloads"] = "No downloads yet. Use the song menu to download music.";
+    m["downloadInProgress"] = "Downloading";
+    m["downloadCompletedTab"] = "Completed";
+    m["emptyDownloading"] = "No downloads in progress";
+    m["emptyDownloads"] = "No completed downloads yet. Download music from song lists.";
     m["clearDownloads"] = "Clear Downloads";
     m["clearDownloadsConfirm"] = "Clear all download records and delete local files? This cannot be undone.";
     m["clearDownloadsSuccess"] = "Downloads cleared";

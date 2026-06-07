@@ -21,6 +21,9 @@ public:
     void setApiClient(ApiClient *apiClient);
     QString downloadDir() const;
     bool isDownloaded(int musicId) const;
+    bool isPending(int musicId) const;
+    bool hasPendingDownloads() const;
+    QList<MusicInfo> pendingDownloads() const;
     void downloadMusic(const MusicInfo &music);
     void cancelCurrent();
 
