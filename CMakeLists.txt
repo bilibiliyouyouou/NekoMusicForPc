@@ -141,6 +141,7 @@ set(SOURCES
         src/ui/shortcutcapturebutton.cpp
         src/ui/toast.cpp
         src/ui/recentpage.cpp
+        src/ui/downloadpage.cpp
         src/ui/logindialog.cpp
         src/ui/slidercaptchadialog.cpp
         src/ui/captchasliderrail.cpp
@@ -173,6 +174,7 @@ set(SOURCES
         src/core/qrcodegen.cpp
         src/core/vipqrcode.cpp
         src/core/musicdownloader.cpp
+        src/core/musicdownloadmanager.cpp
         src/core/playlistdb.cpp
         src/core/localmusicmeta.cpp
         src/core/audioquality.cpp
@@ -209,6 +211,7 @@ set(HEADERS
         src/ui/settingspage.h
         src/ui/shortcutcapturebutton.h
         src/ui/recentpage.h
+        src/ui/downloadpage.h
         src/ui/logindialog.h
         src/ui/slidercaptchadialog.h
         src/ui/captchasliderrail.h
@@ -246,6 +249,7 @@ set(HEADERS
         src/core/audioquality.h
         src/core/embeddedlyrics.h
         src/core/playlistdb.h
+        src/core/musicdownloadmanager.h
         src/core/playlistmanager.h
         src/core/updatechecker.h
         src/ui/playlistlistitem.h

@@ -160,6 +160,24 @@ bool PlaylistDatabase::createTables() {
     ensureColumn(m_db, QStringLiteral("recent_play"), QStringLiteral("local_path"),
                  QStringLiteral("TEXT NOT NULL DEFAULT ''"));
 
+    QString downloadsSql = R"(
+        CREATE TABLE IF NOT EXISTS downloads (
+            music_id      INTEGER PRIMARY KEY,
+            title         TEXT NOT NULL DEFAULT '',
+            artist        TEXT NOT NULL DEFAULT '',
+            album         TEXT NOT NULL DEFAULT '',
+            duration      INTEGER NOT NULL DEFAULT 0,
+            cover_url     TEXT NOT NULL DEFAULT '',
+            file_path     TEXT NOT NULL DEFAULT '',
+            downloaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    )";
+
+    if (!query.exec(downloadsSql)) {
+        qWarning() << "Failed to create downloads table:" << query.lastError().text();
+        return false;
+    }
+
     return true;
 }
 
@@ -576,4 +594,89 @@ void PlaylistDatabase::clearRecentPlays() {
     if (!query.exec()) {
         qWarning() << "Failed to clear recent plays:" << query.lastError().text();
     }
+}
+
+void PlaylistDatabase::recordDownload(const MusicInfo &music, const QString &filePath)
+{
+    QMutexLocker locker(&m_mutex);
+
+    QSqlQuery query;
+    query.prepare(R"(
+        INSERT OR REPLACE INTO downloads
+            (music_id, title, artist, album, duration, cover_url, file_path, downloaded_at)
+        VALUES (:mid, :title, :artist, :album, :duration, :cover, :path, datetime('now'))
+    )");
+    query.bindValue(":mid", music.id);
+    query.bindValue(":title", music.title);
+    query.bindValue(":artist", music.artist);
+    query.bindValue(":album", music.album);
+    query.bindValue(":duration", music.duration);
+    query.bindValue(":cover", music.coverUrl);
+    query.bindValue(":path", filePath);
+
+    if (!query.exec())
+        qWarning() << "Failed to record download:" << query.lastError().text();
+}
+
+QList<MusicInfo> PlaylistDatabase::getDownloads()
+{
+    QMutexLocker locker(&m_mutex);
+
+    QList<MusicInfo> musicList;
+    QSqlQuery query(
+        "SELECT music_id, title, artist, album, duration, cover_url, file_path "
+        "FROM downloads ORDER BY downloaded_at DESC");
+
+    if (query.exec()) {
+        while (query.next()) {
+            MusicInfo info;
+            info.id = query.value(0).toInt();
+            info.title = query.value(1).toString();
+            info.artist = query.value(2).toString();
+            info.album = query.value(3).toString();
+            info.duration = query.value(4).toInt();
+            info.coverUrl = query.value(5).toString();
+            info.localPath = query.value(6).toString();
+            musicList.append(info);
+        }
+    } else {
+        qWarning() << "Failed to get downloads:" << query.lastError().text();
+    }
+
+    return musicList;
+}
+
+QString PlaylistDatabase::getDownloadFilePath(int musicId)
+{
+    QMutexLocker locker(&m_mutex);
+
+    QSqlQuery query;
+    query.prepare("SELECT file_path FROM downloads WHERE music_id = :mid");
+    query.bindValue(":mid", musicId);
+    if (query.exec() && query.next())
+        return query.value(0).toString();
+    return {};
+}
+
+bool PlaylistDatabase::removeDownload(int musicId)
+{
+    QMutexLocker locker(&m_mutex);
+
+    QSqlQuery query;
+    query.prepare("DELETE FROM downloads WHERE music_id = :mid");
+    query.bindValue(":mid", musicId);
+    if (!query.exec()) {
+        qWarning() << "Failed to remove download:" << query.lastError().text();
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+void PlaylistDatabase::clearDownloads()
+{
+    QMutexLocker locker(&m_mutex);
+
+    QSqlQuery query("DELETE FROM downloads");
+    if (!query.exec())
+        qWarning() << "Failed to clear downloads:" << query.lastError().text();
 }

@@ -12,6 +12,7 @@
 #include "ui/settingspage.h"
 #include "ui/favoritespage.h"
 #include "ui/recentpage.h"
+#include "ui/downloadpage.h"
 #include "ui/playerbar.h"
 #include "ui/logindialog.h"
 #include "ui/musiclistpage.h"
@@ -36,6 +37,7 @@
 #include "core/apiclient.h"
 #include "core/httpprotocollabel.h"
 #include "core/musicdownloader.h"
+#include "core/musicdownloadmanager.h"
 #include "core/linuxtmpfscache.h"
 #include "core/usermanager.h"
 #include "core/playlistdb.h"
@@ -506,6 +508,8 @@ void MainWindow::setupUi()
     m_settingsPage = new SettingsPage(this);
     m_favoritesPage = new FavoritesPage(m_apiClient, this);
     m_recentPage = new RecentPage(this);
+    m_downloadPage = new DownloadPage(this);
+    MusicDownloadManager::instance().setApiClient(m_apiClient);
     m_hotMusicPage = new MusicListPage(MusicListPage::Hot, this);
     m_latestMusicPage = new MusicListPage(MusicListPage::Latest, this);
     m_dailyMusicPage = new MusicListPage(MusicListPage::Daily, this);
@@ -517,6 +521,7 @@ void MainWindow::setupUi()
     m_stack->addWidget(m_settingsPage);
     m_stack->addWidget(m_favoritesPage);
     m_stack->addWidget(m_recentPage);
+    m_stack->addWidget(m_downloadPage);
     m_stack->addWidget(m_hotMusicPage);
     m_stack->addWidget(m_latestMusicPage);
     m_stack->addWidget(m_dailyMusicPage);
@@ -609,6 +614,11 @@ void MainWindow::setupUi()
             m_recentPage->refresh();
             switchPage(m_recentPage);
         }
+        else if (key == "downloads") {
+            syncListPageFavoriteIds();
+            m_downloadPage->refresh();
+            switchPage(m_downloadPage);
+        }
         else if (key == "search") switchPage(m_searchPage);
     });
     connect(m_favoritesPage, &FavoritesPage::playRequested, this, &MainWindow::playMusicById);
@@ -641,6 +651,15 @@ void MainWindow::setupUi()
     });
     connect(m_recentPage, &RecentPage::favoriteRequested, this, &MainWindow::toggleFavorite);
     connect(m_recentPage, &RecentPage::playPauseRequested, this, &MainWindow::togglePlaybackForSystemUi);
+    connect(m_downloadPage, &DownloadPage::playRequested, this, &MainWindow::playMusicFromInfo);
+    connect(m_downloadPage, &DownloadPage::playAllRequested, this, [this](const QList<MusicInfo> &results) {
+        PlaylistManager::instance().clearPlaylist();
+        PlaylistManager::instance().addAllToPlaylist(results);
+        if (!results.isEmpty())
+            playMusicFromInfo(results.first());
+    });
+    connect(m_downloadPage, &DownloadPage::favoriteRequested, this, &MainWindow::toggleFavorite);
+    connect(m_downloadPage, &DownloadPage::playPauseRequested, this, &MainWindow::togglePlaybackForSystemUi);
     connect(m_sidebar, &Sidebar::playlistClicked, this, &MainWindow::showPlaylistDetailPage);
     connect(m_sidebar, &Sidebar::playlistCreateRequested, this, &MainWindow::createPlaylist);
     connect(m_sidebar, &Sidebar::neteaseImportRequested, this, [this]() {
@@ -701,6 +720,7 @@ void MainWindow::setupUi()
     connect(m_settingsPage, &SettingsPage::languageChanged, m_playerPage, &PlayerPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_favoritesPage, &FavoritesPage::retranslate);
     connect(m_settingsPage, &SettingsPage::languageChanged, m_recentPage, &RecentPage::retranslate);
+    connect(m_settingsPage, &SettingsPage::languageChanged, m_downloadPage, &DownloadPage::retranslate);
 
     // 音乐加载器连接 — 由各播放方法按需单独连接
 
@@ -717,6 +737,9 @@ void MainWindow::setupUi()
         }
         if (m_recentPage) {
             m_recentPage->setPlaybackPaused(state != PlayerEngine::Playing);
+        }
+        if (m_downloadPage) {
+            m_downloadPage->setPlaybackPaused(state != PlayerEngine::Playing);
         }
         if (m_searchPage) {
             m_searchPage->setPlaybackPaused(state != PlayerEngine::Playing);
@@ -744,6 +767,8 @@ void MainWindow::setupUi()
             m_playlistDetailPage->updatePlayingHighlight();
         if (m_recentPage)
             m_recentPage->updatePlayingHighlight();
+        if (m_downloadPage)
+            m_downloadPage->updatePlayingHighlight();
         if (m_searchPage)
             m_searchPage->updatePlayingHighlight();
         if (m_artistDetailPage)
@@ -920,6 +945,23 @@ void MainWindow::setupUi()
     connect(m_dailyMusicPage, &MusicListPage::addToPlaylist, this, [this](const MusicInfo &info) {
         showAddToPlaylistDialog(info);
     });
+
+    auto onDownloadRequested = [this](const MusicInfo &info) { downloadMusic(info); };
+    connect(m_hotMusicPage, &MusicListPage::downloadRequested, this, onDownloadRequested);
+    connect(m_latestMusicPage, &MusicListPage::downloadRequested, this, onDownloadRequested);
+    connect(m_dailyMusicPage, &MusicListPage::downloadRequested, this, onDownloadRequested);
+
+    auto &downloadMgr = MusicDownloadManager::instance();
+    connect(&downloadMgr, &MusicDownloadManager::downloadCompleted, this, [this](int) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("downloadComplete")), Toast::Success);
+    });
+    connect(&downloadMgr, &MusicDownloadManager::downloadFailed, this,
+            [this](int, const QString &err) {
+                Toast::show(this,
+                            QStringLiteral("%1: %2")
+                                .arg(I18n::instance().tr(QStringLiteral("downloadFailed")), err),
+                            Toast::Error);
+            });
 
     connect(m_hotMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
     connect(m_latestMusicPage, &MusicListPage::favoriteRequested, this, &MainWindow::toggleFavorite);
@@ -2149,6 +2191,20 @@ void MainWindow::onTrayQuit()
     QApplication::quit();
 }
 
+void MainWindow::downloadMusic(const MusicInfo &info)
+{
+    if (info.id <= 0 || info.isLocalFile())
+        return;
+
+    if (MusicDownloadManager::instance().isDownloaded(info.id)) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("alreadyDownloaded")), Toast::Info);
+        return;
+    }
+
+    MusicDownloadManager::instance().downloadMusic(info);
+    Toast::show(this, I18n::instance().tr(QStringLiteral("downloadStarted")), Toast::Success);
+}
+
 void MainWindow::toggleFavorite(int musicId)
 {
     qDebug() << "[收藏] 切换收藏, musicId =" << musicId;
@@ -2314,6 +2370,8 @@ void MainWindow::syncListPageFavoriteIds()
         m_playlistDetailPage->setFavoritedMusicIds(ids);
     if (m_recentPage)
         m_recentPage->setFavoritedMusicIds(ids);
+    if (m_downloadPage)
+        m_downloadPage->setFavoritedMusicIds(ids);
     if (m_searchPage)
         m_searchPage->setFavoritedMusicIds(ids);
     if (m_artistDetailPage)

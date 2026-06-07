@@ -60,6 +60,7 @@ private:
     QString m_activeKey;
     QPushButton *m_favBtn = nullptr;
     QPushButton *m_recBtn = nullptr;
+    QPushButton *m_downloadBtn = nullptr;
     QPushButton *m_searchBtn = nullptr;
 
     QWidget *m_playlistContainer = nullptr;

@@ -55,6 +55,13 @@ public:
     QList<MusicInfo> getRecentPlays(int limit = 65535);
     void clearRecentPlays();
 
+    // Download Operations
+    void recordDownload(const MusicInfo &music, const QString &filePath);
+    QList<MusicInfo> getDownloads();
+    QString getDownloadFilePath(int musicId);
+    bool removeDownload(int musicId);
+    void clearDownloads();
+
 private:
     PlaylistDatabase() = default;
     ~PlaylistDatabase() = default;

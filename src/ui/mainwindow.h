@@ -28,6 +28,7 @@ class HomePage;
 class SettingsPage;
 class FavoritesPage;
 class RecentPage;
+class DownloadPage;
 class PlayerBar;
 class PlayerEngine;
 class MusicDownloader;
@@ -105,6 +106,7 @@ private:
     void playNext();
     void playPrevious();
     void toggleFavorite(int musicId);
+    void downloadMusic(const MusicInfo &info);
     void copyCurrentTrackShare();
     /** @param showNoUpdateToast 为 true 时表示用户从设置页手动检查，已是最新版本时弹出 Toast */
     void checkForUpdates(bool showNoUpdateToast = false);
@@ -146,6 +148,7 @@ private:
     SettingsPage *m_settingsPage = nullptr;
     FavoritesPage *m_favoritesPage = nullptr;
     RecentPage *m_recentPage = nullptr;
+    DownloadPage *m_downloadPage = nullptr;
     MusicListPage *m_hotMusicPage = nullptr;
     MusicListPage *m_latestMusicPage = nullptr;
     MusicListPage *m_dailyMusicPage = nullptr;

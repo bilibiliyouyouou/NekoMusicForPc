@@ -47,6 +47,8 @@ const char *navSvgName(const QString &key)
         return "Favorite";
     if (key == QStringLiteral("recent"))
         return "History";
+    if (key == QStringLiteral("downloads"))
+        return "Download";
     if (key == QStringLiteral("settings"))
         return "Settings";
     if (key == QStringLiteral("music"))
@@ -121,6 +123,10 @@ void Sidebar::setupUi()
     // 最近播放（可点击导航）
     m_recBtn = createNavItem("recent", I18n::instance().tr("recentPlay"), navIcon("recent", false));
     lay->addWidget(m_recBtn);
+
+    // 下载管理（可点击导航）
+    m_downloadBtn = createNavItem("downloads", I18n::instance().tr("downloadManage"), navIcon("downloads", false));
+    lay->addWidget(m_downloadBtn);
 
     // 分隔线
     auto *div = new QWidget(container);
@@ -490,6 +496,7 @@ void Sidebar::retranslate()
 
     if (m_favBtn) m_favBtn->setText(I18n::instance().tr("favorites"));
     if (m_recBtn) m_recBtn->setText(I18n::instance().tr("recentPlay"));
+    if (m_downloadBtn) m_downloadBtn->setText(I18n::instance().tr("downloadManage"));
 
     auto headers = findChildren<QLabel *>("sbPlaylistTitle");
     if (headers.size() >= 1) headers[0]->setText(I18n::instance().tr("myPlaylistsTitle"));

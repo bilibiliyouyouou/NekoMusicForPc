@@ -734,11 +734,14 @@ void MusicListPage::showSongContextMenu(const MusicInfo &info, const QPoint &glo
 
     QAction *queueAct = menu.addAction(I18n::instance().tr("addToQueue"));
     QAction *plAct = menu.addAction(I18n::instance().tr("addToPlaylist"));
+    QAction *dlAct = menu.addAction(I18n::instance().tr("downloadMusic"));
     QAction *picked = menu.exec(globalPos);
     if (picked == queueAct)
         emit addToQueue(info);
     else if (picked == plAct)
         emit addToPlaylist(info);
+    else if (picked == dlAct)
+        emit downloadRequested(info);
 }
 
 void MusicListPage::paintEvent(QPaintEvent *event)

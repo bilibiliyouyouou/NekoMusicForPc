@@ -30,6 +30,7 @@ signals:
     void playAllRequested(const QList<MusicInfo> &results);
     void addToQueue(const MusicInfo &info);
     void addToPlaylist(const MusicInfo &info);
+    void downloadRequested(const MusicInfo &info);
     void favoriteRequested(int musicId);
     void playPauseRequested();
     void backRequested();
