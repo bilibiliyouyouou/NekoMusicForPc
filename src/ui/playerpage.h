@@ -42,7 +42,7 @@ public:
     /** 缓存就绪或起播后重新探测音质（避免启动时误显示 HQ） */
     void refreshAudioQuality();
     void retranslate();
-    /** 在线曲走 API；本地曲读内嵌标签（ID3 USLT / FLAC 注释）再尝试同名 .lrc，不请求网络。 */
+    /** 在线曲走 API；本地下载曲优先同名 .lrc，再 API，再内嵌标签；纯本地曲读 .lrc 后内嵌标签。 */
     void loadLyricsForTrack(const MusicInfo &info);
     void updateLyricHighlight(qint64 positionMs);
     void updatePlayModeBtn(const QString &mode);
@@ -129,6 +129,8 @@ private:
     void parseLrc(const QString &lrc);
     /** 将一段 LRC 或纯文本歌词写入 m_lyrics（无时间轴时整段作为 t=0 一行） */
     void applyLyricsRawText(const QString &raw);
+    void cacheLyricsForKey(int cacheKey);
+    void loadEmbeddedLyricsForTrack(const MusicInfo &info);
     void rebuildLyricLabels();
     void updateLyricCountdown(qint64 positionMs);
     QColor lyricCountdownDotColor() const;

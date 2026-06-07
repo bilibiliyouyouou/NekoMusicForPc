@@ -2747,6 +2747,41 @@ void PlayerPage::loadCover(const QString &url)
     cc->fetchCover(cacheKey, fetchUrl);
 }
 
+namespace {
+
+QString readSidecarLrcFile(const QString &audioPath)
+{
+    if (audioPath.isEmpty())
+        return {};
+    const QFileInfo fi(audioPath);
+    const QString lrcPath =
+        fi.absolutePath() + QLatin1Char('/') + fi.completeBaseName() + QStringLiteral(".lrc");
+    QFile f(lrcPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    return QString::fromUtf8(f.readAll());
+}
+
+} // namespace
+
+void PlayerPage::cacheLyricsForKey(int cacheKey)
+{
+    if (m_lyrics.isEmpty())
+        return;
+    constexpr int kMax = 64;
+    if (m_lyricsCache.size() >= kMax && !m_lyricsCache.contains(cacheKey))
+        m_lyricsCache.remove(m_lyricsCache.constBegin().key());
+    m_lyricsCache.insert(cacheKey, m_lyrics);
+}
+
+void PlayerPage::loadEmbeddedLyricsForTrack(const MusicInfo &info)
+{
+    const QString raw = EmbeddedLyrics::readEmbeddedLyricsText(info.localPath);
+    if (!raw.trimmed().isEmpty())
+        applyLyricsRawText(raw);
+    rebuildLyricLabels();
+}
+
 void PlayerPage::loadLyricsForTrack(const MusicInfo &info)
 {
     ++m_lyricsFetchGeneration;
@@ -2764,29 +2799,32 @@ void PlayerPage::loadLyricsForTrack(const MusicInfo &info)
         m_lyrics.clear();
         rebuildLyricLabels();
 
-        QString raw = EmbeddedLyrics::readEmbeddedLyricsText(info.localPath);
-        if (raw.trimmed().isEmpty()) {
-            const QFileInfo fi(info.localPath);
-            const QString lrcPath = fi.absolutePath() + QLatin1Char('/') + fi.completeBaseName()
-                + QLatin1String(".lrc");
-            QFile f(lrcPath);
-            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                QByteArray bytes = f.readAll();
-                f.close();
-                raw = QString::fromUtf8(bytes);
-            }
+        const QString localLrc = readSidecarLrcFile(info.localPath);
+        if (!localLrc.trimmed().isEmpty()) {
+            applyLyricsRawText(localLrc);
+            rebuildLyricLabels();
+            cacheLyricsForKey(cacheKey);
+            return;
         }
 
-        if (!raw.trimmed().isEmpty())
-            applyLyricsRawText(raw);
-        rebuildLyricLabels();
-
-        if (!m_lyrics.isEmpty()) {
-            constexpr int kMax = 64;
-            if (m_lyricsCache.size() >= kMax && !m_lyricsCache.contains(cacheKey))
-                m_lyricsCache.remove(m_lyricsCache.constBegin().key());
-            m_lyricsCache.insert(cacheKey, m_lyrics);
+        if (info.id > 0 && m_apiClient) {
+            m_apiClient->fetchLyrics(info.id, [this, info, lyricsGen, cacheKey](bool ok, const QString &lrc) {
+                if (lyricsGen != m_lyricsFetchGeneration)
+                    return;
+                if (ok && !lrc.trimmed().isEmpty()) {
+                    parseLrc(lrc);
+                    rebuildLyricLabels();
+                    cacheLyricsForKey(cacheKey);
+                    return;
+                }
+                loadEmbeddedLyricsForTrack(info);
+                cacheLyricsForKey(cacheKey);
+            });
+            return;
         }
+
+        loadEmbeddedLyricsForTrack(info);
+        cacheLyricsForKey(cacheKey);
         return;
     }
 
@@ -2830,12 +2868,7 @@ void PlayerPage::loadLyricsForTrack(const MusicInfo &info)
                 if (!lrc.isEmpty()) {
                     parseLrc(lrc);
                     rebuildLyricLabels();
-                    if (!m_lyrics.isEmpty()) {
-                        constexpr int kMax = 64;
-                        if (m_lyricsCache.size() >= kMax && !m_lyricsCache.contains(musicId))
-                            m_lyricsCache.remove(m_lyricsCache.constBegin().key());
-                        m_lyricsCache.insert(musicId, m_lyrics);
-                    }
+                    cacheLyricsForKey(musicId);
                 } else {
                     qDebug() << "歌词API返回空歌词内容，musicId:" << musicId << "，协议:"
                              << httpProtocolLabel(reply);
