@@ -9,6 +9,7 @@
 #include "core/apiclient.h"
 #include "core/i18n.h"
 #include "core/covercache.h"
+#include "core/musicdownloadmanager.h"
 #include "core/playlistmanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
@@ -212,11 +213,44 @@ void SearchPage::setupUi()
     songsLay->setContentsMargins(0, 0, 0, 0);
     songsLay->setSpacing(0);
 
+    m_songsActionRow = new QWidget(songsPage);
+    m_songsActionRow->setFixedHeight(40);
+    auto *songsActionLay = new QHBoxLayout(m_songsActionRow);
+    songsActionLay->setContentsMargins(0, 0, 0, 12);
+    songsActionLay->setSpacing(12);
+
+    m_songsPlayAllBtn = new QPushButton(I18n::instance().tr(QStringLiteral("playAll")), m_songsActionRow);
+    m_songsPlayAllBtn->setCursor(Qt::PointingHandCursor);
+    m_songsPlayAllBtn->setFixedHeight(40);
+    connect(m_songsPlayAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_musicResults.isEmpty()) {
+            PlaylistManager::instance().clearPlaylist();
+            PlaylistManager::instance().addAllToPlaylist(m_musicResults);
+            emit playMusic(m_musicResults.first());
+        }
+    });
+    songsActionLay->addWidget(m_songsPlayAllBtn);
+
+    m_songsDownloadAllBtn = new QPushButton(I18n::instance().tr(QStringLiteral("downloadAll")),
+                                            m_songsActionRow);
+    m_songsDownloadAllBtn->setCursor(Qt::PointingHandCursor);
+    m_songsDownloadAllBtn->setFixedHeight(40);
+    connect(m_songsDownloadAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_musicResults.isEmpty())
+            emit downloadAllRequested(m_musicResults);
+    });
+    songsActionLay->addWidget(m_songsDownloadAllBtn);
+    songsActionLay->addStretch();
+    m_songsActionRow->hide();
+    songsLay->addWidget(m_songsActionRow);
+
     m_songList = new SongListWidget(songsPage);
     m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
+    m_songList->onDownload = [this](const MusicInfo &info) { emit downloadRequested(info); };
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
+    m_songList->isDownloaded = [](int id) { return MusicDownloadManager::instance().isDownloaded(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     connect(m_songList, &SongListWidget::scrolled, this, &SearchPage::onSongListScrolled);
     songsLay->addWidget(m_songList, 1);
@@ -407,6 +441,41 @@ void SearchPage::applyPageStyle()
                                          .arg(tabBg, titleFg));
     }
 
+    const QColor secondaryIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    if (m_songsPlayAllBtn) {
+        m_songsPlayAllBtn->setIcon(Icons::renderNamed("Play", 18, QColor(255, 255, 255)));
+        m_songsPlayAllBtn->setIconSize(QSize(18, 18));
+        m_songsPlayAllBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: #E63950;"
+            "  color: #ffffff;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 20px;"
+            "}"
+            "QPushButton:hover { background: #ff5070; }"
+            "QPushButton:disabled { background: rgba(230,57,80,0.35); color: rgba(255,255,255,0.6); }"));
+    }
+    if (m_songsDownloadAllBtn) {
+        m_songsDownloadAllBtn->setIcon(Icons::renderNamed("Download", 18, secondaryIc));
+        m_songsDownloadAllBtn->setIconSize(QSize(18, 18));
+        m_songsDownloadAllBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: %1;"
+            "  color: %2;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 20px;"
+            "}"
+            "QPushButton:hover { background: rgba(230,57,80,0.15); }"
+            "QPushButton:disabled { color: rgba(128,128,128,0.8); }")
+                                             .arg(tabBg, titleFg));
+    }
+
     const QColor emptyIcon = dark ? QColor(244, 246, 255, 120) : QColor(33, 37, 41, 100);
     const QPixmap offIcon = Icons::renderNamed("SearchOff", 64, emptyIcon);
     if (m_songsEmptyIcon)
@@ -532,6 +601,8 @@ void SearchPage::applyMusicResults()
     if (m_musicResults.isEmpty()) {
         if (m_songList)
             m_songList->setSongs({});
+        if (m_songsActionRow)
+            m_songsActionRow->hide();
         showSongsEmpty(I18n::instance().tr(QStringLiteral("searchEmptySongs")).arg(m_query));
         if (m_loadMoreBtn)
             m_loadMoreBtn->hide();
@@ -539,8 +610,15 @@ void SearchPage::applyMusicResults()
     }
 
     hideSongsEmpty();
+    if (m_songsActionRow)
+        m_songsActionRow->show();
+    if (m_songsPlayAllBtn)
+        m_songsPlayAllBtn->setEnabled(true);
+    if (m_songsDownloadAllBtn)
+        m_songsDownloadAllBtn->setEnabled(true);
     if (m_songList) {
         m_songList->setSongs(m_musicResults);
+        m_songList->refreshDownloadDisplay();
         updatePlayingHighlight();
     }
 
@@ -550,6 +628,12 @@ void SearchPage::applyMusicResults()
         m_loadMoreBtn->setEnabled(true);
         m_loadMoreBtn->setText(I18n::instance().tr(QStringLiteral("loadMore")));
     }
+}
+
+void SearchPage::refreshDownloadDisplay()
+{
+    if (m_songList)
+        m_songList->refreshDownloadDisplay();
 }
 
 void SearchPage::fetchPlaylistResults()
@@ -788,6 +872,10 @@ void SearchPage::retranslate()
         m_tabArtists->setText(I18n::instance().tr(QStringLiteral("artist")));
     if (m_loadMoreBtn && m_loadMoreBtn->isVisible())
         m_loadMoreBtn->setText(I18n::instance().tr(QStringLiteral("loadMore")));
+    if (m_songsPlayAllBtn)
+        m_songsPlayAllBtn->setText(I18n::instance().tr(QStringLiteral("playAll")));
+    if (m_songsDownloadAllBtn)
+        m_songsDownloadAllBtn->setText(I18n::instance().tr(QStringLiteral("downloadAll")));
     if (m_songList)
         m_songList->retranslate();
     if (m_hintWrap && m_hintWrap->isVisible())

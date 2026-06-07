@@ -6,6 +6,7 @@
 #include "artistdetailpage.h"
 #include "songlistwidget.h"
 #include "core/i18n.h"
+#include "core/musicdownloadmanager.h"
 #include "core/playlistmanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
@@ -82,6 +83,15 @@ void ArtistDetailPage::setupUi()
             emit playAllRequested(m_tracks);
     });
     menuLay->addWidget(m_playBtn);
+
+    m_downloadAllBtn = new QPushButton(I18n::instance().tr(QStringLiteral("downloadAll")), menuRow);
+    m_downloadAllBtn->setCursor(Qt::PointingHandCursor);
+    m_downloadAllBtn->setFixedHeight(40);
+    connect(m_downloadAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_tracks.isEmpty())
+            emit downloadAllRequested(m_tracks);
+    });
+    menuLay->addWidget(m_downloadAllBtn);
     menuLay->addStretch();
     headerLay->addWidget(menuRow);
     root->addWidget(m_header);
@@ -90,7 +100,9 @@ void ArtistDetailPage::setupUi()
     m_songList->onSongActivate = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onSongPlayNext = [this](const MusicInfo &info) { emit playMusic(info); };
     m_songList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
+    m_songList->onDownload = [this](const MusicInfo &info) { emit downloadRequested(info); };
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
+    m_songList->isDownloaded = [](int id) { return MusicDownloadManager::instance().isDownloaded(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     root->addWidget(m_songList, 1);
 
@@ -143,6 +155,27 @@ void ArtistDetailPage::applyPageStyle()
             "QPushButton:hover { background: #ff5070; }"
             "QPushButton:disabled { background: rgba(230,57,80,0.35); color: rgba(255,255,255,0.6); }"));
     }
+    const QString secondaryBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString secondaryFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    const QColor secondaryIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    if (m_downloadAllBtn) {
+        m_downloadAllBtn->setIcon(Icons::renderNamed("Download", 18, secondaryIc));
+        m_downloadAllBtn->setIconSize(QSize(18, 18));
+        m_downloadAllBtn->setText(I18n::instance().tr(QStringLiteral("downloadAll")));
+        m_downloadAllBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: %1;"
+            "  color: %2;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 20px;"
+            "}"
+            "QPushButton:hover { background: rgba(230,57,80,0.15); }"
+            "QPushButton:disabled { color: rgba(128,128,128,0.8); }")
+                                         .arg(secondaryBg, secondaryFg));
+    }
     if (m_songList)
         m_songList->applyTheme();
 }
@@ -175,9 +208,17 @@ void ArtistDetailPage::loadArtist(const QVariantMap &artist)
         m_titleLbl->setText(m_artistName.isEmpty() ? I18n::instance().tr(QStringLiteral("artist"))
                                                    : m_artistName);
     updateHeaderMeta();
-    if (m_songList)
+    if (m_songList) {
         m_songList->setSongs(m_tracks);
+        m_songList->refreshDownloadDisplay();
+    }
     updatePlayingHighlight();
+}
+
+void ArtistDetailPage::refreshDownloadDisplay()
+{
+    if (m_songList)
+        m_songList->refreshDownloadDisplay();
 }
 
 void ArtistDetailPage::updateHeaderMeta()
@@ -188,6 +229,8 @@ void ArtistDetailPage::updateHeaderMeta()
     }
     if (m_playBtn)
         m_playBtn->setEnabled(!m_tracks.isEmpty());
+    if (m_downloadAllBtn)
+        m_downloadAllBtn->setEnabled(!m_tracks.isEmpty());
 }
 
 int ArtistDetailPage::currentPlayingMusicId() const

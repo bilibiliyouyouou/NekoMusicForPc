@@ -157,6 +157,16 @@ void SongCardWidget::rebuildLayout()
     });
     lay->addWidget(m_heartBtn);
 
+    m_downloadBtn = new QPushButton(m_content);
+    m_downloadBtn->setFixedSize(40, 40);
+    m_downloadBtn->setFlat(true);
+    m_downloadBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_downloadBtn, &QPushButton::clicked, this, [this](bool) {
+        if (onDownload && !m_downloaded)
+            onDownload(m_info);
+    });
+    lay->addWidget(m_downloadBtn);
+
     m_timeLbl = new QLabel(m_content);
     m_timeLbl->setFixedWidth(50);
     m_timeLbl->setAlignment(Qt::AlignCenter);
@@ -190,7 +200,7 @@ void SongCardWidget::installContentEventFilters()
 
 bool SongCardWidget::isInteractiveButton(QObject *obj) const
 {
-    return obj == m_heartBtn || obj == m_playOverlay || obj == m_statusOverlay;
+    return obj == m_heartBtn || obj == m_downloadBtn || obj == m_playOverlay || obj == m_statusOverlay;
 }
 
 void SongCardWidget::setHover(bool hover)
@@ -272,6 +282,7 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
     m_artistLbl->setText(info.artist);
     updateLocalBadge();
     updateLrcBadge();
+    updateDownloadIcon();
     updateSecondaryColumn();
     m_timeLbl->setText(formatDuration(info.duration));
 
@@ -340,6 +351,23 @@ void SongCardWidget::setFavorited(bool favorited)
     updateHeartIcon();
 }
 
+void SongCardWidget::setDownloaded(bool downloaded)
+{
+    if (m_downloaded == downloaded)
+        return;
+    m_downloaded = downloaded;
+    updateDownloadIcon();
+}
+
+void SongCardWidget::setShowDownloadButton(bool show)
+{
+    if (m_showDownloadButton == show)
+        return;
+    m_showDownloadButton = show;
+    if (m_downloadBtn)
+        m_downloadBtn->setVisible(show && !m_info.isLocalFile());
+}
+
 void SongCardWidget::updateHeartIcon()
 {
     const bool dark = Theme::ThemeManager::instance().isDarkMode();
@@ -353,6 +381,20 @@ void SongCardWidget::updateHeartIcon()
                                                m_favorited ? heartOn : heartOff));
     }
     m_heartBtn->setIconSize(QSize(20, 20));
+}
+
+void SongCardWidget::updateDownloadIcon()
+{
+    if (!m_downloadBtn)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    const QColor doneIc(76, 175, 80);
+    const QColor normalIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    m_downloadBtn->setIcon(Icons::renderNamed(m_downloaded ? "DownloadDone" : "Download", 20,
+                                              m_downloaded ? doneIc : normalIc));
+    m_downloadBtn->setIconSize(QSize(20, 20));
+    m_downloadBtn->setEnabled(!m_downloaded);
+    m_downloadBtn->setVisible(m_showDownloadButton && !m_info.isLocalFile());
 }
 
 void SongCardWidget::updateOverlayIcons()
@@ -385,10 +427,17 @@ void SongCardWidget::applyTheme()
     m_heartBtn->setStyleSheet(QStringLiteral(
         "QPushButton { background: transparent; border: none; border-radius: 8px; }"
         "QPushButton:hover { background: rgba(230,57,80,0.15); }"));
+    if (m_downloadBtn) {
+        m_downloadBtn->setStyleSheet(QStringLiteral(
+            "QPushButton { background: transparent; border: none; border-radius: 8px; }"
+            "QPushButton:hover:enabled { background: rgba(230,57,80,0.15); }"
+            "QPushButton:disabled { background: transparent; }"));
+    }
     m_playOverlay->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; }"));
     m_statusOverlay->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; }"));
 
     updateHeartIcon();
+    updateDownloadIcon();
     updateOverlayIcons();
     updateLocalBadge();
     updateLrcBadge();

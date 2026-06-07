@@ -134,6 +134,24 @@ void SongListWidget::refreshFavoriteDisplay()
     }
 }
 
+void SongListWidget::refreshDownloadDisplay()
+{
+    for (auto it = m_rowCards.constBegin(); it != m_rowCards.constEnd(); ++it) {
+        SongCardWidget *card = it.value();
+        const bool downloaded = isDownloaded ? isDownloaded(card->info().id) : false;
+        card->setDownloaded(downloaded);
+    }
+}
+
+void SongListWidget::setShowDownloadActions(bool show)
+{
+    if (m_showDownloadActions == show)
+        return;
+    m_showDownloadActions = show;
+    for (SongCardWidget *card : m_rowCards)
+        card->setShowDownloadButton(show);
+}
+
 void SongListWidget::setRemoveMode(bool remove)
 {
     if (m_removeMode == remove)
@@ -361,6 +379,7 @@ void SongListWidget::releaseCard(SongCardWidget *card)
     card->onPlayNext = nullptr;
     card->onContextMenu = nullptr;
     card->onUnfavorite = nullptr;
+    card->onDownload = nullptr;
     card->onTogglePlayPause = nullptr;
     m_cardPool.append(card);
 }
@@ -397,15 +416,19 @@ void SongListWidget::updateVisibleRows()
             card->onPlayNext = onSongPlayNext;
             card->onContextMenu = onSongContextMenu;
             card->onUnfavorite = onUnfavorite;
+            card->onDownload = onDownload;
             card->onTogglePlayPause = onTogglePlayPause;
             card->setRemoveMode(m_removeMode);
+            card->setShowDownloadButton(m_showDownloadActions);
             card->setDisplayMode(static_cast<SongCardWidget::DisplayMode>(m_listDisplayMode));
         }
 
         const bool songChanged = isNew || card->info().id != song.id;
         card->bind(song, row);
-        if (songChanged)
+        if (songChanged) {
             card->setFavorited(isFavorited ? isFavorited(song.id) : false);
+            card->setDownloaded(isDownloaded ? isDownloaded(song.id) : false);
+        }
 
         card->setFixedSize(w, kRowHeight);
         card->move(0, row * kRowStride);

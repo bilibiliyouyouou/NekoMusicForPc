@@ -11,6 +11,7 @@
 #include "core/covercache.h"
 #include "core/usermanager.h"
 #include "core/playlistmanager.h"
+#include "core/musicdownloadmanager.h"
 #include "theme/theme.h"
 #include "theme/thememanager.h"
 #include "ui/svgicon.h"
@@ -190,6 +191,15 @@ void FavoritesPage::setupUi()
     });
     menuLay->addWidget(m_playBtn);
 
+    m_downloadAllBtn = new QPushButton(I18n::instance().tr(QStringLiteral("downloadAll")), menuRow);
+    m_downloadAllBtn->setCursor(Qt::PointingHandCursor);
+    m_downloadAllBtn->setFixedHeight(40);
+    connect(m_downloadAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_displaySongs.isEmpty())
+            emit downloadAllRequested(m_displaySongs);
+    });
+    menuLay->addWidget(m_downloadAllBtn);
+
     m_moreBtn = new QPushButton(menuRow);
     m_moreBtn->setFixedSize(40, 40);
     m_moreBtn->setCursor(Qt::PointingHandCursor);
@@ -247,7 +257,9 @@ void FavoritesPage::setupUi()
         emit playRequested(info.id, info.title, info.artist, info.coverUrl);
     };
     m_songList->onUnfavorite = [this](int id) { emit unfavoriteRequested(id); };
+    m_songList->onDownload = [this](const MusicInfo &info) { emit downloadRequested(info); };
     m_songList->isFavorited = [](int) { return true; };
+    m_songList->isDownloaded = [](int id) { return MusicDownloadManager::instance().isDownloaded(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     connect(m_songList, &SongListWidget::scrolled, this, &FavoritesPage::onListScrolled);
     root->addWidget(m_songList, 1);
@@ -313,6 +325,26 @@ void FavoritesPage::applyPageStyle()
             "QPushButton:hover { background: #ff5070; }"
             "QPushButton:disabled { background: rgba(230,57,80,0.35); color: rgba(255,255,255,0.6); }"));
     }
+    const QString secondaryBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
+    const QString secondaryFg = dark ? QString::fromUtf8(Theme::kTextMain) : QStringLiteral("#212529");
+    const QColor secondaryIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    if (m_downloadAllBtn) {
+        m_downloadAllBtn->setIcon(Icons::renderNamed("Download", 18, secondaryIc));
+        m_downloadAllBtn->setIconSize(QSize(18, 18));
+        m_downloadAllBtn->setStyleSheet(QStringLiteral(
+            "QPushButton {"
+            "  background: %1;"
+            "  color: %2;"
+            "  border: none;"
+            "  border-radius: 20px;"
+            "  font-size: 14px;"
+            "  font-weight: 500;"
+            "  padding: 0 20px;"
+            "}"
+            "QPushButton:hover { background: rgba(230,57,80,0.15); }"
+            "QPushButton:disabled { color: rgba(128,128,128,0.8); }")
+                                         .arg(secondaryBg, secondaryFg));
+    }
     if (m_moreBtn) {
         const QString moreBg = dark ? QStringLiteral("#2a2a2a") : QStringLiteral("#f0f0f0");
         const QColor moreIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
@@ -356,6 +388,8 @@ void FavoritesPage::retranslate()
         m_titleLbl->setText(I18n::instance().tr(QStringLiteral("myFavorites")));
     if (m_playBtn)
         m_playBtn->setText(I18n::instance().tr(QStringLiteral("play")));
+    if (m_downloadAllBtn)
+        m_downloadAllBtn->setText(I18n::instance().tr(QStringLiteral("downloadAll")));
     if (m_searchEdit)
         m_searchEdit->setPlaceholderText(I18n::instance().tr(QStringLiteral("fuzzySearch")));
     if (m_songList)
@@ -441,6 +475,14 @@ void FavoritesPage::updateHeaderMeta()
 
     if (m_playBtn)
         m_playBtn->setEnabled(!m_displaySongs.isEmpty());
+    if (m_downloadAllBtn)
+        m_downloadAllBtn->setEnabled(!m_displaySongs.isEmpty());
+}
+
+void FavoritesPage::refreshDownloadDisplay()
+{
+    if (m_songList)
+        m_songList->refreshDownloadDisplay();
 }
 
 void FavoritesPage::updateCoverImage()
@@ -509,6 +551,7 @@ void FavoritesPage::applyFilter()
     if (m_songList) {
         m_songList->setVisible(!m_displaySongs.isEmpty() || m_allFavorites.isEmpty());
         m_songList->setSongs(m_displaySongs);
+        m_songList->refreshDownloadDisplay();
     }
     updatePlayingHighlight();
     updateHeaderMeta();

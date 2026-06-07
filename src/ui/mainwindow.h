@@ -107,6 +107,8 @@ private:
     void playPrevious();
     void toggleFavorite(int musicId);
     void downloadMusic(const MusicInfo &info);
+    void downloadAllMusic(const QList<MusicInfo> &songs);
+    void syncListPageDownloadState();
     void copyCurrentTrackShare();
     /** @param showNoUpdateToast 为 true 时表示用户从设置页手动检查，已是最新版本时弹出 Toast */
     void checkForUpdates(bool showNoUpdateToast = false);
@@ -176,6 +178,7 @@ private:
 
     // Download state
     bool m_isDownloading = false;
+    int m_batchDownloadRemain = 0;
     /** 每次切歌递增；延后回调里若与当前不一致则丢弃，避免叠多个 singleShot 播错文件。 */
     quint64 m_enginePlaySeq = 0;
 

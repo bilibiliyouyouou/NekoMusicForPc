@@ -23,6 +23,7 @@ public:
     void setPlaybackPaused(bool paused);
     void updatePlayingHighlight();
     void setFavoritedMusicIds(const QSet<int> &ids);
+    void refreshDownloadDisplay();
 
 signals:
     void playRequested(const MusicInfo &info);

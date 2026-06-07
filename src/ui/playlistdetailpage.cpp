@@ -9,6 +9,7 @@
 #include "core/apiclient.h"
 #include "core/i18n.h"
 #include "core/covercache.h"
+#include "core/musicdownloadmanager.h"
 #include "core/playlistmanager.h"
 #include "core/usermanager.h"
 #include "theme/theme.h"
@@ -194,6 +195,15 @@ void PlaylistDetailPage::setupUi()
     });
     menuLay->addWidget(m_playBtn);
 
+    m_downloadAllBtn = new QPushButton(I18n::instance().tr(QStringLiteral("downloadAll")), menuRow);
+    m_downloadAllBtn->setCursor(Qt::PointingHandCursor);
+    m_downloadAllBtn->setFixedHeight(40);
+    connect(m_downloadAllBtn, &QPushButton::clicked, this, [this]() {
+        if (!m_displaySongs.isEmpty())
+            emit downloadAllRequested(m_displaySongs);
+    });
+    menuLay->addWidget(m_downloadAllBtn);
+
     m_editPlaylistBtn = new QPushButton(I18n::instance().tr(QStringLiteral("editPlaylist")), menuRow);
     m_editPlaylistBtn->setCursor(Qt::PointingHandCursor);
     m_editPlaylistBtn->setFixedHeight(40);
@@ -265,7 +275,9 @@ void PlaylistDetailPage::setupUi()
         showSongContextMenu(info, pos);
     };
     m_songList->onUnfavorite = [this](int musicId) { emit favoriteRequested(musicId); };
+    m_songList->onDownload = [this](const MusicInfo &info) { emit downloadRequested(info); };
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
+    m_songList->isDownloaded = [](int id) { return MusicDownloadManager::instance().isDownloaded(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
     connect(m_songList, &SongListWidget::scrolled, this, &PlaylistDetailPage::onListScrolled);
     root->addWidget(m_songList, 1);
@@ -347,6 +359,11 @@ void PlaylistDetailPage::applyPageStyle()
         "QPushButton:hover { background: rgba(230,57,80,0.15); }")
                                      .arg(secondaryBg, secondaryFg);
 
+    if (m_downloadAllBtn) {
+        m_downloadAllBtn->setIcon(Icons::renderNamed("Download", 18, secondaryIc));
+        m_downloadAllBtn->setIconSize(QSize(18, 18));
+        m_downloadAllBtn->setStyleSheet(secondaryStyle);
+    }
     if (m_editPlaylistBtn) {
         m_editPlaylistBtn->setIcon(Icons::renderNamed("EditNote", 18, secondaryIc));
         m_editPlaylistBtn->setIconSize(QSize(18, 18));
@@ -393,6 +410,8 @@ void PlaylistDetailPage::retranslate()
 {
     if (m_playBtn)
         m_playBtn->setText(I18n::instance().tr(QStringLiteral("play")));
+    if (m_downloadAllBtn)
+        m_downloadAllBtn->setText(I18n::instance().tr(QStringLiteral("downloadAll")));
     if (m_editPlaylistBtn)
         m_editPlaylistBtn->setText(I18n::instance().tr(QStringLiteral("editPlaylist")));
     updateCollectPlaylistButton();
@@ -480,6 +499,14 @@ void PlaylistDetailPage::updateHeaderMeta()
         m_playCountLbl->setText(formatSongCount(m_allSongs.size()));
     if (m_playBtn)
         m_playBtn->setEnabled(!m_displaySongs.isEmpty());
+    if (m_downloadAllBtn)
+        m_downloadAllBtn->setEnabled(!m_displaySongs.isEmpty());
+}
+
+void PlaylistDetailPage::refreshDownloadDisplay()
+{
+    if (m_songList)
+        m_songList->refreshDownloadDisplay();
 }
 
 void PlaylistDetailPage::updateCoverImage()
@@ -548,6 +575,7 @@ void PlaylistDetailPage::applyFilter()
         m_songList->setVisible(!m_displaySongs.isEmpty() || m_allSongs.isEmpty());
         m_songList->setSongs(m_displaySongs);
         m_songList->refreshFavoriteDisplay();
+        m_songList->refreshDownloadDisplay();
     }
     updatePlayingHighlight();
     updateHeaderMeta();

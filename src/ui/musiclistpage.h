@@ -31,6 +31,7 @@ signals:
     void addToQueue(const MusicInfo &info);
     void addToPlaylist(const MusicInfo &info);
     void downloadRequested(const MusicInfo &info);
+    void downloadAllRequested(const QList<MusicInfo> &results);
     void favoriteRequested(int musicId);
     void playPauseRequested();
     void backRequested();
@@ -42,6 +43,7 @@ public slots:
     void setPlaybackPaused(bool paused);
     void setFavoritedMusicIds(const QSet<int> &ids);
     void updatePlayingHighlight();
+    void refreshDownloadDisplay();
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -71,6 +73,7 @@ private:
     QLabel *m_descLbl = nullptr;
     QLabel *m_countLbl = nullptr;
     QPushButton *m_playAllBtn = nullptr;
+    QPushButton *m_downloadAllBtn = nullptr;
 
     SongListWidget *m_songList = nullptr;
     QWidget *m_emptyWrap = nullptr;

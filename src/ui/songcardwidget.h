@@ -32,6 +32,8 @@ public:
     /** false = 收藏心形；true = 从歌单移除（Delete） */
     void setRemoveMode(bool remove);
     void setFavorited(bool favorited);
+    void setDownloaded(bool downloaded);
+    void setShowDownloadButton(bool show);
     void applyTheme();
 
     const MusicInfo &info() const { return m_info; }
@@ -39,6 +41,7 @@ public:
     std::function<void(const MusicInfo &)> onActivate;
     std::function<void(const MusicInfo &)> onPlayNext;
     std::function<void(int)> onUnfavorite;
+    std::function<void(const MusicInfo &)> onDownload;
     std::function<void()> onTogglePlayPause;
     std::function<void(const MusicInfo &, const QPoint &)> onContextMenu;
 
@@ -60,6 +63,7 @@ private:
     void updateIndexColumn();
     void updateHoverOverlays();
     void updateHeartIcon();
+    void updateDownloadIcon();
     void updateOverlayIcons();
     void elideTexts();
     void loadCover();
@@ -78,6 +82,8 @@ private:
     bool m_hover = false;
     bool m_removeMode = false;
     bool m_favorited = false;
+    bool m_downloaded = false;
+    bool m_showDownloadButton = true;
 
     QWidget *m_content = nullptr;
     QWidget *m_numCol = nullptr;
@@ -92,6 +98,7 @@ private:
     QLabel *m_albumLbl = nullptr;
     QLabel *m_timeLbl = nullptr;
     QPushButton *m_heartBtn = nullptr;
+    QPushButton *m_downloadBtn = nullptr;
 
     QMetaObject::Connection m_coverConn;
 };

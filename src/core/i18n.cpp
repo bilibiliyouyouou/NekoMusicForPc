@@ -169,6 +169,9 @@ static QMap<QString, QString> zhCN()
     m["downloadStarted"] = QStringLiteral("下载已开始");
     m["alreadyDownloaded"] = QStringLiteral("该歌曲已下载");
     m["downloadFolderHint"] = QStringLiteral("保存位置：%1");
+    m["downloadAll"] = QStringLiteral("下载全部");
+    m["batchDownloadStarted"] = QStringLiteral("已开始下载 %1 首歌曲");
+    m["allSongsDownloaded"] = QStringLiteral("所有歌曲均已下载");
     m["localMusicBadge"] = QStringLiteral("本地");
     m["hasLyrics"] = QStringLiteral("有歌词");
     m["ranking"] = QStringLiteral("排行榜");
@@ -647,6 +650,9 @@ static QMap<QString, QString> nyaCN()
     m["downloadStarted"] = QStringLiteral("开始帮你搬歌啦喵~");
     m["alreadyDownloaded"] = QStringLiteral("这首歌已经下载过啦喵~");
     m["downloadFolderHint"] = QStringLiteral("文件藏在：%1 喵");
+    m["downloadAll"] = QStringLiteral("全部抱回家喵");
+    m["batchDownloadStarted"] = QStringLiteral("已经开始帮你搬 %1 首歌啦喵~");
+    m["allSongsDownloaded"] = QStringLiteral("这些歌都已经下载过啦喵~");
     m["localMusicBadge"] = QStringLiteral("家里的音乐喵~");
     m["hasLyrics"] = QStringLiteral("有歌词喵~");
     m["ranking"] = QStringLiteral("最厉害的排行喵~");
@@ -1021,6 +1027,9 @@ static QMap<QString, QString> enUS()
     m["downloadStarted"] = "Download started";
     m["alreadyDownloaded"] = "This song is already downloaded";
     m["downloadFolderHint"] = "Saved to: %1";
+    m["downloadAll"] = "Download All";
+    m["batchDownloadStarted"] = "Started downloading %1 songs";
+    m["allSongsDownloaded"] = "All songs are already downloaded";
     m["localMusicBadge"] = "Local";
     m["hasLyrics"] = "Has lyrics";
     m["ranking"] = "Ranking";

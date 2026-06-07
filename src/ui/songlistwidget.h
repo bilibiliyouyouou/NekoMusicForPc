@@ -39,6 +39,8 @@ public:
     bool hasCurrentPlaying() const;
     void setRemoveMode(bool remove);
     void refreshFavoriteDisplay();
+    void refreshDownloadDisplay();
+    void setShowDownloadActions(bool show);
 
     /** 行高 90px + 行间距 12px（对齐 SPlayer SongList） */
     static constexpr int kRowHeight = 90;
@@ -49,8 +51,10 @@ public:
     std::function<void(const MusicInfo &)> onSongPlayNext;
     std::function<void(const MusicInfo &, const QPoint &)> onSongContextMenu;
     std::function<void(int)> onUnfavorite;
+    std::function<void(const MusicInfo &)> onDownload;
     std::function<void()> onTogglePlayPause;
     std::function<bool(int)> isFavorited;
+    std::function<bool(int)> isDownloaded;
 
 signals:
     void scrolled(int scrollTop);
@@ -78,6 +82,7 @@ private:
     int m_currentRowInList = -1;
     bool m_paused = false;
     bool m_removeMode = false;
+    bool m_showDownloadActions = true;
 
     QWidget *m_header = nullptr;
     QLabel *m_hdrNum = nullptr;

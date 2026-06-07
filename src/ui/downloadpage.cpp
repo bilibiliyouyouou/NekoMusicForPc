@@ -102,6 +102,7 @@ void DownloadPage::setupUi()
     m_songList->onUnfavorite = [this](int id) { emit favoriteRequested(id); };
     m_songList->isFavorited = [this](int id) { return m_favoritedIds.contains(id); };
     m_songList->onTogglePlayPause = [this]() { emit playPauseRequested(); };
+    m_songList->setShowDownloadActions(false);
     root->addWidget(m_songList, 1);
 
     m_emptyWrap = new QWidget(this);
@@ -261,6 +262,10 @@ void DownloadPage::updatePlayingHighlight()
 {
     if (m_songList)
         m_songList->setCurrentPlayingId(currentPlayingMusicId());
+}
+
+void DownloadPage::refreshDownloadDisplay()
+{
 }
 
 void DownloadPage::showPageStatus(const QString &text, const char *iconName)

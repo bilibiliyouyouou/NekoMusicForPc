@@ -947,16 +947,44 @@ void MainWindow::setupUi()
     });
 
     auto onDownloadRequested = [this](const MusicInfo &info) { downloadMusic(info); };
+    auto onDownloadAllRequested = [this](const QList<MusicInfo> &songs) { downloadAllMusic(songs); };
     connect(m_hotMusicPage, &MusicListPage::downloadRequested, this, onDownloadRequested);
     connect(m_latestMusicPage, &MusicListPage::downloadRequested, this, onDownloadRequested);
     connect(m_dailyMusicPage, &MusicListPage::downloadRequested, this, onDownloadRequested);
+    connect(m_hotMusicPage, &MusicListPage::downloadAllRequested, this, onDownloadAllRequested);
+    connect(m_latestMusicPage, &MusicListPage::downloadAllRequested, this, onDownloadAllRequested);
+    connect(m_dailyMusicPage, &MusicListPage::downloadAllRequested, this, onDownloadAllRequested);
+
+    connect(m_favoritesPage, &FavoritesPage::downloadRequested, this, onDownloadRequested);
+    connect(m_favoritesPage, &FavoritesPage::downloadAllRequested, this, onDownloadAllRequested);
+    connect(m_recentPage, &RecentPage::downloadRequested, this, onDownloadRequested);
+    connect(m_recentPage, &RecentPage::downloadAllRequested, this, onDownloadAllRequested);
+    connect(m_playlistDetailPage, &PlaylistDetailPage::downloadRequested, this, onDownloadRequested);
+    connect(m_playlistDetailPage, &PlaylistDetailPage::downloadAllRequested, this, onDownloadAllRequested);
+    connect(m_searchPage, &SearchPage::downloadRequested, this, onDownloadRequested);
+    connect(m_searchPage, &SearchPage::downloadAllRequested, this, onDownloadAllRequested);
+    connect(m_artistDetailPage, &ArtistDetailPage::downloadRequested, this, onDownloadRequested);
+    connect(m_artistDetailPage, &ArtistDetailPage::downloadAllRequested, this, onDownloadAllRequested);
 
     auto &downloadMgr = MusicDownloadManager::instance();
+    connect(&downloadMgr, &MusicDownloadManager::downloadsChanged, this,
+            &MainWindow::syncListPageDownloadState);
     connect(&downloadMgr, &MusicDownloadManager::downloadCompleted, this, [this](int) {
-        Toast::show(this, I18n::instance().tr(QStringLiteral("downloadComplete")), Toast::Success);
+        syncListPageDownloadState();
+        if (m_batchDownloadRemain > 0) {
+            --m_batchDownloadRemain;
+            if (m_batchDownloadRemain == 0)
+                Toast::show(this, I18n::instance().tr(QStringLiteral("downloadComplete")),
+                            Toast::Success);
+        } else {
+            Toast::show(this, I18n::instance().tr(QStringLiteral("downloadComplete")), Toast::Success);
+        }
     });
     connect(&downloadMgr, &MusicDownloadManager::downloadFailed, this,
             [this](int, const QString &err) {
+                syncListPageDownloadState();
+                if (m_batchDownloadRemain > 0)
+                    --m_batchDownloadRemain;
                 Toast::show(this,
                             QStringLiteral("%1: %2")
                                 .arg(I18n::instance().tr(QStringLiteral("downloadFailed")), err),
@@ -2203,6 +2231,48 @@ void MainWindow::downloadMusic(const MusicInfo &info)
 
     MusicDownloadManager::instance().downloadMusic(info);
     Toast::show(this, I18n::instance().tr(QStringLiteral("downloadStarted")), Toast::Success);
+}
+
+void MainWindow::downloadAllMusic(const QList<MusicInfo> &songs)
+{
+    auto &mgr = MusicDownloadManager::instance();
+    int queued = 0;
+    for (const MusicInfo &info : songs) {
+        if (info.id <= 0 || info.isLocalFile() || mgr.isDownloaded(info.id))
+            continue;
+        mgr.downloadMusic(info);
+        ++queued;
+    }
+
+    if (queued <= 0) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("allSongsDownloaded")), Toast::Info);
+        return;
+    }
+
+    m_batchDownloadRemain = queued;
+    Toast::show(this,
+                I18n::instance().tr(QStringLiteral("batchDownloadStarted")).arg(queued),
+                Toast::Success);
+}
+
+void MainWindow::syncListPageDownloadState()
+{
+    if (m_favoritesPage)
+        m_favoritesPage->refreshDownloadDisplay();
+    if (m_recentPage)
+        m_recentPage->refreshDownloadDisplay();
+    if (m_playlistDetailPage)
+        m_playlistDetailPage->refreshDownloadDisplay();
+    if (m_searchPage)
+        m_searchPage->refreshDownloadDisplay();
+    if (m_artistDetailPage)
+        m_artistDetailPage->refreshDownloadDisplay();
+    if (m_hotMusicPage)
+        m_hotMusicPage->refreshDownloadDisplay();
+    if (m_latestMusicPage)
+        m_latestMusicPage->refreshDownloadDisplay();
+    if (m_dailyMusicPage)
+        m_dailyMusicPage->refreshDownloadDisplay();
 }
 
 void MainWindow::toggleFavorite(int musicId)

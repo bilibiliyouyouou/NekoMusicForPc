@@ -23,10 +23,13 @@ public:
     void setPlaybackPaused(bool paused);
     void updatePlayingHighlight();
     void setFavoritedMusicIds(const QSet<int> &ids);
+    void refreshDownloadDisplay();
 
 signals:
     void playRequested(const MusicInfo &info);
     void playAllRequested(const QList<MusicInfo> &songs);
+    void downloadRequested(const MusicInfo &info);
+    void downloadAllRequested(const QList<MusicInfo> &songs);
     void favoriteRequested(int musicId);
     void playPauseRequested();
 
@@ -48,6 +51,7 @@ private:
     QLabel *m_titleLbl = nullptr;
     QLabel *m_countLbl = nullptr;
     QPushButton *m_playBtn = nullptr;
+    QPushButton *m_downloadAllBtn = nullptr;
     QPushButton *m_clearBtn = nullptr;
 
     SongListWidget *m_songList = nullptr;
