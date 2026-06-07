@@ -150,6 +150,25 @@ QList<MusicInfo> MusicDownloadManager::pendingDownloads() const
     return list;
 }
 
+bool MusicDownloadManager::isActiveDownload(int musicId) const
+{
+    return m_busy && m_current.id == musicId;
+}
+
+qint64 MusicDownloadManager::progressReceived(int musicId) const
+{
+    if (isActiveDownload(musicId))
+        return m_progressReceived;
+    return 0;
+}
+
+qint64 MusicDownloadManager::progressTotal(int musicId) const
+{
+    if (isActiveDownload(musicId))
+        return m_progressTotal;
+    return 0;
+}
+
 void MusicDownloadManager::downloadMusic(const MusicInfo &music)
 {
     if (music.id <= 0 || music.isLocalFile())
@@ -174,7 +193,7 @@ void MusicDownloadManager::downloadMusic(const MusicInfo &music)
         startNext();
 }
 
-void MusicDownloadManager::cancelCurrent()
+void MusicDownloadManager::abortCurrentTransfer()
 {
     if (m_reply) {
         m_reply->disconnect();
@@ -191,8 +210,40 @@ void MusicDownloadManager::cancelCurrent()
     if (!m_tempPath.isEmpty())
         QFile::remove(m_tempPath);
     m_tempPath.clear();
+    m_progressReceived = 0;
+    m_progressTotal = 0;
+}
+
+void MusicDownloadManager::cancelCurrent()
+{
+    abortCurrentTransfer();
     m_busy = false;
     m_current = {};
+}
+
+void MusicDownloadManager::cancelDownload(int musicId)
+{
+    if (musicId <= 0)
+        return;
+
+    for (int i = 0; i < m_queue.size(); ++i) {
+        if (m_queue[i].id == musicId) {
+            m_queue.removeAt(i);
+            emit downloadCancelled(musicId);
+            emit downloadsChanged();
+            return;
+        }
+    }
+
+    if (!m_busy || m_current.id != musicId)
+        return;
+
+    abortCurrentTransfer();
+    m_current = {};
+    m_busy = false;
+    emit downloadCancelled(musicId);
+    emit downloadsChanged();
+    startNext();
 }
 
 void MusicDownloadManager::startNext()
@@ -205,6 +256,8 @@ void MusicDownloadManager::startNext()
 
     m_busy = true;
     m_current = m_queue.takeFirst();
+    m_progressReceived = 0;
+    m_progressTotal = 0;
     emit downloadsChanged();
 
     if (isDownloaded(m_current.id)) {
@@ -226,6 +279,8 @@ void MusicDownloadManager::finishCurrent(bool success, const QString &error)
     const int musicId = m_current.id;
     m_current = {};
     m_busy = false;
+    m_progressReceived = 0;
+    m_progressTotal = 0;
 
     if (success)
         emit downloadCompleted(musicId);
@@ -284,8 +339,11 @@ void MusicDownloadManager::startNetworkDownload(const MusicInfo &music)
 
 void MusicDownloadManager::onNetworkProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
-    if (m_current.id > 0)
-        emit downloadProgress(m_current.id, bytesReceived, bytesTotal);
+    if (m_current.id <= 0)
+        return;
+    m_progressReceived = bytesReceived;
+    m_progressTotal = bytesTotal;
+    emit downloadProgress(m_current.id, bytesReceived, bytesTotal);
 }
 
 void MusicDownloadManager::onNetworkFinished()

@@ -152,6 +152,30 @@ void SongListWidget::setShowDownloadActions(bool show)
         card->setShowDownloadButton(show);
 }
 
+void SongListWidget::setDownloadTaskMode(bool enabled)
+{
+    if (m_downloadTaskMode == enabled)
+        return;
+    m_downloadTaskMode = enabled;
+    for (SongCardWidget *card : m_rowCards)
+        card->setDownloadTaskMode(enabled);
+    for (SongCardWidget *card : m_cardPool)
+        card->setDownloadTaskMode(enabled);
+    updateVisibleRows();
+}
+
+void SongListWidget::refreshDownloadProgress()
+{
+    for (auto it = m_rowCards.constBegin(); it != m_rowCards.constEnd(); ++it) {
+        SongCardWidget *card = it.value();
+        const int id = card->info().id;
+        const bool active = isActiveDownload ? isActiveDownload(id) : false;
+        const qint64 received = downloadProgressReceived ? downloadProgressReceived(id) : 0;
+        const qint64 total = downloadProgressTotal ? downloadProgressTotal(id) : 0;
+        card->setDownloadTaskState(active, received, total);
+    }
+}
+
 void SongListWidget::setRemoveMode(bool remove)
 {
     if (m_removeMode == remove)
@@ -380,7 +404,9 @@ void SongListWidget::releaseCard(SongCardWidget *card)
     card->onContextMenu = nullptr;
     card->onUnfavorite = nullptr;
     card->onDownload = nullptr;
+    card->onCancelDownload = nullptr;
     card->onTogglePlayPause = nullptr;
+    card->setDownloadTaskMode(false);
     m_cardPool.append(card);
 }
 
@@ -417,9 +443,11 @@ void SongListWidget::updateVisibleRows()
             card->onContextMenu = onSongContextMenu;
             card->onUnfavorite = onUnfavorite;
             card->onDownload = onDownload;
+            card->onCancelDownload = onCancelDownload;
             card->onTogglePlayPause = onTogglePlayPause;
             card->setRemoveMode(m_removeMode);
             card->setShowDownloadButton(m_showDownloadActions);
+            card->setDownloadTaskMode(m_downloadTaskMode);
             card->setDisplayMode(static_cast<SongCardWidget::DisplayMode>(m_listDisplayMode));
         }
 
@@ -428,6 +456,12 @@ void SongListWidget::updateVisibleRows()
         if (songChanged) {
             card->setFavorited(isFavorited ? isFavorited(song.id) : false);
             card->setDownloaded(isDownloaded ? isDownloaded(song.id) : false);
+        }
+        if (m_downloadTaskMode) {
+            const bool active = isActiveDownload ? isActiveDownload(song.id) : false;
+            const qint64 received = downloadProgressReceived ? downloadProgressReceived(song.id) : 0;
+            const qint64 total = downloadProgressTotal ? downloadProgressTotal(song.id) : 0;
+            card->setDownloadTaskState(active, received, total);
         }
 
         card->setFixedSize(w, kRowHeight);

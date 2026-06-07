@@ -42,9 +42,13 @@ DownloadPage::DownloadPage(QWidget *parent)
     connect(&mgr, &MusicDownloadManager::downloadsChanged, this, &DownloadPage::refresh);
     connect(&mgr, &MusicDownloadManager::downloadCompleted, this, &DownloadPage::refresh);
     connect(&mgr, &MusicDownloadManager::downloadFailed, this, &DownloadPage::refresh);
+    connect(&mgr, &MusicDownloadManager::downloadCancelled, this, [this](int) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("downloadCancelled")), Toast::Info);
+        refresh();
+    });
     connect(&mgr, &MusicDownloadManager::downloadProgress, this, [this](int, qint64, qint64) {
-        if (m_activeTab == Tab::Downloading)
-            loadActiveTab();
+        if (m_activeTab == Tab::Downloading && m_songList)
+            m_songList->refreshDownloadProgress();
     });
 }
 
@@ -186,14 +190,31 @@ QList<MusicInfo> DownloadPage::activeSongs() const
 void DownloadPage::loadActiveTab()
 {
     const QList<MusicInfo> songs = activeSongs();
+    const bool downloadingTab = m_activeTab == Tab::Downloading;
     updateHeaderMeta();
     updateTabLabels();
+
+    if (m_songList) {
+        m_songList->setDownloadTaskMode(downloadingTab);
+        if (downloadingTab) {
+            auto &mgr = MusicDownloadManager::instance();
+            m_songList->isActiveDownload = [&mgr](int id) { return mgr.isActiveDownload(id); };
+            m_songList->downloadProgressReceived = [&mgr](int id) { return mgr.progressReceived(id); };
+            m_songList->downloadProgressTotal = [&mgr](int id) { return mgr.progressTotal(id); };
+            m_songList->onCancelDownload = [&mgr](int id) { mgr.cancelDownload(id); };
+        } else {
+            m_songList->isActiveDownload = nullptr;
+            m_songList->downloadProgressReceived = nullptr;
+            m_songList->downloadProgressTotal = nullptr;
+            m_songList->onCancelDownload = nullptr;
+        }
+    }
 
     if (songs.isEmpty()) {
         if (m_songList)
             m_songList->setSongs({});
-        const char *icon = m_activeTab == Tab::Downloading ? "Download" : "DownloadDone";
-        const QString text = m_activeTab == Tab::Downloading
+        const char *icon = downloadingTab ? "Download" : "DownloadDone";
+        const QString text = downloadingTab
                                  ? I18n::instance().tr(QStringLiteral("emptyDownloading"))
                                  : I18n::instance().tr(QStringLiteral("emptyDownloads"));
         showPageStatus(text, icon);
@@ -204,6 +225,8 @@ void DownloadPage::loadActiveTab()
     if (m_songList) {
         m_songList->setSongs(songs);
         m_songList->refreshFavoriteDisplay();
+        if (downloadingTab)
+            m_songList->refreshDownloadProgress();
         m_songList->show();
     }
     updatePlayingHighlight();

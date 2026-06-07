@@ -24,13 +24,18 @@ public:
     bool isPending(int musicId) const;
     bool hasPendingDownloads() const;
     QList<MusicInfo> pendingDownloads() const;
+    bool isActiveDownload(int musicId) const;
+    qint64 progressReceived(int musicId) const;
+    qint64 progressTotal(int musicId) const;
     void downloadMusic(const MusicInfo &music);
+    void cancelDownload(int musicId);
     void cancelCurrent();
 
 signals:
     void downloadProgress(int musicId, qint64 bytesReceived, qint64 bytesTotal);
     void downloadCompleted(int musicId);
     void downloadFailed(int musicId, const QString &error);
+    void downloadCancelled(int musicId);
     void downloadsChanged();
 
 private:
@@ -38,6 +43,7 @@ private:
     ~MusicDownloadManager() override;
 
     void startNext();
+    void abortCurrentTransfer();
     void finishCurrent(bool success, const QString &error = {});
     void copyCachedToDownload(const MusicInfo &music, const QString &cachePath);
     void startNetworkDownload(const MusicInfo &music);
@@ -56,4 +62,6 @@ private:
     MusicInfo m_current;
     QString m_tempPath;
     bool m_busy = false;
+    qint64 m_progressReceived = 0;
+    qint64 m_progressTotal = 0;
 };

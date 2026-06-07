@@ -164,6 +164,11 @@ static QMap<QString, QString> zhCN()
     m["downloadInProgress"] = QStringLiteral("正在下载");
     m["downloadCompletedTab"] = QStringLiteral("已完成");
     m["emptyDownloading"] = QStringLiteral("暂无正在下载的歌曲");
+    m["downloadWaiting"] = QStringLiteral("等待下载");
+    m["downloadQueued"] = QStringLiteral("排队中");
+    m["downloadingStatus"] = QStringLiteral("下载中");
+    m["cancelDownload"] = QStringLiteral("取消下载");
+    m["downloadCancelled"] = QStringLiteral("已取消下载");
     m["emptyDownloads"] = QStringLiteral("暂无已完成的下载，可在歌曲列表中下载音乐");
     m["clearDownloads"] = QStringLiteral("清空下载");
     m["clearDownloadsConfirm"] = QStringLiteral("确认清空所有下载记录并删除本地文件？该操作不可撤销！");
@@ -648,6 +653,11 @@ static QMap<QString, QString> nyaCN()
     m["downloadInProgress"] = QStringLiteral("正在搬歌喵~");
     m["downloadCompletedTab"] = QStringLiteral("搬完了喵~");
     m["emptyDownloading"] = QStringLiteral("现在没有在搬的歌喵~");
+    m["downloadWaiting"] = QStringLiteral("排队等着喵~");
+    m["downloadQueued"] = QStringLiteral("排队中喵");
+    m["downloadingStatus"] = QStringLiteral("正在搬喵~");
+    m["cancelDownload"] = QStringLiteral("取消下载喵");
+    m["downloadCancelled"] = QStringLiteral("下载取消啦喵~");
     m["emptyDownloads"] = QStringLiteral("还没有搬完的歌喵~ 去歌曲列表里点下载吧喵~");
     m["clearDownloads"] = QStringLiteral("清空下载喵");
     m["clearDownloadsConfirm"] = QStringLiteral("真的要清空所有下载并删掉本地文件吗？找不回来啦喵！");
@@ -1028,6 +1038,11 @@ static QMap<QString, QString> enUS()
     m["downloadInProgress"] = "Downloading";
     m["downloadCompletedTab"] = "Completed";
     m["emptyDownloading"] = "No downloads in progress";
+    m["downloadWaiting"] = "Waiting";
+    m["downloadQueued"] = "Queued";
+    m["downloadingStatus"] = "Downloading";
+    m["cancelDownload"] = "Cancel download";
+    m["downloadCancelled"] = "Download cancelled";
     m["emptyDownloads"] = "No completed downloads yet. Download music from song lists.";
     m["clearDownloads"] = "Clear Downloads";
     m["clearDownloadsConfirm"] = "Clear all download records and delete local files? This cannot be undone.";

@@ -13,6 +13,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QProgressBar>
 #include <QPainter>
 #include <QPainterPath>
 #include <QMouseEvent>
@@ -45,6 +46,15 @@ QColor songBorder(bool playing, bool hover)
     if (hover)
         return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 148);
     return QColor(kPrimary.red(), kPrimary.green(), kPrimary.blue(), 31); // rgba(primary, 0.12)
+}
+
+QString formatByteSize(qint64 bytes)
+{
+    if (bytes < 1024)
+        return QString::number(bytes) + QStringLiteral(" B");
+    if (bytes < 1024 * 1024)
+        return QString::number(bytes / 1024.0, 'f', 1) + QStringLiteral(" KB");
+    return QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + QStringLiteral(" MB");
 }
 
 } // namespace
@@ -147,11 +157,30 @@ void SongCardWidget::rebuildLayout()
     m_albumLbl->setMinimumWidth(80);
     lay->addWidget(m_albumLbl, 1);
 
+    m_progressCol = new QWidget(m_content);
+    m_progressCol->setMinimumWidth(120);
+    auto *progressLay = new QVBoxLayout(m_progressCol);
+    progressLay->setContentsMargins(0, 18, 8, 18);
+    progressLay->setSpacing(6);
+    m_progressLbl = new QLabel(m_progressCol);
+    m_progressBar = new QProgressBar(m_progressCol);
+    m_progressBar->setFixedHeight(8);
+    m_progressBar->setTextVisible(false);
+    progressLay->addWidget(m_progressLbl);
+    progressLay->addWidget(m_progressBar);
+    m_progressCol->hide();
+    lay->addWidget(m_progressCol, 1);
+
     m_heartBtn = new QPushButton(m_content);
     m_heartBtn->setFixedSize(40, 40);
     m_heartBtn->setFlat(true);
     m_heartBtn->setCursor(Qt::PointingHandCursor);
     connect(m_heartBtn, &QPushButton::clicked, this, [this](bool) {
+        if (m_downloadTaskMode) {
+            if (onCancelDownload)
+                onCancelDownload(m_info.id);
+            return;
+        }
         if (onUnfavorite)
             onUnfavorite(m_info.id);
     });
@@ -174,7 +203,8 @@ void SongCardWidget::rebuildLayout()
 
     outer->addWidget(m_content, 1);
 
-    for (QLabel *lbl : {m_indexLbl, m_coverLbl, m_titleLbl, m_lrcBadge, m_artistLbl, m_albumLbl, m_timeLbl})
+    for (QLabel *lbl : {m_indexLbl, m_coverLbl, m_titleLbl, m_lrcBadge, m_artistLbl, m_albumLbl,
+                        m_progressLbl, m_timeLbl})
         lbl->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
     installContentEventFilters();
@@ -284,7 +314,10 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
     updateLrcBadge();
     updateDownloadIcon();
     updateSecondaryColumn();
-    m_timeLbl->setText(formatDuration(info.duration));
+    if (!m_downloadTaskMode)
+        m_timeLbl->setText(formatDuration(info.duration));
+    else
+        updateDownloadTaskUi();
 
     loadCover();
     updateIndexColumn();
@@ -364,8 +397,91 @@ void SongCardWidget::setShowDownloadButton(bool show)
     if (m_showDownloadButton == show)
         return;
     m_showDownloadButton = show;
-    if (m_downloadBtn)
+    if (m_downloadBtn && !m_downloadTaskMode)
         m_downloadBtn->setVisible(show && !m_info.isLocalFile());
+}
+
+void SongCardWidget::setDownloadTaskMode(bool enabled)
+{
+    if (m_downloadTaskMode == enabled)
+        return;
+    m_downloadTaskMode = enabled;
+    setCursor(enabled ? Qt::ArrowCursor : Qt::PointingHandCursor);
+    updateDownloadTaskUi();
+}
+
+void SongCardWidget::setDownloadTaskState(bool active, qint64 received, qint64 total)
+{
+    m_downloadActive = active;
+    m_progressReceived = received;
+    m_progressTotal = total;
+    if (m_downloadTaskMode)
+        updateDownloadTaskUi();
+}
+
+void SongCardWidget::updateDownloadTaskUi()
+{
+    if (!m_progressCol || !m_progressBar || !m_progressLbl)
+        return;
+
+    if (!m_downloadTaskMode) {
+        m_progressCol->hide();
+        if (m_albumLbl)
+            m_albumLbl->show();
+        if (m_downloadBtn)
+            m_downloadBtn->setVisible(m_showDownloadButton && !m_info.isLocalFile());
+        updateHeartIcon();
+        updateSecondaryColumn();
+        if (m_timeLbl)
+            m_timeLbl->setText(formatDuration(m_info.duration));
+        return;
+    }
+
+    if (m_albumLbl)
+        m_albumLbl->hide();
+    m_progressCol->show();
+    if (m_downloadBtn)
+        m_downloadBtn->hide();
+    updateCancelIcon();
+
+    if (!m_downloadActive) {
+        m_progressBar->setRange(0, 100);
+        m_progressBar->setValue(0);
+        m_progressLbl->setText(I18n::instance().tr(QStringLiteral("downloadWaiting")));
+        if (m_timeLbl)
+            m_timeLbl->setText(I18n::instance().tr(QStringLiteral("downloadQueued")));
+        return;
+    }
+
+    if (m_timeLbl)
+        m_timeLbl->setText(I18n::instance().tr(QStringLiteral("downloadingStatus")));
+
+    if (m_progressTotal > 0) {
+        const int pct = int(m_progressReceived * 100 / m_progressTotal);
+        m_progressBar->setRange(0, 100);
+        m_progressBar->setValue(qBound(0, pct, 100));
+        m_progressLbl->setText(
+            QStringLiteral("%1 / %2 (%3%)")
+                .arg(formatByteSize(m_progressReceived), formatByteSize(m_progressTotal),
+                     QString::number(pct)));
+    } else {
+        m_progressBar->setRange(0, 0);
+        m_progressLbl->setText(formatByteSize(m_progressReceived)
+                               + QStringLiteral(" · ")
+                               + I18n::instance().tr(QStringLiteral("downloadingStatus")));
+    }
+}
+
+void SongCardWidget::updateCancelIcon()
+{
+    if (!m_heartBtn)
+        return;
+    const bool dark = Theme::ThemeManager::instance().isDarkMode();
+    const QColor cancelIc = dark ? QColor(244, 246, 255, 200) : QColor(33, 37, 41, 200);
+    m_heartBtn->setIcon(Icons::renderNamed("Close", 20, cancelIc));
+    m_heartBtn->setIconSize(QSize(20, 20));
+    m_heartBtn->setToolTip(I18n::instance().tr(QStringLiteral("cancelDownload")));
+    m_heartBtn->setVisible(true);
 }
 
 void SongCardWidget::updateHeartIcon()
@@ -433,11 +549,34 @@ void SongCardWidget::applyTheme()
             "QPushButton:hover:enabled { background: rgba(230,57,80,0.15); }"
             "QPushButton:disabled { background: transparent; }"));
     }
+    if (m_progressBar) {
+        const QString track = dark ? QStringLiteral("#3a3a3a") : QStringLiteral("#e8e8e8");
+        m_progressBar->setStyleSheet(QStringLiteral(
+            "QProgressBar {"
+            "  background: %1;"
+            "  border: none;"
+            "  border-radius: 4px;"
+            "}"
+            "QProgressBar::chunk {"
+            "  background: #E63950;"
+            "  border-radius: 4px;"
+            "}").arg(track));
+    }
+    if (m_progressLbl) {
+        m_progressLbl->setStyleSheet(QStringLiteral(
+            "QLabel { color: %1; font-size: 12px; }")
+                                         .arg(dark ? QString::fromUtf8(Theme::kTextSub)
+                                                   : QStringLiteral("rgba(33,37,41,0.62)")));
+    }
     m_playOverlay->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; }"));
     m_statusOverlay->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; }"));
 
-    updateHeartIcon();
-    updateDownloadIcon();
+    if (m_downloadTaskMode)
+        updateDownloadTaskUi();
+    else {
+        updateHeartIcon();
+        updateDownloadIcon();
+    }
     updateOverlayIcons();
     updateLocalBadge();
     updateLrcBadge();
@@ -531,8 +670,8 @@ void SongCardWidget::updateIndexColumn()
 
 void SongCardWidget::updateHoverOverlays()
 {
-    const bool showPlay = m_hover && !m_playing;
-    const bool showStatus = m_hover && m_playing;
+    const bool showPlay = !m_downloadTaskMode && m_hover && !m_playing;
+    const bool showStatus = !m_downloadTaskMode && m_hover && m_playing;
 
     m_indexLbl->setVisible(!showPlay && !showStatus);
     m_playOverlay->setVisible(showPlay);

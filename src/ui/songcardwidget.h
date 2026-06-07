@@ -34,6 +34,8 @@ public:
     void setFavorited(bool favorited);
     void setDownloaded(bool downloaded);
     void setShowDownloadButton(bool show);
+    void setDownloadTaskMode(bool enabled);
+    void setDownloadTaskState(bool active, qint64 received, qint64 total);
     void applyTheme();
 
     const MusicInfo &info() const { return m_info; }
@@ -42,6 +44,7 @@ public:
     std::function<void(const MusicInfo &)> onPlayNext;
     std::function<void(int)> onUnfavorite;
     std::function<void(const MusicInfo &)> onDownload;
+    std::function<void(int)> onCancelDownload;
     std::function<void()> onTogglePlayPause;
     std::function<void(const MusicInfo &, const QPoint &)> onContextMenu;
 
@@ -64,6 +67,8 @@ private:
     void updateHoverOverlays();
     void updateHeartIcon();
     void updateDownloadIcon();
+    void updateCancelIcon();
+    void updateDownloadTaskUi();
     void updateOverlayIcons();
     void elideTexts();
     void loadCover();
@@ -84,6 +89,10 @@ private:
     bool m_favorited = false;
     bool m_downloaded = false;
     bool m_showDownloadButton = true;
+    bool m_downloadTaskMode = false;
+    bool m_downloadActive = false;
+    qint64 m_progressReceived = 0;
+    qint64 m_progressTotal = 0;
 
     QWidget *m_content = nullptr;
     QWidget *m_numCol = nullptr;
@@ -96,6 +105,9 @@ private:
     QLabel *m_lrcBadge = nullptr;
     QLabel *m_artistLbl = nullptr;
     QLabel *m_albumLbl = nullptr;
+    QWidget *m_progressCol = nullptr;
+    QLabel *m_progressLbl = nullptr;
+    class QProgressBar *m_progressBar = nullptr;
     QLabel *m_timeLbl = nullptr;
     QPushButton *m_heartBtn = nullptr;
     QPushButton *m_downloadBtn = nullptr;
