@@ -53,8 +53,8 @@ QString formatByteSize(qint64 bytes)
     if (bytes < 1024)
         return QString::number(bytes) + QStringLiteral(" B");
     if (bytes < 1024 * 1024)
-        return QString::number(bytes / 1024.0, 'f', 1) + QStringLiteral(" KB");
-    return QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + QStringLiteral(" MB");
+        return QString::number(bytes / 1024.0, 'f', 1) + QStringLiteral(" KiB");
+    return QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + QStringLiteral(" MiB");
 }
 
 } // namespace
