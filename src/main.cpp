@@ -15,6 +15,7 @@
 #include <QNetworkProxy>
 #include <QNetworkProxyFactory>
 #include "ui/mainwindow.h"
+#include "ui/scrollareafix.h"
 #include "core/i18n.h"
 #include "core/playlistdb.h"
 #include "core/localmusicmeta.h"
@@ -79,6 +80,7 @@ int main(int argc, char *argv[])
         qputenv("QSG_RHI_BACKEND", "software");
 
     QApplication app(argc, argv);
+    nekoInstallSmoothScroll(app);
 
     // 直连：不读取系统/环境变量代理（如 http_proxy），避免本机代理干扰 API 与流媒体。
     QNetworkProxyFactory::setUseSystemConfiguration(false);

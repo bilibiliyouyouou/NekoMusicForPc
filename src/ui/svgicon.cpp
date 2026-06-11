@@ -12,8 +12,23 @@
 #include <QByteArray>
 #include <QDebug>
 #include <QFile>
+#include <QtMath>
 
 namespace Icons {
+
+namespace {
+constexpr qreal kIconRenderScale = 2.0;
+
+QPixmap createIconPixmap(int width, int height)
+{
+    width = qMax(1, width);
+    height = qMax(1, height);
+    QPixmap pix(qCeil(width * kIconRenderScale), qCeil(height * kIconRenderScale));
+    pix.setDevicePixelRatio(kIconRenderScale);
+    pix.fill(Qt::transparent);
+    return pix;
+}
+}
 
 /** 路径着色：勿用 fill="rgba(...)"，部分 QtSVG / 平台下会落成纯黑；改用实色 + fill-opacity。 */
 static QString svgPathFillAttrs(const QColor &color)
@@ -38,8 +53,7 @@ QPixmap render(const char *pathD, int size, const QColor &color, int viewBox)
         .arg(QString::fromUtf8(pathD));
 
     QSvgRenderer renderer(svg.toUtf8());
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
+    QPixmap pix = createIconPixmap(size, size);
     if (!renderer.isValid()) {
         qWarning() << "Icons::render: invalid SVG (size" << size << ")";
         QPainter p(&pix);
@@ -50,7 +64,9 @@ QPixmap render(const char *pathD, int size, const QColor &color, int viewBox)
         return pix;
     }
     QPainter p(&pix);
-    renderer.render(&p);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    renderer.render(&p, QRectF(0, 0, size, size));
     return pix;
 }
 
@@ -105,8 +121,7 @@ QPixmap renderResource(const QString &resourcePath, int size, const QColor &colo
         return {};
 
     QSvgRenderer renderer(svg.toUtf8());
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
+    QPixmap pix = createIconPixmap(size, size);
     if (!renderer.isValid()) {
         qWarning() << "Icons::renderResource: invalid SVG" << resourcePath;
         return pix;
@@ -114,7 +129,7 @@ QPixmap renderResource(const QString &resourcePath, int size, const QColor &colo
     QPainter p(&pix);
     p.setRenderHint(QPainter::Antialiasing, true);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    renderer.render(&p);
+    renderer.render(&p, QRectF(0, 0, size, size));
     return pix;
 }
 
@@ -133,8 +148,7 @@ QPixmap renderResourceHeight(const QString &resourcePath, int height, const QCol
     if (def.height() <= 0)
         def = QSizeF(height * 3.2, height);
     const int w = qMax(24, int(def.width() * height / def.height()));
-    QPixmap pix(w, height);
-    pix.fill(Qt::transparent);
+    QPixmap pix = createIconPixmap(w, height);
     QPainter p(&pix);
     p.setRenderHint(QPainter::Antialiasing, true);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);

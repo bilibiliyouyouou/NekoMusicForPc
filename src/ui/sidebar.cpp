@@ -36,7 +36,8 @@ QColor navIconNormalColor()
 
 QColor navIconActiveColor()
 {
-    return QColor(255, 143, 158);
+    return Theme::ThemeManager::instance().isDarkMode() ? QColor(255, 143, 163)
+                                                        : QColor(230, 57, 80);
 }
 
 const char *navSvgName(const QString &key)
@@ -83,10 +84,10 @@ void Sidebar::setupUi()
 
     auto *logoRow = new QWidget(this);
     logoRow->setObjectName("sbLogoRow");
-    logoRow->setFixedHeight(70);
+    logoRow->setFixedHeight(64);
     auto *logoLay = new QHBoxLayout(logoRow);
-    logoLay->setContentsMargins(16, 0, 16, 0);
-    logoLay->setSpacing(10);
+    logoLay->setContentsMargins(18, 0, 14, 0);
+    logoLay->setSpacing(12);
 
     auto *logoImg = new QLabel(logoRow);
     logoImg->setFixedSize(32, 32);
@@ -110,8 +111,8 @@ void Sidebar::setupUi()
     auto *container = new QWidget(scroll);
     container->setObjectName("sbContainer");
     auto *lay = new QVBoxLayout(container);
-    lay->setContentsMargins(8, 8, 8, 14);
-    lay->setSpacing(10);
+    lay->setContentsMargins(8, 10, 8, 14);
+    lay->setSpacing(4);
 
     // 主导航（带 PNG 图标）
     lay->addWidget(createNavItem("home", I18n::instance().tr("home"), navIcon("home", true)));
@@ -144,8 +145,8 @@ void Sidebar::setupUi()
     m_playlistContainer->setAttribute(Qt::WA_TranslucentBackground);
     m_playlistContainer->setAutoFillBackground(false);
     m_playlistLayout = new QVBoxLayout(m_playlistContainer);
-    m_playlistLayout->setContentsMargins(4, 0, 4, 0);
-    m_playlistLayout->setSpacing(2);
+    m_playlistLayout->setContentsMargins(2, 0, 2, 0);
+    m_playlistLayout->setSpacing(3);
     m_playlistLayout->setAlignment(Qt::AlignTop);
     lay->addWidget(m_playlistContainer);
 
@@ -196,8 +197,8 @@ void Sidebar::setupUi()
     m_favPlaylistContainer->setAttribute(Qt::WA_TranslucentBackground);
     m_favPlaylistContainer->setAutoFillBackground(false);
     m_favPlaylistLayout = new QVBoxLayout(m_favPlaylistContainer);
-    m_favPlaylistLayout->setContentsMargins(4, 0, 4, 0);
-    m_favPlaylistLayout->setSpacing(2);
+    m_favPlaylistLayout->setContentsMargins(2, 0, 2, 0);
+    m_favPlaylistLayout->setSpacing(3);
     m_favPlaylistLayout->setAlignment(Qt::AlignTop);
     lay->addWidget(m_favPlaylistContainer);
 
@@ -464,8 +465,9 @@ QPushButton *Sidebar::createNavItem(const QString &key, const QString &label, co
 {
     auto *btn = new QPushButton(label, this);
     btn->setObjectName("sbNavItem");
-    btn->setFixedHeight(40);
+    btn->setFixedHeight(38);
     btn->setIcon(icon);
+    btn->setIconSize(QSize(18, 18));
     btn->setCursor(Qt::PointingHandCursor);
     btn->setProperty("navKey", key);
     connect(btn, &QPushButton::clicked, this, [this, key]() {
