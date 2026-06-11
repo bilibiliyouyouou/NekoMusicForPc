@@ -597,10 +597,7 @@ protected:
         }
         if (pm.isNull())
             return;
-        const qreal dpr = pm.devicePixelRatioF();
-        const QSize pmLogical(qRound(pm.width() / dpr), qRound(pm.height() / dpr));
-        const QPoint topLeft(r.x() + (r.width() - pmLogical.width()) / 2,
-                             r.y() + (r.height() - pmLogical.height()) / 2);
+        const QPoint topLeft(r.x() + (r.width() - pm.width()) / 2, r.y() + (r.height() - pm.height()) / 2);
         painter.drawPixmap(topLeft, pm);
         Q_UNUSED(event);
     }
@@ -637,7 +634,6 @@ protected:
 #include <QFileInfo>
 #include <QTimer>
 #include <QDialog>
-#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QRegularExpression>
@@ -648,8 +644,6 @@ protected:
 #include <QSlider>
 #include <QCoreApplication>
 #include <QCursor>
-#include <QFormLayout>
-#include <QTextEdit>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_engine(engine), m_apiClient(apiClient)
@@ -3323,28 +3317,3 @@ void PlayerPage::downloadRenderedVideo()
         }
     });
 }
-
-static QString formatDurationText(qint64 ms)
-{
-    if (ms <= 0)
-        return QStringLiteral("未知");
-    const qint64 totalSec = ms / 1000;
-    const qint64 min = totalSec / 60;
-    const qint64 sec = totalSec % 60;
-    return QStringLiteral("%1:%2 (%3 秒)").arg(min).arg(sec, 2, 10, QLatin1Char('0')).arg(totalSec);
-}
-
-static QString formatBitrateText(int bps)
-{
-    if (bps <= 0)
-        return QStringLiteral("未知");
-    return QStringLiteral("%1 kbps").arg(qRound(bps / 1000.0));
-}
-
-static QString formatFrequencyText(int hz)
-{
-    if (hz <= 0)
-        return QStringLiteral("未知");
-    return QStringLiteral("%1 Hz").arg(hz);
-}
-
