@@ -141,7 +141,6 @@ private:
     void pollVideoRenderStatus();
     void openVideoRenderDialog();
     void downloadRenderedVideo();
-    void showMusicDetailDialog();
     int trackDurationSec() const;
 
     PlayerEngine *m_engine;
