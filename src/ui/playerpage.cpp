@@ -1436,10 +1436,10 @@ void PlayerPage::applyPlayerPageStyle()
                       "  color: %4; font-size: 16px; font-weight: 400; "
                       "  background: transparent; }"
 
-                      "#playerVideoRenderBtn, #playerVideoDownloadBtn, #playerMusicDetailBtn { "
+                      "#playerVideoRenderBtn, #playerVideoDownloadBtn { "
                       "  background: rgba(230,57,80,%5); color: %1; font-size: 13px; font-weight: 600; "
                       "  border: 1px solid rgba(230,57,80,%6); border-radius: 18px; padding: 8px 18px; }"
-                      "#playerVideoRenderBtn:hover, #playerVideoDownloadBtn:hover, #playerMusicDetailBtn:hover { "
+                      "#playerVideoRenderBtn:hover, #playerVideoDownloadBtn:hover { "
                       "  background: rgba(230,57,80,%7); border-color: rgba(230,57,80,%8); }"
                       "#playerVideoRenderBtn:disabled { "
                       "  color: rgba(255,255,255,0.35); background: rgba(120,120,120,0.25); border-color: rgba(255,255,255,0.08); }"
@@ -2407,12 +2407,6 @@ void PlayerPage::setupUi()
     m_videoDownloadBtn->hide();
     connect(m_videoDownloadBtn, &QPushButton::clicked, this, &PlayerPage::downloadRenderedVideo);
 
-    m_musicDetailBtn = new QPushButton(QStringLiteral("音乐详细信息"), m_leftInfoColumn);
-    m_musicDetailBtn->setObjectName(QStringLiteral("playerMusicDetailBtn"));
-    m_musicDetailBtn->setCursor(Qt::PointingHandCursor);
-    m_musicDetailBtn->setEnabled(false);
-    connect(m_musicDetailBtn, &QPushButton::clicked, this, &PlayerPage::showMusicDetailDialog);
-
     m_videoRenderBtn->hide();
     m_videoDownloadBtn->hide();
 
@@ -2421,7 +2415,6 @@ void PlayerPage::setupUi()
     connect(m_videoPollTimer, &QTimer::timeout, this, &PlayerPage::pollVideoRenderStatus);
 
     infoLay->addWidget(m_videoStatusLbl, 0, Qt::AlignHCenter);
-    infoLay->addWidget(m_musicDetailBtn, 0, Qt::AlignHCenter);
     infoLay->addWidget(m_videoRenderBtn, 0, Qt::AlignHCenter);
     infoLay->addWidget(m_videoDownloadBtn, 0, Qt::AlignHCenter);
 
@@ -2488,8 +2481,6 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     const int prevId = m_musicId;
     const QString prevCoverUrl = m_coverUrl;
     m_musicId = id;
-    if (m_musicDetailBtn)
-        m_musicDetailBtn->setEnabled(id != 0);
     if (m_ppAddToPlaylistBtn)
         m_ppAddToPlaylistBtn->setEnabled(id > 0);
     if (prevId != id)
@@ -2555,8 +2546,6 @@ void PlayerPage::retranslate()
         m_videoRenderBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderButton")));
     if (m_videoDownloadBtn)
         m_videoDownloadBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderDownload")));
-    if (m_musicDetailBtn)
-        m_musicDetailBtn->setText(QStringLiteral("音乐详细信息"));
     if (m_ppAddToPlaylistBtn)
         m_ppAddToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
     updateVideoRenderUi();

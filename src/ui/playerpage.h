@@ -217,7 +217,6 @@ private:
     QLabel *m_albumLabel;
     QPushButton *m_videoRenderBtn = nullptr;
     QPushButton *m_videoDownloadBtn = nullptr;
-    QPushButton *m_musicDetailBtn = nullptr;
     QLabel *m_videoStatusLbl = nullptr;
     QTimer *m_videoPollTimer = nullptr;
     QString m_fullMetaTitle;
