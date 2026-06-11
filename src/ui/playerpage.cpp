@@ -597,7 +597,10 @@ protected:
         }
         if (pm.isNull())
             return;
-        const QPoint topLeft(r.x() + (r.width() - pm.width()) / 2, r.y() + (r.height() - pm.height()) / 2);
+        const qreal dpr = pm.devicePixelRatioF();
+        const QSize pmLogical(qRound(pm.width() / dpr), qRound(pm.height() / dpr));
+        const QPoint topLeft(r.x() + (r.width() - pmLogical.width()) / 2,
+                             r.y() + (r.height() - pmLogical.height()) / 2);
         painter.drawPixmap(topLeft, pm);
         Q_UNUSED(event);
     }
@@ -634,6 +637,7 @@ protected:
 #include <QFileInfo>
 #include <QTimer>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QRegularExpression>
@@ -644,6 +648,8 @@ protected:
 #include <QSlider>
 #include <QCoreApplication>
 #include <QCursor>
+#include <QFormLayout>
+#include <QTextEdit>
 
 PlayerPage::PlayerPage(PlayerEngine *engine, ApiClient *apiClient, QWidget *parent)
     : QWidget(parent), m_engine(engine), m_apiClient(apiClient)
@@ -1430,10 +1436,10 @@ void PlayerPage::applyPlayerPageStyle()
                       "  color: %4; font-size: 16px; font-weight: 400; "
                       "  background: transparent; }"
 
-                      "#playerVideoRenderBtn, #playerVideoDownloadBtn { "
+                      "#playerVideoRenderBtn, #playerVideoDownloadBtn, #playerMusicDetailBtn { "
                       "  background: rgba(230,57,80,%5); color: %1; font-size: 13px; font-weight: 600; "
                       "  border: 1px solid rgba(230,57,80,%6); border-radius: 18px; padding: 8px 18px; }"
-                      "#playerVideoRenderBtn:hover, #playerVideoDownloadBtn:hover { "
+                      "#playerVideoRenderBtn:hover, #playerVideoDownloadBtn:hover, #playerMusicDetailBtn:hover { "
                       "  background: rgba(230,57,80,%7); border-color: rgba(230,57,80,%8); }"
                       "#playerVideoRenderBtn:disabled { "
                       "  color: rgba(255,255,255,0.35); background: rgba(120,120,120,0.25); border-color: rgba(255,255,255,0.08); }"
@@ -2401,6 +2407,12 @@ void PlayerPage::setupUi()
     m_videoDownloadBtn->hide();
     connect(m_videoDownloadBtn, &QPushButton::clicked, this, &PlayerPage::downloadRenderedVideo);
 
+    m_musicDetailBtn = new QPushButton(QStringLiteral("音乐详细信息"), m_leftInfoColumn);
+    m_musicDetailBtn->setObjectName(QStringLiteral("playerMusicDetailBtn"));
+    m_musicDetailBtn->setCursor(Qt::PointingHandCursor);
+    m_musicDetailBtn->setEnabled(false);
+    connect(m_musicDetailBtn, &QPushButton::clicked, this, &PlayerPage::showMusicDetailDialog);
+
     m_videoRenderBtn->hide();
     m_videoDownloadBtn->hide();
 
@@ -2409,6 +2421,7 @@ void PlayerPage::setupUi()
     connect(m_videoPollTimer, &QTimer::timeout, this, &PlayerPage::pollVideoRenderStatus);
 
     infoLay->addWidget(m_videoStatusLbl, 0, Qt::AlignHCenter);
+    infoLay->addWidget(m_musicDetailBtn, 0, Qt::AlignHCenter);
     infoLay->addWidget(m_videoRenderBtn, 0, Qt::AlignHCenter);
     infoLay->addWidget(m_videoDownloadBtn, 0, Qt::AlignHCenter);
 
@@ -2475,6 +2488,8 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     const int prevId = m_musicId;
     const QString prevCoverUrl = m_coverUrl;
     m_musicId = id;
+    if (m_musicDetailBtn)
+        m_musicDetailBtn->setEnabled(id != 0);
     if (m_ppAddToPlaylistBtn)
         m_ppAddToPlaylistBtn->setEnabled(id > 0);
     if (prevId != id)
@@ -2540,6 +2555,8 @@ void PlayerPage::retranslate()
         m_videoRenderBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderButton")));
     if (m_videoDownloadBtn)
         m_videoDownloadBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderDownload")));
+    if (m_musicDetailBtn)
+        m_musicDetailBtn->setText(QStringLiteral("音乐详细信息"));
     if (m_ppAddToPlaylistBtn)
         m_ppAddToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
     updateVideoRenderUi();
@@ -3316,4 +3333,84 @@ void PlayerPage::downloadRenderedVideo()
                         Toast::Error);
         }
     });
+}
+
+static QString formatDurationText(qint64 ms)
+{
+    if (ms <= 0)
+        return QStringLiteral("未知");
+    const qint64 totalSec = ms / 1000;
+    const qint64 min = totalSec / 60;
+    const qint64 sec = totalSec % 60;
+    return QStringLiteral("%1:%2 (%3 秒)").arg(min).arg(sec, 2, 10, QLatin1Char('0')).arg(totalSec);
+}
+
+static QString formatBitrateText(int bps)
+{
+    if (bps <= 0)
+        return QStringLiteral("未知");
+    return QStringLiteral("%1 kbps").arg(qRound(bps / 1000.0));
+}
+
+static QString formatFrequencyText(int hz)
+{
+    if (hz <= 0)
+        return QStringLiteral("未知");
+    return QStringLiteral("%1 Hz").arg(hz);
+}
+
+void PlayerPage::showMusicDetailDialog()
+{
+    const MusicInfo music = m_engine ? m_engine->currentMusic() : MusicInfo{};
+    const AudioQuality::ProbeResult quality = m_hasFileProbedQuality ? m_fileProbedQuality : m_lastQuality;
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(QStringLiteral("音乐详细信息"));
+    dlg.setModal(true);
+    dlg.setMinimumWidth(420);
+
+    auto *layout = new QVBoxLayout(&dlg);
+    layout->setContentsMargins(24, 22, 24, 18);
+    layout->setSpacing(16);
+
+    auto *title = new QLabel(QStringLiteral("音乐详细信息"), &dlg);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: 700;"));
+    layout->addWidget(title);
+
+    auto *form = new QFormLayout();
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    form->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
+    form->setHorizontalSpacing(16);
+    form->setVerticalSpacing(10);
+
+    auto addRow = [form, &dlg](const QString &label, const QString &value) {
+        auto *valueLabel = new QLabel(value.isEmpty() ? QStringLiteral("未知") : value, &dlg);
+        valueLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        valueLabel->setWordWrap(true);
+        form->addRow(label + QStringLiteral("："), valueLabel);
+    };
+
+    addRow(QStringLiteral("歌曲名"), m_fullMetaTitle);
+    addRow(QStringLiteral("歌手"), m_fullMetaArtist);
+    addRow(QStringLiteral("专辑"), m_fullMetaAlbum);
+    addRow(QStringLiteral("歌曲 ID"), music.id != 0 ? QString::number(music.id) : QStringLiteral("未知"));
+    addRow(QStringLiteral("来源"), music.isLocalFile() ? QStringLiteral("本地文件") : QStringLiteral("在线音乐"));
+    addRow(QStringLiteral("时长"), formatDurationText(m_engine ? m_engine->duration() : 0));
+    addRow(QStringLiteral("音质"), AudioQuality::tierShortName(quality.tier));
+    addRow(QStringLiteral("码率"), formatBitrateText(quality.bitrateBps > 0 ? quality.bitrateBps : (m_engine ? m_engine->audioBitRateBps() : 0)));
+    addRow(QStringLiteral("采样率"), formatFrequencyText(quality.sampleRateHz));
+    addRow(QStringLiteral("位深"), quality.bitsPerSample > 0 ? QStringLiteral("%1 bit").arg(quality.bitsPerSample) : QStringLiteral("未知"));
+    if (music.isLocalFile())
+        addRow(QStringLiteral("文件路径"), music.localPath);
+    else if (m_musicId > 0)
+        addRow(QStringLiteral("播放地址"), QStringLiteral("%1/api/music/file/%2").arg(Theme::kApiBase).arg(m_musicId));
+
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, &dlg);
+    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("关闭"));
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    layout->addWidget(buttons);
+
+    dlg.exec();
 }
