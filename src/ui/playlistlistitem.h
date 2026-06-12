@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QLabel>
+#include <QMetaObject>
 
 class RoundCoverLabel;
 
@@ -38,6 +39,7 @@ private:
     Mode m_mode = UserPlaylist;
     RoundCoverLabel *m_coverLbl = nullptr;
     QLabel *m_nameLbl = nullptr;
+    QMetaObject::Connection m_coverConn;
     void setPlaceholderCover();
 };
 

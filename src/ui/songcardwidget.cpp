@@ -57,6 +57,27 @@ QString formatByteSize(qint64 bytes)
     return QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + QStringLiteral(" MiB");
 }
 
+QString resolvedCoverUrlForSong(const MusicInfo &info)
+{
+    if (!info.coverUrl.isEmpty())
+        return CoverCache::resolveCoverUrl(info.coverUrl);
+    if (info.id > 0)
+        return QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(info.id);
+    return {};
+}
+
+QString coverCacheKeyForSong(const MusicInfo &info, const QString &resolvedCoverUrl)
+{
+    if (!resolvedCoverUrl.isEmpty()) {
+        const QString key = CoverCache::musicIdFromCoverUrl(resolvedCoverUrl);
+        if (!key.isEmpty())
+            return key;
+    }
+    if (info.id > 0)
+        return QString::number(info.id);
+    return {};
+}
+
 } // namespace
 
 SongCardWidget::SongCardWidget(QWidget *parent)
@@ -279,6 +300,7 @@ void SongCardWidget::prepareForPool()
 {
     disconnect(m_coverConn);
     m_coverConn = {};
+    m_coverKey.clear();
     setHover(false);
 }
 
@@ -293,10 +315,12 @@ void SongCardWidget::setDisplayMode(DisplayMode mode)
 
 void SongCardWidget::bind(const MusicInfo &info, int index)
 {
-    disconnect(m_coverConn);
-    m_coverConn = {};
-
-    const bool sameSong = m_info.id == info.id;
+    const QString newCoverUrl = resolvedCoverUrlForSong(info);
+    const QString newCoverKey = coverCacheKeyForSong(info, newCoverUrl);
+    const bool sameSong = m_info.id == info.id
+        && m_info.coverUrl == info.coverUrl
+        && m_info.localPath == info.localPath
+        && m_coverKey == newCoverKey;
     const int oldIndex = m_index;
     m_index = index;
 
@@ -305,6 +329,10 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
             updateIndexColumn();
         return;
     }
+
+    disconnect(m_coverConn);
+    m_coverConn = {};
+    m_coverKey.clear();
 
     setHover(false);
     m_info = info;
@@ -326,8 +354,18 @@ void SongCardWidget::bind(const MusicInfo &info, int index)
 
 void SongCardWidget::loadCover()
 {
-    const QString musicId = QString::number(m_info.id);
-    if (QPixmap cached = CoverCache::instance()->get(musicId); !cached.isNull()) {
+    const QString url = resolvedCoverUrlForSong(m_info);
+    const QString cacheKey = coverCacheKeyForSong(m_info, url);
+    m_coverKey = cacheKey;
+
+    if (cacheKey.isEmpty() || url.isEmpty()) {
+        QPixmap pm(kCover, kCover);
+        pm.fill(QColor(230, 57, 80, 40));
+        m_coverLbl->setPixmap(pm);
+        return;
+    }
+
+    if (QPixmap cached = CoverCache::instance()->get(cacheKey); !cached.isNull()) {
         m_coverLbl->setPixmap(cached);
         return;
     }
@@ -337,16 +375,13 @@ void SongCardWidget::loadCover()
     m_coverLbl->setPixmap(pm);
 
     m_coverConn = connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
-                          [this, musicId](const QString &id, const QPixmap &pix) {
-                              if (id == musicId) {
+                          [this, cacheKey](const QString &id, const QPixmap &pix) {
+                              if (id == cacheKey) {
                                   m_coverLbl->setPixmap(pix);
                                   m_coverLbl->update();
                               }
                           });
-    const QString url = m_info.coverUrl.isEmpty()
-        ? QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(m_info.id)
-        : m_info.coverUrl;
-    CoverCache::instance()->fetchCover(musicId, url);
+    CoverCache::instance()->fetchCover(cacheKey, url);
 }
 
 void SongCardWidget::setPlaying(bool playing)

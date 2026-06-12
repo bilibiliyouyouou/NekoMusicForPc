@@ -882,7 +882,9 @@ void PlaylistDetailPage::loadPlaylist(int playlistId)
                                                     info.artist = m.value(QStringLiteral("artist")).toString();
                                                     info.album = m.value(QStringLiteral("album")).toString();
                                                     info.duration = m.value(QStringLiteral("duration")).toInt();
-                                                    info.coverUrl = m.value(QStringLiteral("coverPath")).toString();
+                                                    info.coverUrl = m.value(QStringLiteral("coverUrl")).toString();
+                                                    if (info.coverUrl.isEmpty())
+                                                        info.coverUrl = m.value(QStringLiteral("coverPath")).toString();
                                                     m_allSongs.append(info);
                                                 }
                                             }

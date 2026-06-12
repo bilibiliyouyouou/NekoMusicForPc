@@ -1,5 +1,6 @@
 #include "ui/playlistlistitem.h"
 #include "ui/roundcoverlabel.h"
+#include "core/covercache.h"
 #include "core/i18n.h"
 #include "theme/thememanager.h"
 
@@ -9,8 +10,6 @@
 #include <QMenu>
 #include <QHBoxLayout>
 #include <QPainterPath>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 
 PlaylistListItem::PlaylistListItem(int playlistId, const QString& name, int musicCount, const QString& coverUrl, Mode mode, QWidget *parent)
     : QWidget(parent), m_playlistId(playlistId), m_name(name), m_musicCount(musicCount), m_mode(mode)
@@ -29,29 +28,30 @@ PlaylistListItem::PlaylistListItem(int playlistId, const QString& name, int musi
     lay->addWidget(m_coverLbl);
 
     if (!coverUrl.isEmpty()) {
-        QUrl url(coverUrl.startsWith("http") ? coverUrl : QString::fromUtf8("https://music.cnmsb.xin%1").arg(coverUrl));
-        auto *nam = new QNetworkAccessManager(this);
-        auto *reply = nam->get(QNetworkRequest(url));
-        QPointer<PlaylistListItem> self(this);
-        QObject::connect(reply, &QNetworkReply::finished, this, [self, reply, nam]() {
-            if (!self)
-                return;
-            reply->deleteLater();
-            nam->deleteLater();
-            if (reply->error() == QNetworkReply::NoError) {
-                QPixmap pix;
-                pix.loadFromData(reply->readAll());
-                if (!pix.isNull()) {
-                    pix = pix.scaled(36, 36, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-                    if (self->m_coverLbl)
-                        self->m_coverLbl->setPixmap(pix);
-                } else {
-                    self->setPlaceholderCover();
-                }
+        const QString cacheKey = CoverCache::musicIdFromCoverUrl(coverUrl);
+        if (!cacheKey.isEmpty()) {
+            if (QPixmap cached = CoverCache::instance()->get(cacheKey); !cached.isNull()) {
+                m_coverLbl->setPixmap(cached.scaled(36, 36, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
             } else {
-                self->setPlaceholderCover();
+                setPlaceholderCover();
+                QPointer<PlaylistListItem> self(this);
+                m_coverConn = connect(CoverCache::instance(), &CoverCache::coverLoaded, this,
+                                      [self, cacheKey](const QString &id, const QPixmap &pix) {
+                                          if (!self || id != cacheKey || pix.isNull())
+                                              return;
+                                          QObject::disconnect(self->m_coverConn);
+                                          self->m_coverConn = {};
+                                          if (self->m_coverLbl) {
+                                              self->m_coverLbl->setPixmap(
+                                                  pix.scaled(36, 36, Qt::KeepAspectRatioByExpanding,
+                                                             Qt::SmoothTransformation));
+                                          }
+                                      });
+                CoverCache::instance()->fetchCover(cacheKey, coverUrl);
             }
-        });
+        } else {
+            setPlaceholderCover();
+        }
     } else {
         setPlaceholderCover();
     }

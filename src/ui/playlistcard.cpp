@@ -69,7 +69,9 @@ void PlaylistCard::loadCover()
 
     // 异步加载封面（先查缓存）
     if (!m_info.coverUrl.isEmpty()) {
-        QString musicId = m_info.coverUrl.mid(m_info.coverUrl.lastIndexOf(QLatin1Char('/')) + 1);
+        const QString musicId = CoverCache::musicIdFromCoverUrl(m_info.coverUrl);
+        if (musicId.isEmpty())
+            return;
 
         QPixmap cached = CoverCache::instance()->get(musicId);
         if (!cached.isNull()) {

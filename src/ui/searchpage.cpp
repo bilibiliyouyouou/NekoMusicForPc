@@ -108,15 +108,11 @@ private:
 QString playlistCoverUrl(const QVariantMap &pl)
 {
     QString first = pl.value(QStringLiteral("firstMusicCover")).toString();
-    int musicId = 0;
-    if (!first.isEmpty()) {
-        const int slash = first.lastIndexOf(QLatin1Char('/'));
-        const int dot = first.lastIndexOf(QLatin1Char('.'));
-        if (slash >= 0 && dot > slash)
-            musicId = first.mid(slash + 1, dot - slash - 1).toInt();
-    }
+    if (!first.isEmpty())
+        return CoverCache::resolveCoverUrl(first);
+    const int musicId = pl.value(QStringLiteral("firstMusicId")).toInt();
     if (musicId <= 0)
-        musicId = pl.value(QStringLiteral("firstMusicId")).toInt();
+        return QString();
     return QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(musicId);
 }
 

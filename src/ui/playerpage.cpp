@@ -2719,10 +2719,14 @@ void PlayerPage::loadCover(const QString &url)
     if (m_musicId <= 0)
         return;
 
-    const QString cacheKey = QString::number(m_musicId);
     QString fetchUrl = CoverCache::resolveCoverUrl(url);
     if (fetchUrl.isEmpty()) {
         fetchUrl = QString::fromUtf8("%1/api/music/cover/%2").arg(Theme::kApiBase).arg(m_musicId);
+    }
+    const QString cacheKey = CoverCache::musicIdFromCoverUrl(fetchUrl);
+    if (cacheKey.isEmpty()) {
+        applyCoverUnknownLarge();
+        return;
     }
 
     CoverCache *cc = CoverCache::instance();

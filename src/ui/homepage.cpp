@@ -78,7 +78,8 @@ public:
     void loadCover(const QString &url)
     {
         if (url.isEmpty()) { setPlaceholder(); return; }
-        QString musicId = url.mid(url.lastIndexOf(QLatin1Char('/')) + 1);
+        const QString musicId = CoverCache::musicIdFromCoverUrl(url);
+        if (musicId.isEmpty()) { setPlaceholder(); return; }
 
         QPixmap cached = CoverCache::instance()->get(musicId);
         if (!cached.isNull()) {

@@ -22,7 +22,7 @@ class CoverCache : public QObject
 public:
     static CoverCache *instance();
 
-    /** 从封面 URL 解析 musicId（路径最后一段，去掉查询串）。 */
+    /** 从封面 URL 解析稳定缓存键（路径最后一段，去掉查询串；非 musicId URL 使用哈希键）。 */
     static QString musicIdFromCoverUrl(const QString &coverUrl);
 
     /** 将相对路径、协议相对 URL 补全为可请求的绝对地址（基于 Theme::kApiBase）。 */

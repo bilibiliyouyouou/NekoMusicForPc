@@ -10,12 +10,58 @@
 #include "theme/theme.h"
 
 #include <QStandardPaths>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QDebug>
 #include <QUrl>
+#include <QRegularExpression>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+
+namespace {
+
+QString safeCacheKey(const QString &value)
+{
+    QString key = value.trimmed();
+    if (key.isEmpty())
+        return {};
+
+    const int query = key.indexOf(QLatin1Char('?'));
+    if (query >= 0)
+        key.truncate(query);
+    const int fragment = key.indexOf(QLatin1Char('#'));
+    if (fragment >= 0)
+        key.truncate(fragment);
+
+    if (key.isEmpty())
+        return {};
+
+    static const QRegularExpression safePattern(QStringLiteral("^[A-Za-z0-9._-]+$"));
+    if (safePattern.match(key).hasMatch())
+        return key;
+
+    const QByteArray digest = QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha1).toHex();
+    return QStringLiteral("url-") + QString::fromLatin1(digest);
+}
+
+QString resourcePathFromUrl(const QString &url)
+{
+    if (url.startsWith(QLatin1String("qrc:"), Qt::CaseInsensitive)) {
+        const QUrl qurl(url);
+        QString path = qurl.path();
+        if (path.startsWith(QLatin1Char('/')))
+            return QLatin1Char(':') + path;
+        return QStringLiteral(":/") + path;
+    }
+    if (url.startsWith(QLatin1Char(':')))
+        return url;
+    return {};
+}
+
+} // namespace
 
 CoverCache *CoverCache::instance()
 {
@@ -30,14 +76,40 @@ CoverCache::CoverCache(QObject *parent) : QObject(parent)
 
 QString CoverCache::musicIdFromCoverUrl(const QString &coverUrl)
 {
-    const int slash = coverUrl.lastIndexOf(QLatin1Char('/'));
-    if (slash < 0)
+    const QString resolved = resolveCoverUrl(coverUrl);
+    const QString u = resolved.isEmpty() ? coverUrl.trimmed() : resolved;
+    if (u.isEmpty())
         return {};
-    QString id = coverUrl.mid(slash + 1);
+
+    const QString resourcePath = resourcePathFromUrl(u);
+    if (!resourcePath.isEmpty())
+        return safeCacheKey(resourcePath);
+
+    const QUrl parsed(u);
+    if (parsed.isLocalFile()) {
+        const QFileInfo fi(parsed.toLocalFile());
+        return safeCacheKey(fi.absoluteFilePath());
+    }
+
+    QString path = parsed.isValid() && !parsed.path().isEmpty() ? parsed.path() : u;
+    while (path.endsWith(QLatin1Char('/')))
+        path.chop(1);
+    const int slash = path.lastIndexOf(QLatin1Char('/'));
+    if (slash < 0)
+        return safeCacheKey(path);
+    QString id = path.mid(slash + 1);
     const int q = id.indexOf(QLatin1Char('?'));
     if (q >= 0)
         id.truncate(q);
-    return id;
+    const int fragment = id.indexOf(QLatin1Char('#'));
+    if (fragment >= 0)
+        id.truncate(fragment);
+    static const QRegularExpression numericPattern(QStringLiteral("^[0-9]+$"));
+    if (!id.isEmpty()
+        && (path.contains(QStringLiteral("/api/music/cover/")) || numericPattern.match(id).hasMatch())) {
+        return safeCacheKey(id);
+    }
+    return safeCacheKey(u);
 }
 
 QString CoverCache::resolveCoverUrl(const QString &rawUrl)
@@ -46,8 +118,11 @@ QString CoverCache::resolveCoverUrl(const QString &rawUrl)
     if (u.isEmpty())
         return {};
 
-    if (u.startsWith(QLatin1String("file:"), Qt::CaseInsensitive))
+    if (u.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)
+        || u.startsWith(QLatin1String("qrc:"), Qt::CaseInsensitive)
+        || u.startsWith(QLatin1Char(':'))) {
         return u;
+    }
     if (u.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)
         || u.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)) {
         return u;
@@ -55,6 +130,9 @@ QString CoverCache::resolveCoverUrl(const QString &rawUrl)
     if (u.startsWith(QLatin1String("//"))) {
         return QStringLiteral("https:") + u;
     }
+
+    if (QDir::isAbsolutePath(u) && QFileInfo::exists(u))
+        return QUrl::fromLocalFile(QFileInfo(u).absoluteFilePath()).toString();
 
     QString base = QString::fromUtf8(Theme::kApiBase);
     while (base.endsWith(QLatin1Char('/')))
@@ -133,11 +211,12 @@ void CoverCache::ensureCacheDir() const
 
 QPixmap CoverCache::get(const QString &musicId) const
 {
-    if (musicId.isEmpty()) return QPixmap();
+    const QString cacheKey = safeCacheKey(musicId);
+    if (cacheKey.isEmpty()) return QPixmap();
 #ifdef Q_OS_LINUX
-    return getLinuxMem(musicId);
+    return getLinuxMem(cacheKey);
 #else
-    QString path = cacheDir() + QLatin1Char('/') + musicId + QStringLiteral(".jpg");
+    QString path = cacheDir() + QLatin1Char('/') + cacheKey + QStringLiteral(".jpg");
     if (QFile::exists(path)) {
         QPixmap pix;
         if (pix.load(path)) return pix;
@@ -149,56 +228,83 @@ QPixmap CoverCache::get(const QString &musicId) const
 
 void CoverCache::set(const QString &musicId, const QPixmap &pixmap)
 {
-    if (musicId.isEmpty() || pixmap.isNull()) return;
+    const QString cacheKey = safeCacheKey(musicId);
+    if (cacheKey.isEmpty() || pixmap.isNull()) return;
 #ifdef Q_OS_LINUX
-    setLinuxMem(musicId, pixmap);
+    setLinuxMem(cacheKey, pixmap);
 #else
     ensureCacheDir();
-    QString path = cacheDir() + QLatin1Char('/') + musicId + QStringLiteral(".jpg");
+    QString path = cacheDir() + QLatin1Char('/') + cacheKey + QStringLiteral(".jpg");
     pixmap.save(path, "JPEG", 85);
 #endif
 }
 
 void CoverCache::fetchCover(const QString &musicId, const QString &coverUrl)
 {
-    if (musicId.isEmpty())
-        return;
     const QString absolute = resolveCoverUrl(coverUrl);
     if (absolute.isEmpty())
         return;
+    const QString providedKey = safeCacheKey(musicId);
+    const QString cacheKey = providedKey.isEmpty() ? musicIdFromCoverUrl(absolute) : providedKey;
+    if (cacheKey.isEmpty())
+        return;
 
-    if (absolute.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+    const QString resourcePath = resourcePathFromUrl(absolute);
+    if (!resourcePath.isEmpty()) {
         QPixmap pix;
-        if (pix.load(QUrl(absolute).toLocalFile())) {
-            set(musicId, pix);
-            emit coverLoaded(musicId, pix);
+        if (pix.load(resourcePath)) {
+            set(cacheKey, pix);
+            emit coverLoaded(cacheKey, pix);
+        } else {
+            qWarning() << "[CoverCache] failed to load resource cover:" << absolute;
         }
         return;
     }
 
-    QPixmap cached = get(musicId);
-    if (!cached.isNull()) {
-        emit coverLoaded(musicId, cached);
+    if (absolute.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+        QPixmap pix;
+        if (pix.load(QUrl(absolute).toLocalFile())) {
+            set(cacheKey, pix);
+            emit coverLoaded(cacheKey, pix);
+        } else {
+            qWarning() << "[CoverCache] failed to load local cover:" << absolute;
+        }
         return;
     }
 
-    if (m_inFlight.contains(musicId))
+    QPixmap cached = get(cacheKey);
+    if (!cached.isNull()) {
+        emit coverLoaded(cacheKey, cached);
+        return;
+    }
+
+    if (m_inFlight.contains(cacheKey))
         return;
 
     QNetworkRequest req;
     req.setUrl(QUrl(absolute));
     req.setTransferTimeout(10000);
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NekoMusic Qt"));
+    req.setRawHeader("Accept", "image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/svg+xml,image/*;q=0.8,*/*;q=0.5");
     QNetworkReply *reply = m_nam.get(req);
-    m_inFlight.insert(musicId, reply);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, musicId]() {
-        m_inFlight.remove(musicId);
+    m_inFlight.insert(cacheKey, reply);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, cacheKey, absolute]() {
+        m_inFlight.remove(cacheKey);
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) return;
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "[CoverCache] cover request failed:" << absolute << reply->errorString();
+            return;
+        }
 
+        const QByteArray data = reply->readAll();
         QPixmap pix;
-        if (pix.loadFromData(reply->readAll())) {
-            set(musicId, pix);
-            emit coverLoaded(musicId, pix);
+        if (pix.loadFromData(data)) {
+            set(cacheKey, pix);
+            emit coverLoaded(cacheKey, pix);
+        } else {
+            qWarning() << "[CoverCache] failed to decode cover:" << absolute
+                       << "content-type:" << reply->header(QNetworkRequest::ContentTypeHeader).toString()
+                       << "bytes:" << data.size();
         }
     });
 }

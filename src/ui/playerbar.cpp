@@ -1564,8 +1564,7 @@ void PlayerBar::setSongInfo(const QString &title, const QString &artist, const Q
         return;
     }
 
-    const QString cacheKey = m_currentMusicId > 0 ? QString::number(m_currentMusicId)
-                                                  : CoverCache::musicIdFromCoverUrl(fetchUrl);
+    const QString cacheKey = CoverCache::musicIdFromCoverUrl(fetchUrl);
     if (cacheKey.isEmpty()) {
         disconnect(m_coverConn);
         m_coverConn = {};

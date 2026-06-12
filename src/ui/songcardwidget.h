@@ -93,6 +93,7 @@ private:
     bool m_downloadActive = false;
     qint64 m_progressReceived = 0;
     qint64 m_progressTotal = 0;
+    QString m_coverKey;
 
     QWidget *m_content = nullptr;
     QWidget *m_numCol = nullptr;

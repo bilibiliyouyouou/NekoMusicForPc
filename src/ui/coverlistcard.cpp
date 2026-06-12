@@ -197,13 +197,9 @@ void CoverListCard::loadCover()
     if (m_data.coverUrl.isEmpty())
         return;
 
-    QString cacheId = QString::number(m_data.id);
-    const int slash = m_data.coverUrl.lastIndexOf(QLatin1Char('/'));
-    if (slash >= 0) {
-        const QString tail = m_data.coverUrl.mid(slash + 1);
-        if (!tail.isEmpty())
-            cacheId = tail;
-    }
+    const QString cacheId = CoverCache::musicIdFromCoverUrl(m_data.coverUrl);
+    if (cacheId.isEmpty())
+        return;
 
     QPixmap cached = CoverCache::instance()->get(cacheId);
     if (!cached.isNull()) {

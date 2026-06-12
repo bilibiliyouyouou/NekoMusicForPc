@@ -15,6 +15,7 @@
 #include <QPushButton>
 #include <QList>
 #include <QTimer>
+#include <QMetaObject>
 #include <QGraphicsOpacityEffect>
 
 struct CarouselItem {
@@ -57,4 +58,5 @@ private:
     QPushButton *m_playBtn = nullptr;
     QWidget *m_dotsWidget  = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect = nullptr;
+    QMetaObject::Connection m_coverConn;
 };
