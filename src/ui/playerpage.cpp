@@ -597,7 +597,10 @@ protected:
         }
         if (pm.isNull())
             return;
-        const QPoint topLeft(r.x() + (r.width() - pm.width()) / 2, r.y() + (r.height() - pm.height()) / 2);
+        const qreal dpr = pm.devicePixelRatioF();
+        const QSize pmLogical(qRound(pm.width() / dpr), qRound(pm.height() / dpr));
+        const QPoint topLeft(r.x() + (r.width() - pmLogical.width()) / 2,
+                             r.y() + (r.height() - pmLogical.height()) / 2);
         painter.drawPixmap(topLeft, pm);
         Q_UNUSED(event);
     }
