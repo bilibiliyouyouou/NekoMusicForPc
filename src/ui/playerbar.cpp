@@ -584,6 +584,7 @@ enum class PbInk : int {
     PlaylistAdd,
     Share,
     Video,
+    Download,
     DesktopLyric,
     Playlist,
     Volume,
@@ -688,6 +689,9 @@ void PlayerBarInkButton::paintEvent(QPaintEvent *event)
         break;
     case PbInk::Video:
         pm = Icons::renderNamed("Video", px, hi ? cA : cN);
+        break;
+    case PbInk::Download:
+        pm = Icons::renderNamed("Download", px, hi ? cA : cN);
         break;
     case PbInk::DesktopLyric: {
         const bool on = isCheckable() && isChecked();
@@ -1070,6 +1074,20 @@ void PlayerBar::setupUi()
         emit nextClicked();
     });
     ctrlL->addWidget(nextBtn);
+
+    m_downloadBtn = new PlayerBarInkButton(center);
+    m_downloadBtn->setObjectName("pbCtrlBtn");
+    m_downloadBtn->setFixedSize(kPbCtrlBtn, kPbCtrlBtn);
+    m_downloadBtn->setIconSize(QSize(kPbCtrlIcon, kPbCtrlIcon));
+    m_downloadBtn->setProperty("pbInk", int(PbInk::Download));
+    m_downloadBtn->setCursor(Qt::PointingHandCursor);
+    m_downloadBtn->setEnabled(false);
+    m_downloadBtn->setToolTip(I18n::instance().tr("downloadMusic"));
+    connect(m_downloadBtn, &QPushButton::clicked, this, [this]() {
+        if (m_currentMusicId > 0)
+            emit downloadClicked(m_currentMusicId);
+    });
+    ctrlL->addWidget(m_downloadBtn);
 
     // 布局占位保留原三列 flex；实际控件浮层绝对居中
     m_pbCenterSpacer = new QWidget(mainRow);
@@ -1503,6 +1521,7 @@ void PlayerBar::retranslate()
         if (btn->objectName() == "pbCtrlBtn") {
             if (ctrlCount == 0) btn->setToolTip(I18n::instance().tr("previous"));
             else if (ctrlCount == 1) btn->setToolTip(I18n::instance().tr("next"));
+            else if (ctrlCount == 2) btn->setToolTip(I18n::instance().tr("downloadMusic"));
             ctrlCount++;
         }
     }
@@ -1513,6 +1532,8 @@ void PlayerBar::retranslate()
         m_desktopLrcBtn->setToolTip(I18n::instance().tr("desktopLyrics"));
     if (m_shareBtn)
         m_shareBtn->setToolTip(I18n::instance().tr(QStringLiteral("shareTrack")));
+    if (m_downloadBtn)
+        m_downloadBtn->setToolTip(I18n::instance().tr("downloadMusic"));
     if (m_videoShareBtn && m_videoShareBtn->isVisible())
         updateVideoShareUi(true, false, QString());
 
@@ -1610,6 +1631,8 @@ void PlayerBar::setCurrentMusicId(int musicId)
     m_currentMusicId = musicId;
     if (m_addToPlaylistBtn)
         m_addToPlaylistBtn->setEnabled(musicId > 0);
+    if (m_downloadBtn)
+        m_downloadBtn->setEnabled(musicId > 0);
     // 不重置状态，由调用方自行检查收藏状态后设置
     refreshLocalBadge();
 }

@@ -32,6 +32,7 @@ signals:
     void nextClicked();
     void favoriteClicked(int musicId);
     void addToPlaylistClicked(int musicId);
+    void downloadClicked(int musicId);
     void shareClicked();
     void videoShareClicked();
     void playModeClicked();
@@ -113,6 +114,7 @@ private:
     class GlassWidget *m_glass = nullptr;
     QPushButton *m_playBtn = nullptr;
     QPushButton *m_playModeBtn = nullptr;
+    QPushButton *m_downloadBtn = nullptr;
     QPushButton *m_heartBtn = nullptr;
     QPushButton *m_addToPlaylistBtn = nullptr;
     QPushButton *m_shareBtn = nullptr;

@@ -1013,6 +1013,9 @@ void MainWindow::setupUi()
     // 收藏按钮
     connect(m_playerBar, &PlayerBar::favoriteClicked, this, &MainWindow::toggleFavorite);
     connect(m_playerBar, &PlayerBar::addToPlaylistClicked, this, &MainWindow::addToPlaylistFromPlayer);
+    connect(m_playerBar, &PlayerBar::downloadClicked, this, [this](int musicId) {
+        downloadMusic(musicInfoForPlayerAction(musicId));
+    });
     connect(m_playerBar, &PlayerBar::shareClicked, this, &MainWindow::copyCurrentTrackShare);
 
     connect(m_playerBar, &PlayerBar::playModeClicked, this, [this]() {
@@ -1458,23 +1461,7 @@ void MainWindow::addToPlaylistFromPlayer(int musicId)
     if (musicId <= 0)
         return;
 
-    const MusicInfo &eng = m_engine->currentMusic();
-    if (eng.id == musicId) {
-        showAddToPlaylistDialog(eng);
-        return;
-    }
-
-    const auto &queue = PlaylistManager::instance().playlist();
-    for (const MusicInfo &m : queue) {
-        if (m.id == musicId) {
-            showAddToPlaylistDialog(m);
-            return;
-        }
-    }
-
-    MusicInfo stub;
-    stub.id = musicId;
-    showAddToPlaylistDialog(stub);
+    showAddToPlaylistDialog(musicInfoForPlayerAction(musicId));
 }
 
 QWidget *MainWindow::playlistDrawerHost() const
@@ -2228,8 +2215,11 @@ void MainWindow::downloadMusic(const MusicInfo &info)
         return;
     }
 
-    MusicDownloadManager::instance().downloadMusic(info);
-    Toast::show(this, I18n::instance().tr(QStringLiteral("downloadStarted")), Toast::Success);
+    if (MusicDownloadManager::instance().downloadMusic(info)) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("downloadStarted")), Toast::Success);
+    } else if (MusicDownloadManager::instance().isPending(info.id)) {
+        Toast::show(this, I18n::instance().tr(QStringLiteral("downloadingStatus")), Toast::Info);
+    }
 }
 
 void MainWindow::downloadAllMusic(const QList<MusicInfo> &songs)
@@ -2239,8 +2229,8 @@ void MainWindow::downloadAllMusic(const QList<MusicInfo> &songs)
     for (const MusicInfo &info : songs) {
         if (info.id <= 0 || info.isLocalFile() || mgr.isDownloaded(info.id))
             continue;
-        mgr.downloadMusic(info);
-        ++queued;
+        if (mgr.downloadMusic(info))
+            ++queued;
     }
 
     if (queued <= 0) {
@@ -2252,6 +2242,28 @@ void MainWindow::downloadAllMusic(const QList<MusicInfo> &songs)
     Toast::show(this,
                 I18n::instance().tr(QStringLiteral("batchDownloadStarted")).arg(queued),
                 Toast::Success);
+}
+
+MusicInfo MainWindow::musicInfoForPlayerAction(int musicId) const
+{
+    if (musicId <= 0)
+        return {};
+
+    if (m_engine) {
+        const MusicInfo &eng = m_engine->currentMusic();
+        if (eng.id == musicId)
+            return eng;
+    }
+
+    const auto &playlist = PlaylistManager::instance().playlist();
+    for (const MusicInfo &m : playlist) {
+        if (m.id == musicId)
+            return m;
+    }
+
+    MusicInfo stub;
+    stub.id = musicId;
+    return stub;
 }
 
 void MainWindow::syncListPageDownloadState()

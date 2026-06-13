@@ -96,6 +96,7 @@ private:
     void createPlaylist();
     void showAddToPlaylistDialog(const MusicInfo &music);
     void addToPlaylistFromPlayer(int musicId);
+    MusicInfo musicInfoForPlayerAction(int musicId) const;
     void togglePlaylistPanel();
     void showPlaylistDrawer();
     void hidePlaylistDrawer();

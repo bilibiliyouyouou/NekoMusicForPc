@@ -169,28 +169,29 @@ qint64 MusicDownloadManager::progressTotal(int musicId) const
     return 0;
 }
 
-void MusicDownloadManager::downloadMusic(const MusicInfo &music)
+bool MusicDownloadManager::downloadMusic(const MusicInfo &music)
 {
     if (music.id <= 0 || music.isLocalFile())
-        return;
+        return false;
 
     if (isDownloaded(music.id)) {
         emit downloadCompleted(music.id);
         emit downloadsChanged();
-        return;
+        return false;
     }
 
     for (const MusicInfo &queued : m_queue) {
         if (queued.id == music.id)
-            return;
+            return false;
     }
     if (m_busy && m_current.id == music.id)
-        return;
+        return false;
 
     m_queue.append(music);
     emit downloadsChanged();
     if (!m_busy)
         startNext();
+    return true;
 }
 
 void MusicDownloadManager::abortCurrentTransfer()

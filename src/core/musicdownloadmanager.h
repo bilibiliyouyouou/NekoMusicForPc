@@ -27,7 +27,7 @@ public:
     bool isActiveDownload(int musicId) const;
     qint64 progressReceived(int musicId) const;
     qint64 progressTotal(int musicId) const;
-    void downloadMusic(const MusicInfo &music);
+    bool downloadMusic(const MusicInfo &music);
     void cancelDownload(int musicId);
     void cancelCurrent();
 
