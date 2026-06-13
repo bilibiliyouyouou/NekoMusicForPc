@@ -15,6 +15,7 @@
 #include "ui/glasswidget.h"
 #include "ui/glasspaint.h"
 #include "ui/scrollareafix.h"
+#include "ui/svgicon.h"
 #include "version.h"
 
 #include <QVBoxLayout>
@@ -23,6 +24,7 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QStackedWidget>
 #include <QFrame>
 #include <QSettings>
 #include <QDesktopServices>
@@ -47,9 +49,50 @@ SettingsPage::SettingsPage(QWidget *parent) : QWidget(parent)
     setupUi();
     connect(&Theme::ThemeManager::instance(), &Theme::ThemeManager::themeChanged, this,
             [this](Theme::ThemeMode mode) {
-                if (auto *card = findChild<GlassWidget *>())
+                Q_UNUSED(mode);
+                const auto cards = findChildren<GlassWidget *>();
+                for (auto *card : cards)
                     GlassPaint::applyFlatSurface(card, Theme::ThemeManager::instance().isDarkMode());
             });
+}
+
+QWidget *SettingsPage::createSettingsCard(QWidget *parent, QVBoxLayout **layoutOut)
+{
+    auto *card = new GlassWidget(parent);
+    card->setBorderRadius(Theme::kRXl);
+    GlassPaint::applyFlatSurface(card, Theme::ThemeManager::instance().isDarkMode());
+    QWidget *cardBody = card->contentWidget();
+
+    auto *cardLay = new QVBoxLayout(cardBody);
+    cardLay->setContentsMargins(24, 20, 24, 20);
+    cardLay->setSpacing(16);
+    if (layoutOut)
+        *layoutOut = cardLay;
+    return card;
+}
+
+QPushButton *SettingsPage::createTabButton(const QString &text, const char *iconName, QWidget *parent)
+{
+    auto *btn = new QPushButton(text, parent);
+    btn->setObjectName(QStringLiteral("settingsTabBtn"));
+    btn->setCheckable(true);
+    btn->setCursor(Qt::PointingHandCursor);
+    btn->setMinimumHeight(38);
+    btn->setIcon(Icons::renderNamed(iconName, 18, QColor(230, 57, 80)));
+    btn->setIconSize(QSize(18, 18));
+    return btn;
+}
+
+void SettingsPage::setActiveSettingsTab(int index)
+{
+    if (!m_settingsStack || index < 0 || index >= m_settingsStack->count())
+        return;
+    m_settingsStack->setCurrentIndex(index);
+    const QList<QPushButton *> tabs = {m_generalTabBtn, m_appearanceTabBtn, m_shortcutsTabBtn, m_aboutTabBtn};
+    for (int i = 0; i < tabs.size(); ++i) {
+        if (tabs[i])
+            tabs[i]->setChecked(i == index);
+    }
 }
 
 void SettingsPage::setupUi()
@@ -65,23 +108,62 @@ void SettingsPage::setupUi()
     lay->setContentsMargins(32, 32, 32, 32);
     lay->setSpacing(16);
 
-    auto *card = new GlassWidget(container);
-    card->setBorderRadius(Theme::kRXl);
-    GlassPaint::applyFlatSurface(card, Theme::ThemeManager::instance().isDarkMode());
-    QWidget *cardBody = card->contentWidget();
+    auto *headerRow = new QWidget(container);
+    auto *headerLay = new QHBoxLayout(headerRow);
+    headerLay->setContentsMargins(0, 0, 0, 0);
+    headerLay->setSpacing(12);
 
-    auto *cardLay = new QVBoxLayout(cardBody);
-    cardLay->setContentsMargins(24, 20, 24, 20);
-    cardLay->setSpacing(16);
+    auto *titleWrap = new QWidget(headerRow);
+    auto *titleLay = new QVBoxLayout(titleWrap);
+    titleLay->setContentsMargins(0, 0, 0, 0);
+    titleLay->setSpacing(4);
+    m_titleLabel = new QLabel(I18n::instance().settingsTitle(), titleWrap);
+    m_titleLabel->setObjectName(QStringLiteral("settingsTitle"));
+    titleLay->addWidget(m_titleLabel);
+    m_descLabel = new QLabel(I18n::instance().tr(QStringLiteral("settingsDesc")), titleWrap);
+    m_descLabel->setObjectName(QStringLiteral("settingsInfo"));
+    m_descLabel->setWordWrap(true);
+    titleLay->addWidget(m_descLabel);
+    headerLay->addWidget(titleWrap, 1);
+    lay->addWidget(headerRow);
+
+    auto *tabsRow = new QWidget(container);
+    tabsRow->setObjectName(QStringLiteral("settingsTabBar"));
+    auto *tabsLay = new QHBoxLayout(tabsRow);
+    tabsLay->setContentsMargins(0, 0, 0, 0);
+    tabsLay->setSpacing(8);
+    m_generalTabBtn = createTabButton(I18n::instance().tr(QStringLiteral("settingsTabGeneral")), "Settings", tabsRow);
+    m_appearanceTabBtn = createTabButton(I18n::instance().tr(QStringLiteral("settingsTabAppearance")), "Palette", tabsRow);
+    m_shortcutsTabBtn = createTabButton(I18n::instance().tr(QStringLiteral("settingsTabShortcuts")), "Keyboard", tabsRow);
+    m_aboutTabBtn = createTabButton(I18n::instance().tr(QStringLiteral("settingsTabAbout")), "Info", tabsRow);
+    tabsLay->addWidget(m_generalTabBtn);
+    tabsLay->addWidget(m_appearanceTabBtn);
+    tabsLay->addWidget(m_shortcutsTabBtn);
+    tabsLay->addWidget(m_aboutTabBtn);
+    tabsLay->addStretch();
+    lay->addWidget(tabsRow);
+
+    m_settingsStack = new QStackedWidget(container);
+    m_settingsStack->setObjectName(QStringLiteral("settingsStack"));
+    lay->addWidget(m_settingsStack);
+
+    connect(m_generalTabBtn, &QPushButton::clicked, this, [this]() { setActiveSettingsTab(0); });
+    connect(m_appearanceTabBtn, &QPushButton::clicked, this, [this]() { setActiveSettingsTab(1); });
+    connect(m_shortcutsTabBtn, &QPushButton::clicked, this, [this]() { setActiveSettingsTab(2); });
+    connect(m_aboutTabBtn, &QPushButton::clicked, this, [this]() { setActiveSettingsTab(3); });
+
+    QVBoxLayout *generalLay = nullptr;
+    QWidget *generalCard = createSettingsCard(container, &generalLay);
+    QWidget *generalBody = static_cast<GlassWidget *>(generalCard)->contentWidget();
 
     // 语言设置
     auto *langRow = new QHBoxLayout();
-    m_langLabel = new QLabel(I18n::instance().languageLabel(), cardBody);
+    m_langLabel = new QLabel(I18n::instance().languageLabel(), generalBody);
     m_langLabel->setObjectName("settingsLabel");
     langRow->addWidget(m_langLabel);
     langRow->addStretch();
 
-    m_langCombo = new QComboBox(cardBody);
+    m_langCombo = new QComboBox(generalBody);
     m_langCombo->setObjectName("settingsCombo");
     m_langCombo->blockSignals(true);
     m_langCombo->addItem(I18n::instance().languageChinese(), I18n::ZhCN);
@@ -107,22 +189,21 @@ void SettingsPage::setupUi()
         emit languageChanged(lang);
     });
     langRow->addWidget(m_langCombo);
-    cardLay->addLayout(langRow);
+    generalLay->addLayout(langRow);
+    generalLay->addStretch();
 
-    // 分隔线
-    auto *line = new QFrame(cardBody);
-    line->setFrameShape(QFrame::HLine);
-    line->setObjectName("settingsDivider");
-    cardLay->addWidget(line);
+    QVBoxLayout *appearanceLay = nullptr;
+    QWidget *appearanceCard = createSettingsCard(container, &appearanceLay);
+    QWidget *appearanceBody = static_cast<GlassWidget *>(appearanceCard)->contentWidget();
 
     // 主题设置（桌面歌词入口在播放栏「词」按钮，此处不重复）
     auto *themeRow = new QHBoxLayout();
-    auto *themeLabel = new QLabel(I18n::instance().tr("theme"), cardBody);
-    themeLabel->setObjectName("settingsLabel");
-    themeRow->addWidget(themeLabel);
+    m_themeLabel = new QLabel(I18n::instance().tr("theme"), appearanceBody);
+    m_themeLabel->setObjectName("settingsLabel");
+    themeRow->addWidget(m_themeLabel);
     themeRow->addStretch();
 
-    m_themeCombo = new QComboBox(cardBody);
+    m_themeCombo = new QComboBox(appearanceBody);
     m_themeCombo->setObjectName("settingsCombo");
     m_themeCombo->blockSignals(true);
     m_themeCombo->addItem(I18n::instance().tr("themeSystem"), static_cast<int>(Theme::System));
@@ -139,32 +220,32 @@ void SettingsPage::setupUi()
         Theme::ThemeManager::instance().setMode(theme);
     });
     themeRow->addWidget(m_themeCombo);
-    cardLay->addLayout(themeRow);
+    appearanceLay->addLayout(themeRow);
 
-    auto *linePersonalize = new QFrame(cardBody);
+    auto *linePersonalize = new QFrame(appearanceBody);
     linePersonalize->setFrameShape(QFrame::HLine);
     linePersonalize->setObjectName("settingsDivider");
-    cardLay->addWidget(linePersonalize);
+    appearanceLay->addWidget(linePersonalize);
 
-    setupPersonalizationSection(cardLay, cardBody);
+    setupPersonalizationSection(appearanceLay, appearanceBody);
+    appearanceLay->addStretch();
 
-    auto *lineShortcuts = new QFrame(cardBody);
-    lineShortcuts->setFrameShape(QFrame::HLine);
-    lineShortcuts->setObjectName("settingsDivider");
-    cardLay->addWidget(lineShortcuts);
+    QVBoxLayout *shortcutsLay = nullptr;
+    QWidget *shortcutsCard = createSettingsCard(container, &shortcutsLay);
+    QWidget *shortcutsBody = static_cast<GlassWidget *>(shortcutsCard)->contentWidget();
 
-    m_shortcutsSectionLabel = new QLabel(I18n::instance().tr("shortcuts"), cardBody);
+    m_shortcutsSectionLabel = new QLabel(I18n::instance().tr("shortcuts"), shortcutsBody);
     m_shortcutsSectionLabel->setObjectName("settingsLabel");
-    cardLay->addWidget(m_shortcutsSectionLabel);
+    shortcutsLay->addWidget(m_shortcutsSectionLabel);
 
-    setupShortcutRow(cardLay, cardBody, AppShortcuts::PlayPause, &m_shortcutPlayPauseLabel,
+    setupShortcutRow(shortcutsLay, shortcutsBody, AppShortcuts::PlayPause, &m_shortcutPlayPauseLabel,
                      &m_shortcutPlayPauseBtn, &m_shortcutResetPlayPauseBtn);
-    setupShortcutRow(cardLay, cardBody, AppShortcuts::PreviousTrack, &m_shortcutPrevLabel,
+    setupShortcutRow(shortcutsLay, shortcutsBody, AppShortcuts::PreviousTrack, &m_shortcutPrevLabel,
                      &m_shortcutPrevBtn, &m_shortcutResetPrevBtn);
-    setupShortcutRow(cardLay, cardBody, AppShortcuts::NextTrack, &m_shortcutNextLabel,
+    setupShortcutRow(shortcutsLay, shortcutsBody, AppShortcuts::NextTrack, &m_shortcutNextLabel,
                      &m_shortcutNextBtn, &m_shortcutResetNextBtn);
 
-    m_shortcutResetAllBtn = new QPushButton(I18n::instance().tr("shortcutResetAll"), cardBody);
+    m_shortcutResetAllBtn = new QPushButton(I18n::instance().tr("shortcutResetAll"), shortcutsBody);
     m_shortcutResetAllBtn->setObjectName("settingsLinkBtn");
     m_shortcutResetAllBtn->setCursor(Qt::PointingHandCursor);
     m_shortcutResetAllBtn->setFlat(true);
@@ -172,21 +253,21 @@ void SettingsPage::setupUi()
         AppShortcuts::instance().resetAllAndSave();
         refreshShortcutEditors();
     });
-    cardLay->addWidget(m_shortcutResetAllBtn, 0, Qt::AlignLeft);
+    shortcutsLay->addWidget(m_shortcutResetAllBtn, 0, Qt::AlignLeft);
 
-    m_shortcutStatusLabel = new QLabel(GlobalShortcutController::instance().statusText(), cardBody);
+    m_shortcutStatusLabel = new QLabel(GlobalShortcutController::instance().statusText(), shortcutsBody);
     m_shortcutStatusLabel->setObjectName("settingsInfo");
     m_shortcutStatusLabel->setWordWrap(true);
-    cardLay->addWidget(m_shortcutStatusLabel);
+    shortcutsLay->addWidget(m_shortcutStatusLabel);
 
-    m_shortcutConfigureBtn = new QPushButton(I18n::instance().tr("shortcutOpenSystemSettings"), cardBody);
+    m_shortcutConfigureBtn = new QPushButton(I18n::instance().tr("shortcutOpenSystemSettings"), shortcutsBody);
     m_shortcutConfigureBtn->setObjectName("settingsLinkBtn");
     m_shortcutConfigureBtn->setCursor(Qt::PointingHandCursor);
     m_shortcutConfigureBtn->setFlat(true);
     connect(m_shortcutConfigureBtn, &QPushButton::clicked, this, []() {
         GlobalShortcutController::instance().openSystemConfigureUi();
     });
-    cardLay->addWidget(m_shortcutConfigureBtn, 0, Qt::AlignLeft);
+    shortcutsLay->addWidget(m_shortcutConfigureBtn, 0, Qt::AlignLeft);
 
     connect(&GlobalShortcutController::instance(), &GlobalShortcutController::bindingStateChanged, this,
             [this](bool, GlobalShortcutController::Backend) {
@@ -194,34 +275,34 @@ void SettingsPage::setupUi()
                     m_shortcutStatusLabel->setText(GlobalShortcutController::instance().statusText());
             });
 
-    m_shortcutHintLabel = new QLabel(I18n::instance().tr("shortcutWaylandHint"), cardBody);
+    m_shortcutHintLabel = new QLabel(I18n::instance().tr("shortcutWaylandHint"), shortcutsBody);
     m_shortcutHintLabel->setObjectName("settingsInfo");
     m_shortcutHintLabel->setWordWrap(true);
-    cardLay->addWidget(m_shortcutHintLabel);
+    shortcutsLay->addWidget(m_shortcutHintLabel);
+    shortcutsLay->addStretch();
 
-    auto *lineTheme = new QFrame(cardBody);
-    lineTheme->setFrameShape(QFrame::HLine);
-    lineTheme->setObjectName("settingsDivider");
-    cardLay->addWidget(lineTheme);
+    QVBoxLayout *aboutLay = nullptr;
+    QWidget *aboutCard = createSettingsCard(container, &aboutLay);
+    QWidget *aboutBody = static_cast<GlassWidget *>(aboutCard)->contentWidget();
 
     // 关于
-    m_aboutLabel = new QLabel(I18n::instance().tr("about"), cardBody);
+    m_aboutLabel = new QLabel(I18n::instance().tr("about"), aboutBody);
     m_aboutLabel->setObjectName("settingsLabel");
-    cardLay->addWidget(m_aboutLabel);
+    aboutLay->addWidget(m_aboutLabel);
 
     // 版本 & 系统
-    m_versionLabel = new QLabel(QString("%1: %2").arg(I18n::instance().version(), QString::fromUtf8(APP_VERSION)), cardBody);
+    m_versionLabel = new QLabel(QString("%1: %2").arg(I18n::instance().version(), QString::fromUtf8(APP_VERSION)), aboutBody);
     m_versionLabel->setObjectName("settingsInfo");
-    cardLay->addWidget(m_versionLabel);
+    aboutLay->addWidget(m_versionLabel);
 
-    m_systemLabel = new QLabel(QString("%1: %2").arg(I18n::instance().system()).arg(QSysInfo::prettyProductName()), cardBody);
+    m_systemLabel = new QLabel(QString("%1: %2").arg(I18n::instance().system()).arg(QSysInfo::prettyProductName()), aboutBody);
     m_systemLabel->setObjectName("settingsInfo");
-    cardLay->addWidget(m_systemLabel);
+    aboutLay->addWidget(m_systemLabel);
 
     auto *linksRow = new QHBoxLayout();
     linksRow->setSpacing(20);
 
-    m_githubBtn = new QPushButton(I18n::instance().tr("githubRepo"), cardBody);
+    m_githubBtn = new QPushButton(I18n::instance().tr("githubRepo"), aboutBody);
     m_githubBtn->setObjectName("settingsLinkBtn");
     m_githubBtn->setCursor(Qt::PointingHandCursor);
     m_githubBtn->setFlat(true);
@@ -230,7 +311,7 @@ void SettingsPage::setupUi()
     });
     linksRow->addWidget(m_githubBtn);
 
-    m_apiDocsBtn = new QPushButton(I18n::instance().tr("apiDocs"), cardBody);
+    m_apiDocsBtn = new QPushButton(I18n::instance().tr("apiDocs"), aboutBody);
     m_apiDocsBtn->setObjectName("settingsLinkBtn");
     m_apiDocsBtn->setCursor(Qt::PointingHandCursor);
     m_apiDocsBtn->setFlat(true);
@@ -239,31 +320,23 @@ void SettingsPage::setupUi()
     });
     linksRow->addWidget(m_apiDocsBtn);
     linksRow->addStretch();
-    cardLay->addLayout(linksRow);
+    aboutLay->addLayout(linksRow);
 
     // 检查更新按钮
-    m_checkUpdateBtn = new QPushButton(I18n::instance().tr("checkForUpdates"), cardBody);
+    m_checkUpdateBtn = new QPushButton(I18n::instance().tr("checkForUpdates"), aboutBody);
     m_checkUpdateBtn->setObjectName("checkUpdateBtn");
     m_checkUpdateBtn->setFixedHeight(40);
     m_checkUpdateBtn->setCursor(Qt::PointingHandCursor);
-    m_checkUpdateBtn->setStyleSheet(
-        "QPushButton#checkUpdateBtn { "
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #667eea, stop:1 #764ba2); "
-        "  color: white; "
-        "  border: none; "
-        "  border-radius: 8px; "
-        "  font-size: 14px; "
-        "  font-weight: 600; "
-        "}"
-        "QPushButton#checkUpdateBtn:hover { opacity: 0.9; }"
-        "QPushButton#checkUpdateBtn:pressed { opacity: 0.8; }"
-        "QPushButton#checkUpdateBtn:disabled { opacity: 0.6; }"
-    );
     connect(m_checkUpdateBtn, &QPushButton::clicked, this, &SettingsPage::checkForUpdatesRequested);
-    cardLay->addWidget(m_checkUpdateBtn);
+    aboutLay->addWidget(m_checkUpdateBtn);
 
-    cardLay->addStretch();
-    lay->addWidget(card);
+    aboutLay->addStretch();
+
+    m_settingsStack->addWidget(generalCard);
+    m_settingsStack->addWidget(appearanceCard);
+    m_settingsStack->addWidget(shortcutsCard);
+    m_settingsStack->addWidget(aboutCard);
+    setActiveSettingsTab(0);
     lay->addStretch();
 
     scroll->setWidget(container);
@@ -524,10 +597,24 @@ void SettingsPage::refreshShortcutEditors()
 
 void SettingsPage::retranslate()
 {
+    if (m_titleLabel)
+        m_titleLabel->setText(I18n::instance().settingsTitle());
+    if (m_descLabel)
+        m_descLabel->setText(I18n::instance().tr(QStringLiteral("settingsDesc")));
+    if (m_generalTabBtn)
+        m_generalTabBtn->setText(I18n::instance().tr(QStringLiteral("settingsTabGeneral")));
+    if (m_appearanceTabBtn)
+        m_appearanceTabBtn->setText(I18n::instance().tr(QStringLiteral("settingsTabAppearance")));
+    if (m_shortcutsTabBtn)
+        m_shortcutsTabBtn->setText(I18n::instance().tr(QStringLiteral("settingsTabShortcuts")));
+    if (m_aboutTabBtn)
+        m_aboutTabBtn->setText(I18n::instance().tr(QStringLiteral("settingsTabAbout")));
     m_langLabel->setText(I18n::instance().languageLabel());
     m_langCombo->setItemText(0, I18n::instance().languageChinese());
     m_langCombo->setItemText(1, I18n::instance().languageNya());
     m_langCombo->setItemText(2, I18n::instance().languageEnglish());
+    if (m_themeLabel)
+        m_themeLabel->setText(I18n::instance().tr("theme"));
     if (m_themeCombo) {
         m_themeCombo->setItemText(0, I18n::instance().tr("themeSystem"));
         m_themeCombo->setItemText(1, I18n::instance().tr("themeDark"));

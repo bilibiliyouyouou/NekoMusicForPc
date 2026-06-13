@@ -12,6 +12,7 @@
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QStackedWidget;
 class QVBoxLayout;
 class QWidget;
 class ShortcutCaptureButton;
@@ -33,6 +34,9 @@ protected:
 private:
     void setupUi();
     void retranslate();
+    QWidget *createSettingsCard(QWidget *parent, QVBoxLayout **layoutOut = nullptr);
+    QPushButton *createTabButton(const QString &text, const char *iconName, QWidget *parent);
+    void setActiveSettingsTab(int index);
     void setupShortcutRow(QVBoxLayout *parentLayout, QWidget *cardBody, AppShortcuts::Action action,
                           QLabel **labelOut, ShortcutCaptureButton **captureOut, QPushButton **resetOut);
     void applyShortcutChange(AppShortcuts::Action action, const QKeySequence &seq,
@@ -45,6 +49,14 @@ private:
 
     QComboBox *m_langCombo = nullptr;
     QComboBox *m_themeCombo = nullptr;
+    QPushButton *m_generalTabBtn = nullptr;
+    QPushButton *m_appearanceTabBtn = nullptr;
+    QPushButton *m_shortcutsTabBtn = nullptr;
+    QPushButton *m_aboutTabBtn = nullptr;
+    QStackedWidget *m_settingsStack = nullptr;
+    QLabel *m_titleLabel = nullptr;
+    QLabel *m_descLabel = nullptr;
+    QLabel *m_themeLabel = nullptr;
     QLabel *m_personalizeSectionLabel = nullptr;
     QLabel *m_backdropKindLabel = nullptr;
     QComboBox *m_backdropKindCombo = nullptr;

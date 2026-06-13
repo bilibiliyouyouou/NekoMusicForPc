@@ -583,7 +583,38 @@ QTextEdit:focus {
     font-size: 25px;
     font-weight: 700;
     color: #121417;
-    letter-spacing: -0.3px;
+    letter-spacing: 0;
+}
+
+#settingsTabBar {
+    background: transparent;
+}
+
+#settingsStack {
+    background: transparent;
+    border: none;
+}
+
+#settingsTabBtn {
+    background: rgba(33, 37, 41, 0.04);
+    border: 1px solid rgba(33, 37, 41, 0.08);
+    border-radius: 8px;
+    color: rgba(33, 37, 41, 0.72);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+}
+
+#settingsTabBtn:hover {
+    background: rgba(230, 57, 80, 0.08);
+    border-color: rgba(230, 57, 80, 0.22);
+    color: #121417;
+}
+
+#settingsTabBtn:checked {
+    background: rgba(230, 57, 80, 0.14);
+    border-color: rgba(230, 57, 80, 0.35);
+    color: #121417;
 }
 
 #settingsLabel {
@@ -658,6 +689,30 @@ QTextEdit:focus {
 #settingsCombo QAbstractItemView::item:selected {
     background: rgba(230, 57, 80, 0.38);
     color: #121417;
+}
+
+#checkUpdateBtn {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #FF8FA3, stop:1 #E63950);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#checkUpdateBtn:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #FFA7B7, stop:1 #F04D63);
+}
+
+#checkUpdateBtn:pressed {
+    background: #C92F43;
+}
+
+#checkUpdateBtn:disabled {
+    background: rgba(33, 37, 41, 0.08);
+    color: rgba(33, 37, 41, 0.45);
 }
 
 /* ─── 歌单卡片 ──────────────────────────────────────────── */

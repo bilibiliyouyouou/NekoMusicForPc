@@ -88,6 +88,11 @@ static QMap<QString, QString> zhCN()
     m["themeSystem"] = QStringLiteral("跟随系统");
     m["themeDark"] = QStringLiteral("暗色模式");
     m["themeLight"] = QStringLiteral("亮色模式");
+    m["settingsDesc"] = QStringLiteral("集中管理语言、外观、快捷键与版本信息");
+    m["settingsTabGeneral"] = QStringLiteral("通用");
+    m["settingsTabAppearance"] = QStringLiteral("外观");
+    m["settingsTabShortcuts"] = QStringLiteral("快捷键");
+    m["settingsTabAbout"] = QStringLiteral("关于");
     m["personalization"] = QStringLiteral("个性化");
     m["shellBackdrop"] = QStringLiteral("窗口背景");
     m["shellBackdropDefaultImage"] = QStringLiteral("默认图片");
@@ -693,6 +698,11 @@ static QMap<QString, QString> nyaCN()
     m["email"] = QStringLiteral("联络暗号(邮箱)喵~");
     m["password"] = QStringLiteral("秘密护盾(密码)喵~");
     m["settings"] = QStringLiteral("调试模式喵~");
+    m["settingsDesc"] = QStringLiteral("语言、外观、快捷键和版本消息都在这里喵~");
+    m["settingsTabGeneral"] = QStringLiteral("通用喵");
+    m["settingsTabAppearance"] = QStringLiteral("外观喵");
+    m["settingsTabShortcuts"] = QStringLiteral("快捷键喵");
+    m["settingsTabAbout"] = QStringLiteral("关于喵");
     m["playSettings"] = QStringLiteral("播放习惯设置喵~");
     m["language"] = QStringLiteral("交流语言喵~");
     m["languageSettings"] = QStringLiteral("语言调校喵~");
@@ -960,6 +970,11 @@ static QMap<QString, QString> enUS()
     m["themeSystem"] = "Follow System";
     m["themeDark"] = "Dark Mode";
     m["themeLight"] = "Light Mode";
+    m["settingsDesc"] = "Manage language, appearance, shortcuts, and app information";
+    m["settingsTabGeneral"] = "General";
+    m["settingsTabAppearance"] = "Appearance";
+    m["settingsTabShortcuts"] = "Shortcuts";
+    m["settingsTabAbout"] = "About";
     m["personalization"] = "Personalization";
     m["shellBackdrop"] = "Window Background";
     m["shellBackdropDefaultImage"] = "Default Image";
