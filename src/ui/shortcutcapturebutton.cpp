@@ -3,13 +3,14 @@
 
 #include <QFocusEvent>
 #include <QKeyEvent>
+#include <QStyle>
 
 ShortcutCaptureButton::ShortcutCaptureButton(QWidget *parent)
     : QPushButton(parent)
 {
     setObjectName(QStringLiteral("shortcutCaptureBtn"));
     setFocusPolicy(Qt::StrongFocus);
-    setFixedWidth(180);
+    setMinimumWidth(180);
     setFixedHeight(36);
     setCursor(Qt::PointingHandCursor);
     connect(this, &QPushButton::clicked, this, [this]() {
@@ -34,13 +35,12 @@ void ShortcutCaptureButton::setCapturing(bool on)
     if (m_capturing == on)
         return;
     m_capturing = on;
+    setProperty("capturing", m_capturing);
+    style()->unpolish(this);
+    style()->polish(this);
+    update();
     if (m_capturing) {
         setFocus(Qt::OtherFocusReason);
-        setStyleSheet(QStringLiteral(
-            "QPushButton#shortcutCaptureBtn { border: 1px solid #667eea; border-radius: 6px; "
-            "background: rgba(102,126,234,0.12); padding: 4px 10px; }"));
-    } else {
-        setStyleSheet(QString());
     }
     updateLabel();
 }

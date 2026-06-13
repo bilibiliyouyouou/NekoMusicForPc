@@ -12,6 +12,8 @@
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QResizeEvent;
+class QScrollArea;
 class QStackedWidget;
 class QVBoxLayout;
 class QWidget;
@@ -30,6 +32,7 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent *) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     void setupUi();
@@ -37,6 +40,7 @@ private:
     QWidget *createSettingsCard(QWidget *parent, QVBoxLayout **layoutOut = nullptr);
     QPushButton *createTabButton(const QString &text, const char *iconName, QWidget *parent);
     void setActiveSettingsTab(int index);
+    void updateTabBarGeometry();
     void setupShortcutRow(QVBoxLayout *parentLayout, QWidget *cardBody, AppShortcuts::Action action,
                           QLabel **labelOut, ShortcutCaptureButton **captureOut, QPushButton **resetOut);
     void applyShortcutChange(AppShortcuts::Action action, const QKeySequence &seq,
@@ -53,7 +57,9 @@ private:
     QPushButton *m_appearanceTabBtn = nullptr;
     QPushButton *m_shortcutsTabBtn = nullptr;
     QPushButton *m_aboutTabBtn = nullptr;
+    QScrollArea *m_scrollArea = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
+    QWidget *m_tabBarWidget = nullptr;
     QLabel *m_titleLabel = nullptr;
     QLabel *m_descLabel = nullptr;
     QLabel *m_themeLabel = nullptr;

@@ -590,6 +590,15 @@ QTextEdit:focus {
     background: transparent;
 }
 
+#settingsTabScroller {
+    background: transparent;
+    border: none;
+}
+
+#settingsTabScroller > QWidget > QWidget {
+    background: transparent;
+}
+
 #settingsStack {
     background: transparent;
     border: none;
@@ -689,6 +698,32 @@ QTextEdit:focus {
 #settingsCombo QAbstractItemView::item:selected {
     background: rgba(230, 57, 80, 0.38);
     color: #121417;
+}
+
+#shortcutCaptureBtn {
+    background: rgba(33, 37, 41, 0.06);
+    border: 1px solid rgba(230, 57, 80, 0.22);
+    border-radius: 8px;
+    color: rgba(33, 37, 41, 0.82);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 12px;
+}
+
+#shortcutCaptureBtn:hover {
+    background: rgba(230, 57, 80, 0.08);
+    border-color: rgba(230, 57, 80, 0.32);
+    color: #121417;
+}
+
+#shortcutCaptureBtn[capturing="true"] {
+    background: rgba(230, 57, 80, 0.14);
+    border-color: rgba(230, 57, 80, 0.42);
+    color: #121417;
+}
+
+#shortcutCaptureBtn:pressed {
+    background: rgba(230, 57, 80, 0.18);
 }
 
 #checkUpdateBtn {

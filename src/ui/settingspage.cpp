@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QStackedWidget>
+#include <QScrollBar>
 #include <QFrame>
 #include <QSettings>
 #include <QDesktopServices>
@@ -34,11 +35,14 @@
 #include <QFileInfo>
 #include <QPixmap>
 #include <QColor>
+#include <QResizeEvent>
+#include <QSizePolicy>
 
 namespace {
 
 constexpr auto kGithubUrl = "https://github.com/FantasyNetworkCN/NekoMusicForPc";
 constexpr auto kApiDocsUrl = "https://github.com/FantasyNetworkCN/NekoMusicDocs";
+constexpr int kSettingsTabCount = 4;
 
 } // namespace
 
@@ -93,11 +97,34 @@ void SettingsPage::setActiveSettingsTab(int index)
         if (tabs[i])
             tabs[i]->setChecked(i == index);
     }
+    QSettings settings;
+    settings.setValue(QStringLiteral("settings/pageTab"), index);
+    if (m_scrollArea && m_scrollArea->verticalScrollBar())
+        m_scrollArea->verticalScrollBar()->setValue(0);
+    updateTabBarGeometry();
+}
+
+void SettingsPage::updateTabBarGeometry()
+{
+    if (!m_tabBarWidget)
+        return;
+
+    const int available = m_scrollArea ? qMax(320, m_scrollArea->viewport()->width() - 64) : width();
+    const bool compact = available < 620;
+    const QList<QPushButton *> tabs = {m_generalTabBtn, m_appearanceTabBtn, m_shortcutsTabBtn, m_aboutTabBtn};
+    for (auto *tab : tabs) {
+        if (!tab)
+            continue;
+        tab->setMinimumWidth(compact ? 104 : 118);
+        tab->setSizePolicy(compact ? QSizePolicy::Fixed : QSizePolicy::Preferred, QSizePolicy::Fixed);
+    }
+    m_tabBarWidget->setMinimumWidth(compact ? 4 * 112 : 0);
 }
 
 void SettingsPage::setupUi()
 {
     auto *scroll = new QScrollArea(this);
+    m_scrollArea = scroll;
     scroll->setObjectName(QStringLiteral("settingsScroll"));
     scroll->setWidgetResizable(true);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -127,7 +154,16 @@ void SettingsPage::setupUi()
     headerLay->addWidget(titleWrap, 1);
     lay->addWidget(headerRow);
 
-    auto *tabsRow = new QWidget(container);
+    auto *tabsScroller = new QScrollArea(container);
+    tabsScroller->setObjectName(QStringLiteral("settingsTabScroller"));
+    tabsScroller->setWidgetResizable(true);
+    tabsScroller->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    tabsScroller->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    tabsScroller->setFrameShape(QFrame::NoFrame);
+    tabsScroller->setFixedHeight(46);
+
+    auto *tabsRow = new QWidget(tabsScroller);
+    m_tabBarWidget = tabsRow;
     tabsRow->setObjectName(QStringLiteral("settingsTabBar"));
     auto *tabsLay = new QHBoxLayout(tabsRow);
     tabsLay->setContentsMargins(0, 0, 0, 0);
@@ -141,7 +177,8 @@ void SettingsPage::setupUi()
     tabsLay->addWidget(m_shortcutsTabBtn);
     tabsLay->addWidget(m_aboutTabBtn);
     tabsLay->addStretch();
-    lay->addWidget(tabsRow);
+    tabsScroller->setWidget(tabsRow);
+    lay->addWidget(tabsScroller);
 
     m_settingsStack = new QStackedWidget(container);
     m_settingsStack->setObjectName(QStringLiteral("settingsStack"));
@@ -336,7 +373,9 @@ void SettingsPage::setupUi()
     m_settingsStack->addWidget(appearanceCard);
     m_settingsStack->addWidget(shortcutsCard);
     m_settingsStack->addWidget(aboutCard);
-    setActiveSettingsTab(0);
+    const int savedTab = qBound(0, settings.value(QStringLiteral("settings/pageTab"), 0).toInt(),
+                                kSettingsTabCount - 1);
+    setActiveSettingsTab(savedTab);
     lay->addStretch();
 
     scroll->setWidget(container);
@@ -345,6 +384,7 @@ void SettingsPage::setupUi()
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->addWidget(scroll);
+    updateTabBarGeometry();
 }
 
 void SettingsPage::setupPersonalizationSection(QVBoxLayout *cardLay, QWidget *cardBody)
@@ -673,3 +713,9 @@ void SettingsPage::retranslate()
 }
 
 void SettingsPage::paintEvent(QPaintEvent *) {}
+
+void SettingsPage::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    updateTabBarGeometry();
+}
