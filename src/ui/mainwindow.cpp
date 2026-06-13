@@ -1025,6 +1025,9 @@ void MainWindow::setupUi()
     connect(m_playerPage, &PlayerPage::backRequested, this, &MainWindow::closePlayerPage);
     connect(m_playerPage, &PlayerPage::favoriteClicked, this, &MainWindow::toggleFavorite);
     connect(m_playerPage, &PlayerPage::addToPlaylistClicked, this, &MainWindow::addToPlaylistFromPlayer);
+    connect(m_playerPage, &PlayerPage::downloadClicked, this, [this](int musicId) {
+        downloadMusic(musicInfoForPlayerAction(musicId));
+    });
     connect(m_playerPage, &PlayerPage::previousClicked, this, &MainWindow::playPrevious);
     connect(m_playerPage, &PlayerPage::nextClicked, this, &MainWindow::playNext);
     connect(m_playerPage, &PlayerPage::playlistClicked, this, &MainWindow::togglePlaylistPanel);

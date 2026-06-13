@@ -484,6 +484,7 @@ enum class PpInk : int {
     PlayMain,
     Favorite,
     PlaylistAdd,
+    Download,
     PlayMode,
     Playlist,
     Volume,
@@ -563,6 +564,9 @@ protected:
         }
         case PpInk::PlaylistAdd:
             pm = Icons::renderNamed("AddList", px, hi ? cA : cN);
+            break;
+        case PpInk::Download:
+            pm = Icons::renderNamed("Download", px, hi ? cA : cN);
             break;
         case PpInk::Playlist:
             pm = Icons::renderNamed("PlayList", px, hi ? cA : cN);
@@ -1574,6 +1578,19 @@ void PlayerPage::setupPlayerControl()
     m_ppNextBtn->setToolTip(I18n::instance().tr("next"));
     connect(m_ppNextBtn, &QPushButton::clicked, this, &PlayerPage::nextClicked);
 
+    m_ppDownloadBtn = new PlayerPageInkButton(center);
+    m_ppDownloadBtn->setObjectName(QStringLiteral("ppDownloadBtn"));
+    m_ppDownloadBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
+    m_ppDownloadBtn->setIconSize(QSize(kPpTransportIcon, kPpTransportIcon));
+    m_ppDownloadBtn->setProperty("ppInk", int(PpInk::Download));
+    m_ppDownloadBtn->setCursor(Qt::PointingHandCursor);
+    m_ppDownloadBtn->setEnabled(false);
+    m_ppDownloadBtn->setToolTip(I18n::instance().tr("downloadMusic"));
+    connect(m_ppDownloadBtn, &QPushButton::clicked, this, [this]() {
+        if (m_musicId > 0)
+            emit downloadClicked(m_musicId);
+    });
+
     m_ppPlayModeBtn = new PlayerPageInkButton(center);
     m_ppPlayModeBtn->setFixedSize(kPpCtrlBtn, kPpCtrlBtn);
     m_ppPlayModeBtn->setIconSize(QSize(kPpModeIcon, kPpModeIcon));
@@ -1589,6 +1606,7 @@ void PlayerPage::setupPlayerControl()
     btnRow->addWidget(m_ppPrevBtn);
     btnRow->addWidget(m_ppPlayBtn);
     btnRow->addWidget(m_ppNextBtn);
+    btnRow->addWidget(m_ppDownloadBtn);
     centerLay->addLayout(btnRow);
 
     auto *sliderRow = new QHBoxLayout();
@@ -2480,6 +2498,8 @@ void PlayerPage::setMusicInfo(int id, const QString &title, const QString &artis
     m_musicId = id;
     if (m_ppAddToPlaylistBtn)
         m_ppAddToPlaylistBtn->setEnabled(id > 0);
+    if (m_ppDownloadBtn)
+        m_ppDownloadBtn->setEnabled(id > 0);
     if (prevId != id)
         resetVideoRenderState();
     m_trackDurationSec = qMax(1, trackDurationSec());
@@ -2545,6 +2565,8 @@ void PlayerPage::retranslate()
         m_videoDownloadBtn->setText(I18n::instance().tr(QStringLiteral("videoRenderDownload")));
     if (m_ppAddToPlaylistBtn)
         m_ppAddToPlaylistBtn->setToolTip(I18n::instance().tr("addToPlaylist"));
+    if (m_ppDownloadBtn)
+        m_ppDownloadBtn->setToolTip(I18n::instance().tr("downloadMusic"));
     updateVideoRenderUi();
 }
 

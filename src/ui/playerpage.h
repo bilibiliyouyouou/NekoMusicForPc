@@ -75,6 +75,7 @@ signals:
     void nextClicked();
     void favoriteClicked(int musicId);
     void addToPlaylistClicked(int musicId);
+    void downloadClicked(int musicId);
     void playlistClicked();
     void desktopLyricsToggled(bool enabled);
     void volumePercentChanged(int percent);
@@ -201,6 +202,7 @@ private:
     QPushButton *m_ppPrevBtn = nullptr;
     QPushButton *m_ppPlayBtn = nullptr;
     QPushButton *m_ppNextBtn = nullptr;
+    QPushButton *m_ppDownloadBtn = nullptr;
     class PlayerProgressSlider *m_ppProgress = nullptr;
     QLabel *m_ppCurTime = nullptr;
     QLabel *m_ppDurTime = nullptr;
