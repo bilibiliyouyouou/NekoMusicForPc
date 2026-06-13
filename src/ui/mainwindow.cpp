@@ -1251,13 +1251,12 @@ void MainWindow::switchPage(QWidget *target)
     QWidget *current = m_stack->currentWidget();
     if (current == target) return;
 
-    // 离开热门/最新列表时释放内存，下次进入 refresh() 会重新请求
+    // 离开热门/最新列表时释放内存，下次进入 refresh() 会重新请求。
+    // 每日推荐保留当前内容，避免返回首页后再次进入时先闪到空白/loading。
     if (current == m_hotMusicPage)
         m_hotMusicPage->releaseCachedData();
     else if (current == m_latestMusicPage)
         m_latestMusicPage->releaseCachedData();
-    else if (current == m_dailyMusicPage)
-        m_dailyMusicPage->releaseCachedData();
 
     m_switching = true;
 
@@ -1314,8 +1313,8 @@ void MainWindow::showMusicListPage(bool isHot)
 void MainWindow::showDailyRecommendationsPage()
 {
     syncListPageFavoriteIds();
-    m_dailyMusicPage->refresh();
     switchPage(m_dailyMusicPage);
+    QTimer::singleShot(0, m_dailyMusicPage, &MusicListPage::refreshKeepingContent);
 }
 
 void MainWindow::showPlaylistDetailPage(int localId)

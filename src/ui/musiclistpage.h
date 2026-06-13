@@ -38,6 +38,7 @@ signals:
 
 public slots:
     void refresh();
+    void refreshKeepingContent();
     void releaseCachedData();
     void retranslate();
     void setPlaybackPaused(bool paused);
@@ -83,5 +84,4 @@ private:
     QList<MusicInfo> m_musicList;
     QSet<int> m_favoritedIds;
     int m_fetchGeneration = 0;
-    bool m_durationBackfillScheduled = false;
 };

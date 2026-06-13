@@ -24,6 +24,7 @@
 #include <QDateTime>
 #include <QVariantList>
 #include <QRegularExpression>
+#include <QSharedPointer>
 
 namespace {
 
@@ -516,7 +517,9 @@ void MusicListPage::releaseCachedData()
     ++m_fetchGeneration;
     m_musicList.clear();
     m_musicList.squeeze();
-    showLoadingState();
+    if (m_songList)
+        m_songList->setSongs({});
+    updateHeaderMeta();
 }
 
 void MusicListPage::refresh()
@@ -524,6 +527,16 @@ void MusicListPage::refresh()
     ++m_fetchGeneration;
     m_musicList.clear();
     showLoadingState();
+    fetchData();
+}
+
+void MusicListPage::refreshKeepingContent()
+{
+    ++m_fetchGeneration;
+    if (m_musicList.isEmpty())
+        showLoadingState();
+    else
+        updateHeaderMeta();
     fetchData();
 }
 
@@ -681,36 +694,57 @@ void MusicListPage::backfillDurationsFromMusicInfo(int gen)
 {
     if (m_type != Daily)
         return;
+    int pending = 0;
+    for (int i = 0; i < m_musicList.size(); ++i) {
+        if (m_musicList[i].id <= 0 || m_musicList[i].duration > 0)
+            continue;
+        ++pending;
+    }
+    if (pending <= 0)
+        return;
+
+    auto remaining = QSharedPointer<int>::create(pending);
+    auto changed = QSharedPointer<bool>::create(false);
+    auto flush = [this, gen, remaining, changed]() {
+        --(*remaining);
+        if (*remaining > 0 || !*changed || gen != m_fetchGeneration)
+            return;
+        if (m_songList) {
+            m_songList->setSongs(m_musicList);
+            m_songList->refreshFavoriteDisplay();
+            m_songList->refreshDownloadDisplay();
+            m_songList->show();
+        }
+        updateHeaderMeta();
+        updatePlayingHighlight();
+    };
+
     for (int i = 0; i < m_musicList.size(); ++i) {
         if (m_musicList[i].id <= 0 || m_musicList[i].duration > 0)
             continue;
         const int idx = i;
         const int musicId = m_musicList[i].id;
-        m_api->fetchMusicInfo(musicId, [this, gen, idx](bool ok, const QVariantMap &infoMap) {
-            if (!ok || gen != m_fetchGeneration)
+        m_api->fetchMusicInfo(musicId, [this, gen, idx, changed, flush](bool ok, const QVariantMap &infoMap) {
+            if (!ok || gen != m_fetchGeneration) {
+                flush();
                 return;
-            if (idx < 0 || idx >= m_musicList.size())
-                return;
-            if (m_musicList[idx].duration > 0)
-                return;
-            const int sec = parseDurationSecondsFromInfoMap(infoMap);
-            if (sec <= 0)
-                return;
-            m_musicList[idx].duration = sec;
-            if (!m_durationBackfillScheduled) {
-                m_durationBackfillScheduled = true;
-                QTimer::singleShot(0, this, [this]() {
-                    m_durationBackfillScheduled = false;
-                    if (m_songList) {
-                        m_songList->setSongs(m_musicList);
-                        m_songList->refreshFavoriteDisplay();
-                        m_songList->refreshDownloadDisplay();
-                        m_songList->show();
-                    }
-                    updateHeaderMeta();
-                    updatePlayingHighlight();
-                });
             }
+            if (idx < 0 || idx >= m_musicList.size()) {
+                flush();
+                return;
+            }
+            if (m_musicList[idx].duration > 0) {
+                flush();
+                return;
+            }
+            const int sec = parseDurationSecondsFromInfoMap(infoMap);
+            if (sec <= 0) {
+                flush();
+                return;
+            }
+            m_musicList[idx].duration = sec;
+            *changed = true;
+            flush();
         });
     }
 }
